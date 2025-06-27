@@ -1,0 +1,1641 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Configuration>
+	<Controls>
+		<Control>
+			<Name>Index-GroupingFormat</Name>
+			<CustomControl>
+				<CustomEntries>
+					<CustomEntry>
+						<CustomItem>
+							<Frame>
+								<LeftIndent>4</LeftIndent>
+								<CustomItem>
+									<Text>SQL Instance Name : </Text>
+									<ExpressionBinding>
+										<PropertyName>SqlInstanceName</PropertyName>
+									</ExpressionBinding>
+								</CustomItem>
+							</Frame>
+							<NewLine/>
+							<Frame>
+								<LeftIndent>4</LeftIndent>
+								<CustomItem>
+									<Text>Database Name     : </Text>
+									<ExpressionBinding>
+										<PropertyName>DatabaseName</PropertyName>
+									</ExpressionBinding>
+								</CustomItem>
+							</Frame>
+						</CustomItem>
+					</CustomEntry>
+				</CustomEntries>
+			</CustomControl>
+		</Control>
+	</Controls>
+	<ViewDefinitions>
+		<View>
+			<Name>DatabaseMailItem</Name>
+			<ViewSelectedBy>
+				<TypeName>SqlServerMaintenance.DatabaseMailItem</TypeName>
+			</ViewSelectedBy>
+			<TableControl>
+				<TableHeaders>
+					<TableColumnHeader>
+						<Label>Sql Instance</Label>
+						<Width>24</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>Mail Item ID</Label>
+						<Width>12</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>Recipients</Label>
+						<Width>32</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>Subject</Label>
+						<Width>32</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+				</TableHeaders>
+				<TableRowEntries>
+					<TableRowEntry>
+						<TableColumnItems>
+							<TableColumnItem>
+								<PropertyName>SqlInstance</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<PropertyName>MailItemID</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<PropertyName>Recipients</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<PropertyName>Subject</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+						</TableColumnItems>
+					</TableRowEntry>
+				</TableRowEntries>
+			</TableControl>
+		</View>
+		<View>
+			<Name>DatabasePrimaryFile</Name>
+			<ViewSelectedBy>
+				<TypeName>SqlServerMaintenance.DatabasePrimaryFile</TypeName>
+			</ViewSelectedBy>
+			<GroupBy>
+				<Label>Database Name</Label>
+				<PropertyName>DatabaseName</PropertyName>
+			</GroupBy>
+			<TableControl>
+				<TableHeaders>
+					<TableColumnHeader>
+						<Label>Version</Label>
+						<Width>10</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>Collation</Label>
+						<Width>10</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>Logical File</Label>
+						<Width>200</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+				</TableHeaders>
+				<TableRowEntries>
+					<TableRowEntry>
+						<Wrap />
+						<TableColumnItems>
+							<TableColumnItem>
+								<PropertyName>DatabaseVersion</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<PropertyName>Collation</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<PropertyName>LogicalFile</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+						</TableColumnItems>
+					</TableRowEntry>
+				</TableRowEntries>
+			</TableControl>
+		</View>
+		<View>
+			<Name>DatabasePrimaryLogicalFile</Name>
+			<ViewSelectedBy>
+				<TypeName>SqlServerMaintenance.DatabasePrimaryLogicalFile</TypeName>
+			</ViewSelectedBy>
+			<TableControl>
+				<TableHeaders>
+					<TableColumnHeader>
+						<Label>Status</Label>
+						<Width>8</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>File ID</Label>
+						<Width>8</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>Logical File Name</Label>
+						<Width>32</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>File Name</Label>
+						<Width>200</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+				</TableHeaders>
+				<TableRowEntries>
+					<TableRowEntry>
+						<Wrap />
+						<TableColumnItems>
+							<TableColumnItem>
+								<PropertyName>Status</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<PropertyName>FileID</PropertyName>
+								<Alignment>right</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<PropertyName>LogicalFileName</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<PropertyName>FileName</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+						</TableColumnItems>
+					</TableRowEntry>
+				</TableRowEntries>
+			</TableControl>
+		</View>
+		<View>
+			<Name>DatabaseSnapshot</Name>
+			<ViewSelectedBy>
+				<TypeName>SqlServerMaintenance.DatabaseSnapshot</TypeName>
+			</ViewSelectedBy>
+			<GroupBy>
+				<Label>Database Name</Label>
+				<PropertyName>DatabaseSnapshotBaseName</PropertyName>
+			</GroupBy>
+			<TableControl>
+				<TableHeaders>
+					<TableColumnHeader>
+						<Label>Snapshot Name</Label>
+						<Width>32</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>Status</Label>
+						<Width>16</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>Recovery Model</Label>
+						<Width>16</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>Compat. Level</Label>
+						<Width>16</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>Owner</Label>
+						<Width>32</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+				</TableHeaders>
+				<TableRowEntries>
+					<TableRowEntry>
+						<TableColumnItems>
+							<TableColumnItem>
+								<PropertyName>DatabaseSnapshotName</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<PropertyName>Status</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<PropertyName>RecoveryModel</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<PropertyName>CompatibilityLevel</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<PropertyName>Owner</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+						</TableColumnItems>
+					</TableRowEntry>
+				</TableRowEntries>
+			</TableControl>
+		</View>
+		<View>
+			<Name>DatabaseTransactionLogInfo</Name>
+			<ViewSelectedBy>
+				<TypeName>SqlServerMaintenance.DatabaseTransactionLogInfo</TypeName>
+			</ViewSelectedBy>
+			<GroupBy>
+				<Label>Database Name</Label>
+				<PropertyName>DatabaseName</PropertyName>
+			</GroupBy>
+			<TableControl>
+				<TableHeaders>
+					<TableColumnHeader>
+						<Label>FileID</Label>
+						<Width>10</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>VlfBeginOffset</Label>
+						<Width>20</Width>
+						<Alignment>right</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>VlfSizeMB</Label>
+						<Width>20</Width>
+						<Alignment>right</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>VlfSequenceNumber</Label>
+						<Width>20</Width>
+						<Alignment>right</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>VlfCreateLsn</Label>
+						<Width>25</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>RunningSizeMB</Label>
+						<Width>20</Width>
+						<Alignment>right</Alignment>
+					</TableColumnHeader>
+				</TableHeaders>
+				<TableRowEntries>
+					<TableRowEntry>
+						<Wrap />
+						<TableColumnItems>
+							<TableColumnItem>
+								<PropertyName>FileID</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<PropertyName>VlfBeginOffset</PropertyName>
+								<Alignment>right</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<PropertyName>VlfSizeMB</PropertyName>
+								<Alignment>right</Alignment>
+								<FormatString>{0:N2}</FormatString>
+							</TableColumnItem>
+							<TableColumnItem>
+								<PropertyName>VlfSequenceNumber</PropertyName>
+								<Alignment>right</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<PropertyName>VlfCreateLsn</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<PropertyName>RunningSizeMB</PropertyName>
+								<Alignment>right</Alignment>
+								<FormatString>{0:N2}</FormatString>
+							</TableColumnItem>
+						</TableColumnItems>
+					</TableRowEntry>
+				</TableRowEntries>
+			</TableControl>
+		</View>
+		<View>
+			<Name>Index_Table</Name>
+			<ViewSelectedBy>
+				<TypeName>SqlServerMaintenance.Index</TypeName>
+			</ViewSelectedBy>
+			<GroupBy>
+				<CustomControlName>Index-GroupingFormat</CustomControlName>
+				<ScriptBlock>$($_.SqlInstanceName + '&amp;' + $_.DatabaseName)</ScriptBlock>
+			</GroupBy>
+			<TableControl>
+				<TableHeaders>
+					<TableColumnHeader>
+						<Label>Schema Name</Label>
+						<Width>32</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>Table Name</Label>
+						<Width>32</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>Catalog Name</Label>
+						<Width>32</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>Mode</Label>
+						<Width>12</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+				</TableHeaders>
+				<TableRowEntries>
+					<TableRowEntry>
+						<TableColumnItems>
+							<TableColumnItem>
+								<PropertyName>SchemaName</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<PropertyName>TableName</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<PropertyName>CatalogName</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<PropertyName>Mode</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+						</TableColumnItems>
+					</TableRowEntry>
+				</TableRowEntries>
+			</TableControl>
+		</View>
+		<View>
+			<Name>Index_List</Name>
+			<ViewSelectedBy>
+				<TypeName>SqlServerMaintenance.Index</TypeName>
+			</ViewSelectedBy>
+			<ListControl>
+				<ListEntries>
+					<ListEntry>
+						<ListItems>
+							<ListItem>
+								<Label>SQL Instance</Label>
+								<PropertyName>SqlInstance</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Database Name</Label>
+								<PropertyName>DatabaseName</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Schema Name</Label>
+								<PropertyName>SchemaName</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Table Name</Label>
+								<PropertyName>TableName</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Catalog Name</Label>
+								<PropertyName>CatalogName</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Mode</Label>
+								<PropertyName>Mode</PropertyName>
+							</ListItem>
+						</ListItems>
+					</ListEntry>
+				</ListEntries>
+			</ListControl>
+		</View>
+		<View>
+			<Name>Index_Table</Name>
+			<ViewSelectedBy>
+				<TypeName>SqlServerMaintenance.Index</TypeName>
+			</ViewSelectedBy>
+			<GroupBy>
+				<CustomControlName>Index-GroupingFormat</CustomControlName>
+				<ScriptBlock>$($_.SqlInstanceName + '&amp;' + $_.DatabaseName)</ScriptBlock>
+			</GroupBy>
+			<TableControl>
+				<TableHeaders>
+					<TableColumnHeader>
+						<Label>Schema Name</Label>
+						<Width>32</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>Table Name</Label>
+						<Width>32</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>Index Name</Label>
+						<Width>32</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>Partition Number</Label>
+						<Width>10</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>Mode</Label>
+						<Width>12</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+				</TableHeaders>
+				<TableRowEntries>
+					<TableRowEntry>
+						<TableColumnItems>
+							<TableColumnItem>
+								<PropertyName>SchemaName</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<PropertyName>TableName</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<PropertyName>IndexName</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<PropertyName>PartitionNumber</PropertyName>
+								<Alignment>right</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<PropertyName>Mode</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+						</TableColumnItems>
+					</TableRowEntry>
+				</TableRowEntries>
+			</TableControl>
+		</View>
+		<View>
+			<Name>Index_List</Name>
+			<ViewSelectedBy>
+				<TypeName>SqlServerMaintenance.Index</TypeName>
+			</ViewSelectedBy>
+			<ListControl>
+				<ListEntries>
+					<ListEntry>
+						<ListItems>
+							<ListItem>
+								<Label>SQL Instance</Label>
+								<PropertyName>SqlInstance</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Database Name</Label>
+								<PropertyName>DatabaseName</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Schema Name</Label>
+								<PropertyName>SchemaName</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Table Name</Label>
+								<PropertyName>TableName</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Index Name</Label>
+								<PropertyName>IndexName</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Partition Number</Label>
+								<PropertyName>PartitionNumber</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Mode</Label>
+								<PropertyName>Mode</PropertyName>
+							</ListItem>
+						</ListItems>
+					</ListEntry>
+				</ListEntries>
+			</ListControl>
+		</View>
+		<View>
+			<Name>OrphanedDatabasePhysicalFile</Name>
+			<ViewSelectedBy>
+				<TypeName>SqlServerMaintenance.OrphanedDatabasePhysicalFile</TypeName>
+			</ViewSelectedBy>
+			<GroupBy>
+				<Label>Directory</Label>
+				<PropertyName>DirectoryName</PropertyName>
+			</GroupBy>
+			<TableControl>
+				<TableHeaders>
+					<TableColumnHeader>
+						<Label>File Name</Label>
+						<Width>48</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>File Type</Label>
+						<Width>48</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+				</TableHeaders>
+				<TableRowEntries>
+					<TableRowEntry>
+						<Wrap />
+						<TableColumnItems>
+							<TableColumnItem>
+								<PropertyName>Name</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<PropertyName>FileType</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+						</TableColumnItems>
+					</TableRowEntry>
+				</TableRowEntries>
+			</TableControl>
+		</View>
+		<View>
+			<Name>OrphanedDatabaseUser</Name>
+			<ViewSelectedBy>
+				<TypeName>SqlServerMaintenance.OrphanedDatabaseUser</TypeName>
+			</ViewSelectedBy>
+			<GroupBy>
+				<Label>Database Name</Label>
+				<PropertyName>DatabaseName</PropertyName>
+			</GroupBy>
+			<TableControl>
+				<TableHeaders>
+					<TableColumnHeader>
+						<Label>Database User</Label>
+						<Width>40</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>Login Name</Label>
+						<Width>32</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>Authentication Type</Label>
+						<Width>16</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>Login Type</Label>
+						<Width>16</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+				</TableHeaders>
+				<TableRowEntries>
+					<TableRowEntry>
+						<Wrap />
+						<TableColumnItems>
+							<TableColumnItem>
+								<PropertyName>DatabaseUser</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<PropertyName>LoginName</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<PropertyName>AuthenticationType</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<PropertyName>LoginType</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+						</TableColumnItems>
+					</TableRowEntry>
+				</TableRowEntries>
+			</TableControl>
+		</View>
+		<View>
+			<Name>SqlDataFileUsage_Table</Name>
+			<ViewSelectedBy>
+				<TypeName>SqlServerMaintenance.SqlDataFileUsage</TypeName>
+			</ViewSelectedBy>
+			<GroupBy>
+				<Label>SQL Instance</Label>
+				<PropertyName>SqlInstance</PropertyName>
+			</GroupBy>
+			<TableControl>
+				<TableHeaders>
+					<TableColumnHeader>
+						<Label>Database Name</Label>
+						<Width>24</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>Data File Name</Label>
+						<Width>24</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>Current Data File Size</Label>
+						<Width>16</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>Recommended Data File Size</Label>
+						<Width>16</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>Reliability</Label>
+						<Width>16</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>Recommended Auto Growth</Label>
+						<Width>16</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+				</TableHeaders>
+				<TableRowEntries>
+					<TableRowEntry>
+						<TableColumnItems>
+							<TableColumnItem>
+								<PropertyName>DatabaseName</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<PropertyName>DataFileName</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<PropertyName>DataFileSize</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<ScriptBlock>
+									$Esc = [char]27
+
+									if ($env:WT_SESSION -and $_.DataFileSize -ne $_.RecommendedDataFileSize) {
+										"$($Esc)[31m$($_.RecommendedDataFileSize)$($Esc)[0m"
+									} else {
+										$_.RecommendedDataFileSize
+									}
+								</ScriptBlock>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<PropertyName>Reliability</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<PropertyName>RecommendedAutoGrowth</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+						</TableColumnItems>
+					</TableRowEntry>
+				</TableRowEntries>
+			</TableControl>
+		</View>
+		<View>
+			<Name>SqlDataFileUsage_List</Name>
+			<ViewSelectedBy>
+				<TypeName>SqlServerMaintenance.SqlDataFileUsage</TypeName>
+			</ViewSelectedBy>
+			<ListControl>
+				<ListEntries>
+					<ListEntry>
+						<ListItems>
+							<ListItem>
+								<Label>SQL Instance</Label>
+								<PropertyName>SqlInstance</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Database Name</Label>
+								<PropertyName>DatabaseName</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Data File Name</Label>
+								<PropertyName>DataFileName</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Data File Size</Label>
+								<PropertyName>DataFileSize</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Data File Available Percent</Label>
+								<PropertyName>DataFileAvailablePercent</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Recommended Data File Size</Label>
+								<ScriptBlock>
+									$Esc = [char]27
+
+									if ($env:WT_SESSION -and $_.DataFileSize -ne $_.RecommendedDataFileSize) {
+										"$($Esc)[31m$($_.RecommendedDataFileSize)$($Esc)[0m"
+									} else {
+										$_.RecommendedDataFileSize
+									}
+								</ScriptBlock>
+							</ListItem>
+							<ListItem>
+								<Label>Reliability</Label>
+								<PropertyName>Reliability</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Recommended Auto Growth</Label>
+								<PropertyName>RecommendedAutoGrowth</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Daily Growth Rate</Label>
+								<ScriptBlock>
+									if ($_.DailyGrowthRate -lt 1024) {
+										'{0} KB' -f [math]::Round($_.DailyGrowthRate, 2, [MidpointRounding]::AwayFromZero)
+									} else {
+										'{0} MB' -f [math]::Round($_.DailyGrowthRate / 1024, 2, [MidpointRounding]::AwayFromZero)
+									}
+								</ScriptBlock>
+							</ListItem>
+						</ListItems>
+					</ListEntry>
+				</ListEntries>
+			</ListControl>
+		</View>
+		<View>
+			<Name>SqlLogFileGrowth_Table</Name>
+			<ViewSelectedBy>
+				<TypeName>SqlServerMaintenance.SqlLogFileGrowth</TypeName>
+			</ViewSelectedBy>
+			<GroupBy>
+				<Label>SQL Instance</Label>
+				<PropertyName>SqlInstance</PropertyName>
+			</GroupBy>
+			<TableControl>
+				<TableHeaders>
+					<TableColumnHeader>
+						<Label>Database Name</Label>
+						<Width>24</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>Log File Name</Label>
+						<Width>24</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>Log File Size (MB)</Label>
+						<Width>16</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>Auto Growth (MB)</Label>
+						<Width>16</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>Auto Growth Percentage Of FileSize</Label>
+						<Width>16</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>Minimum Recommended Auto Growth (MB)</Label>
+						<Width>16</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+				</TableHeaders>
+				<TableRowEntries>
+					<TableRowEntry>
+						<TableColumnItems>
+							<TableColumnItem>
+								<PropertyName>DatabaseName</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<PropertyName>LogFileName</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<PropertyName>LogFileSize</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<ScriptBlock>
+									$Esc = [char]27
+
+									$AutoGrowth = $_.AutoGrowth
+
+									switch ($_.GrowthType) {
+										'KB' {
+											$AutoGrowth = $AutoGrowth / 1024
+										}
+										Default {
+											$AutoGrowth = $AutoGrowth
+										}
+									}
+
+									if ($env:WT_SESSION -and $AutoGrowth -lt $_.MinimumRecommendedAutoGrowth) {
+										"$($Esc)[31m$($AutoGrowth)$($Esc)[0m"
+									} else {
+										$AutoGrowth
+									}
+								</ScriptBlock>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<PropertyName>AutoGrowthPercentageOfFileSize</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<PropertyName>MinimumRecommendedAutoGrowth</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+						</TableColumnItems>
+					</TableRowEntry>
+				</TableRowEntries>
+			</TableControl>
+		</View>
+		<View>
+			<Name>SqlLogFileGrowth_List</Name>
+			<ViewSelectedBy>
+				<TypeName>SqlServerMaintenance.SqlLogFileGrowth</TypeName>
+			</ViewSelectedBy>
+			<ListControl>
+				<ListEntries>
+					<ListEntry>
+						<ListItems>
+							<ListItem>
+								<Label>Database Name</Label>
+								<PropertyName>DatabaseName</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Log File Name</Label>
+								<PropertyName>LogFileName</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Log File Size (MB)</Label>
+								<PropertyName>LogFileSize</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Auto Growth (MB)</Label>
+								<ScriptBlock>
+									$Esc = [char]27
+
+									$AutoGrowth = $_.AutoGrowth
+
+									switch ($_.GrowthType) {
+										'KB' {
+											$AutoGrowth = $AutoGrowth / 1024
+										}
+										Default {
+											$AutoGrowth = $AutoGrowth
+										}
+									}
+
+									if ($env:WT_SESSION -and $AutoGrowth -lt $_.MinimumRecommendedAutoGrowth) {
+										"$($Esc)[31m$($AutoGrowth)$($Esc)[0m"
+									} else {
+										$AutoGrowth
+									}
+								</ScriptBlock>
+							</ListItem>
+							<ListItem>
+								<Label>Auto Growth Percentage Of File Size</Label>
+								<PropertyName>AutoGrowthPercentageOfFileSize</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Minimum Recommended Auto Growth (MB)</Label>
+								<PropertyName>MinimumRecommendedAutoGrowth</PropertyName>
+							</ListItem>
+						</ListItems>
+					</ListEntry>
+				</ListEntries>
+			</ListControl>
+		</View>
+		<View>
+			<Name>SqlLogFileVLFCount_Table</Name>
+			<ViewSelectedBy>
+				<TypeName>SqlServerMaintenance.SqlLogFileVLFCount</TypeName>
+			</ViewSelectedBy>
+			<GroupBy>
+				<Label>SQL Instance</Label>
+				<PropertyName>SqlInstance</PropertyName>
+			</GroupBy>
+			<TableControl>
+				<TableHeaders>
+					<TableColumnHeader>
+						<Label>Sql Instance Name</Label>
+						<Width>24</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>Database Name</Label>
+						<Width>24</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>Total VLF Count</Label>
+						<Width>16</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+				</TableHeaders>
+				<TableRowEntries>
+					<TableRowEntry>
+						<TableColumnItems>
+							<TableColumnItem>
+								<PropertyName>SqlInstance</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<PropertyName>DatabaseName</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<PropertyName>TotalVLFCount</PropertyName>
+								<Alignment>right</Alignment>
+							</TableColumnItem>
+						</TableColumnItems>
+					</TableRowEntry>
+				</TableRowEntries>
+			</TableControl>
+		</View>
+		<View>
+			<Name>SqlLogFileVLFCount_List</Name>
+			<ViewSelectedBy>
+				<TypeName>SqlServerMaintenance.SqlLogFileVLFCount</TypeName>
+			</ViewSelectedBy>
+			<ListControl>
+				<ListEntries>
+					<ListEntry>
+						<ListItems>
+							<ListItem>
+								<Label>Sql Instance Name</Label>
+								<PropertyName>SqlInstance</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Database Name</Label>
+								<PropertyName>DatabaseName</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Total VLF Count</Label>
+								<PropertyName>TotalVLFCount</PropertyName>
+							</ListItem>
+						</ListItems>
+					</ListEntry>
+				</ListEntries>
+			</ListControl>
+		</View>
+		<View>
+			<Name>SqlLogShip</Name>
+			<ViewSelectedBy>
+				<TypeName>SqlServerMaintenance.SqlLogShip</TypeName>
+			</ViewSelectedBy>
+			<GroupBy>
+				<Label>Database Name</Label>
+				<PropertyName>DatabaseName</PropertyName>
+			</GroupBy>
+			<TableControl>
+				<TableHeaders>
+					<TableColumnHeader>
+						<Label>Date/Time</Label>
+						<Width>24</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>Transcript</Label>
+						<Width>99</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+				</TableHeaders>
+				<TableRowEntries>
+					<TableRowEntry>
+						<Wrap />
+						<TableColumnItems>
+							<TableColumnItem>
+								<PropertyName>DateTime</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<PropertyName>Transcript</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+						</TableColumnItems>
+					</TableRowEntry>
+				</TableRowEntries>
+			</TableControl>
+		</View>
+		<View>
+			<Name>SqlLogShippingPrimary_Table</Name>
+			<ViewSelectedBy>
+				<TypeName>SqlServerMaintenance.SqlLogShippingPrimary</TypeName>
+			</ViewSelectedBy>
+			<TableControl>
+				<TableHeaders>
+					<TableColumnHeader>
+						<Label>Primary ID</Label>
+						<Width>37</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>Primary Server</Label>
+						<Width>16</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>Primary Database</Label>
+						<Width>18</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>Secondary Server</Label>
+						<Width>16</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>Secondary Database</Label>
+						<Width>18</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+				</TableHeaders>
+				<TableRowEntries>
+					<TableRowEntry>
+						<TableColumnItems>
+							<TableColumnItem>
+								<PropertyName>PrimaryID</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<PropertyName>PrimaryServer</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<PropertyName>PrimaryDatabase</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<PropertyName>SecondaryServer</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<PropertyName>SecondaryDatabase</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+						</TableColumnItems>
+					</TableRowEntry>
+				</TableRowEntries>
+			</TableControl>
+		</View>
+		<View>
+			<Name>SqlLogShippingPrimary_List</Name>
+			<ViewSelectedBy>
+				<TypeName>SqlServerMaintenance.SqlLogShippingPrimary</TypeName>
+			</ViewSelectedBy>
+			<ListControl>
+				<ListEntries>
+					<ListEntry>
+						<ListItems>
+							<ListItem>
+								<Label>Primary ID</Label>
+								<PropertyName>PrimaryID</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Primary Database</Label>
+								<PropertyName>PrimaryDatabase</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Backup Directory</Label>
+								<PropertyName>BackupDirectory</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Backup Share</Label>
+								<PropertyName>BackupShare</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Backup Retention Period</Label>
+								<ScriptBlock>([timespan]::FromMinutes($_.BackupRetentionPeriod_Minutes)).ToString("dd' days 'hh' hours 'mm' minutes'")</ScriptBlock>
+							</ListItem>
+							<ListItem>
+								<Label>Monitor Server</Label>
+								<PropertyName>MonitorServer</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Server Security Mode</Label>
+								<PropertyName>ServerSecurityMode</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Backup Compression</Label>
+								<PropertyName>BackupCompression</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Primary Server</Label>
+								<PropertyName>PrimaryServer</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Backup Threshold</Label>
+								<ScriptBlock>([timespan]::FromMinutes($_.BackupThreshold_Minutes)).ToString("dd' days 'hh' hours 'mm' minutes'")</ScriptBlock>
+							</ListItem>
+							<ListItem>
+								<Label>Threshold Alert Enabled</Label>
+								<PropertyName>ThresholdAlertEnabled</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>LastBackup File</Label>
+								<PropertyName>LastBackupFile</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Last Backup Date</Label>
+								<PropertyName>LastBackupDate</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>History Retention Period</Label>
+								<ScriptBlock>([timespan]::FromMinutes($_.HistoryRetentionPeriod_Minutes)).ToString("dd' days 'hh' hours 'mm' minutes'")</ScriptBlock>
+							</ListItem>
+							<ListItem>
+								<Label>Secondary Server</Label>
+								<PropertyName>SecondaryServer</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Secondary Database</Label>
+								<PropertyName>SecondaryDatabase</PropertyName>
+							</ListItem>
+						</ListItems>
+					</ListEntry>
+				</ListEntries>
+			</ListControl>
+		</View>
+		<View>
+			<Name>SqlLogShippingPrimary_Wide</Name>
+			<ViewSelectedBy>
+				<TypeName>SqlServerMaintenance.SqlLogShippingPrimary</TypeName>
+			</ViewSelectedBy>
+			<GroupBy>
+				<Label>Secondary Server</Label>
+				<PropertyName>SecondaryServer</PropertyName>
+			</GroupBy>
+			<WideControl>
+				<WideEntries>
+					<WideEntry>
+						<WideItem>
+							<PropertyName>SecondaryDatabase</PropertyName>
+						</WideItem>
+					</WideEntry>
+				</WideEntries>
+			</WideControl>
+		</View>
+		<View>
+			<Name>SqlLogShippingSecondary_Table</Name>
+			<ViewSelectedBy>
+				<TypeName>SqlServerMaintenance.SqlLogShippingSecondary</TypeName>
+			</ViewSelectedBy>
+			<TableControl>
+				<TableHeaders>
+					<TableColumnHeader>
+						<Label>Secondary ID</Label>
+						<Width>37</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>Primary Server</Label>
+						<Width>16</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>Primary Database</Label>
+						<Width>18</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>Secondary Database</Label>
+						<Width>18</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+				</TableHeaders>
+				<TableRowEntries>
+					<TableRowEntry>
+						<TableColumnItems>
+							<TableColumnItem>
+								<PropertyName>SecondaryID</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<PropertyName>PrimaryServer</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<PropertyName>PrimaryDatabase</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<PropertyName>SecondaryDatabase</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+						</TableColumnItems>
+					</TableRowEntry>
+				</TableRowEntries>
+			</TableControl>
+		</View>
+		<View>
+			<Name>SqlLogShippingSecondary_List</Name>
+			<ViewSelectedBy>
+				<TypeName>SqlServerMaintenance.SqlLogShippingSecondary</TypeName>
+			</ViewSelectedBy>
+			<ListControl>
+				<ListEntries>
+					<ListEntry>
+						<ListItems>
+							<ListItem>
+								<Label>Secondary ID</Label>
+								<PropertyName>SecondaryID</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Primary Server</Label>
+								<PropertyName>PrimaryServer</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Primary Database</Label>
+								<PropertyName>PrimaryDatabase</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Backup Source Directory</Label>
+								<PropertyName>BackupSourceDirectory</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Backup Destination Directory</Label>
+								<PropertyName>BackupDestinationDirectory</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>File Retention Period</Label>
+								<ScriptBlock>([timespan]::FromMinutes($_.FileRetentionPeriod_Minutes)).ToString("dd' days 'hh' hours 'mm' minutes'")</ScriptBlock>
+							</ListItem>
+							<ListItem>
+								<Label>Monitor Server</Label>
+								<PropertyName>MonitorServer</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Monitor Server Security Mode</Label>
+								<PropertyName>MonitorServerSecurityMode</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Last Copied File</Label>
+								<PropertyName>LastCopiedFile</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Last Copied Date</Label>
+								<PropertyName>LastCopiedDate</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Secondary Database</Label>
+								<PropertyName>SecondaryDatabase</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Restore Delay</Label>
+								<PropertyName>RestoreDelay_Minutes</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Restore All</Label>
+								<PropertyName>RestoreAll</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Restore Mode</Label>
+								<PropertyName>RestoreMode</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Disconnect Users</Label>
+								<PropertyName>DisconnectUsers</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Block Size</Label>
+								<PropertyName>BlockSize</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Buffer Count</Label>
+								<PropertyName>BufferCount</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Max Transfer Size</Label>
+								<PropertyName>MaxTransferSize</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Last Restored File</Label>
+								<PropertyName>LastRestoredFile</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Last Restored Date</Label>
+								<PropertyName>LastRestoredDate</PropertyName>
+							</ListItem>
+						</ListItems>
+					</ListEntry>
+				</ListEntries>
+			</ListControl>
+		</View>
+		<View>
+			<Name>SqlLogShippingSecondary_Wide</Name>
+			<ViewSelectedBy>
+				<TypeName>SqlServerMaintenance.SqlLogShippingPrimary</TypeName>
+			</ViewSelectedBy>
+			<GroupBy>
+				<Label>Primary Server</Label>
+				<PropertyName>PrimaryServer</PropertyName>
+			</GroupBy>
+			<WideControl>
+				<WideEntries>
+					<WideEntry>
+						<WideItem>
+							<PropertyName>PrimaryDatabase</PropertyName>
+						</WideItem>
+					</WideEntry>
+				</WideEntries>
+			</WideControl>
+		</View>
+		<View>
+			<Name>SqlQueryStore_Table</Name>
+			<ViewSelectedBy>
+				<TypeName>SqlServerMaintenance.SqlQueryStore</TypeName>
+			</ViewSelectedBy>
+			<GroupBy>
+				<Label>Database Name</Label>
+				<PropertyName>DatabaseName</PropertyName>
+			</GroupBy>
+			<TableControl>
+				<!-- ################ TABLE DEFINITIONS ################ -->
+				<TableHeaders>
+					<TableColumnHeader>
+						<Label>Storage Size (MB)</Label>
+						<Width>20</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>Max Storage Size (MB)</Label>
+						<Width>20</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>Available Percent</Label>
+						<Width>20</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>Desired State</Label>
+						<Width>10</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>Actual State</Label>
+						<Width>10</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>Read Only Reason</Label>
+						<Width>100</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+				</TableHeaders>
+				<TableRowEntries>
+					<TableRowEntry>
+						<TableColumnItems>
+							<TableColumnItem>
+								<PropertyName>CurrentStorageSizeInMB</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<PropertyName>MaxStorageSizeInMB</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<PropertyName>StorageAvailablePercent</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<PropertyName>DesiredState</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<PropertyName>ActualState</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<PropertyName>ReadOnlyReasonDescription</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+						</TableColumnItems>
+					</TableRowEntry>
+				</TableRowEntries>
+			</TableControl>
+		</View>
+		<View>
+			<Name>SqlQueryStore_List</Name>
+			<ViewSelectedBy>
+				<TypeName>SqlServerMaintenance.SqlQueryStore</TypeName>
+			</ViewSelectedBy>
+			<ListControl>
+				<!-- ################ LIST DEFINITIONS ################ -->
+				<ListEntries>
+					<ListEntry>
+						<ListItems>
+							<ListItem>
+								<Label>Current Storage Size (MB)</Label>
+								<PropertyName>CurrentStorageSizeInMB</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Max Storage Size (MB)</Label>
+								<PropertyName>MaxStorageSizeInMB</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Available Percent</Label>
+								<PropertyName>StorageAvailablePercent</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Desired State</Label>
+								<PropertyName>DesiredState</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Actual State</Label>
+								<PropertyName>ActualState</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Read Only Reason</Label>
+								<PropertyName>ReadOnlyReason</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Read Only Reason Description</Label>
+								<PropertyName>ReadOnlyReasonDescription</PropertyName>
+							</ListItem>
+						</ListItems>
+					</ListEntry>
+				</ListEntries>
+			</ListControl>
+		</View>
+		<View>
+			<Name>SqlRecovery_Table</Name>
+			<ViewSelectedBy>
+				<TypeName>SqlServerMaintenance.Restore</TypeName>
+			</ViewSelectedBy>
+			<GroupBy>
+				<Label>Database Name</Label>
+				<PropertyName>DatabaseName</PropertyName>
+			</GroupBy>
+			<TableControl>
+				<!-- ################ TABLE DEFINITIONS ################ -->
+				<TableHeaders>
+					<TableColumnHeader>
+						<Label>Backup Type</Label>
+						<Width>22</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>File Name</Label>
+						<Width>48</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>Restore DML</Label>
+						<Width>50</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+				</TableHeaders>
+				<TableRowEntries>
+					<TableRowEntry>
+						<TableColumnItems>
+							<TableColumnItem>
+								<PropertyName>BackupType</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<ScriptBlock>([System.IO.FileInfo]$_.BackupFileName).Name</ScriptBlock>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<PropertyName>RestoreDML</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+						</TableColumnItems>
+					</TableRowEntry>
+				</TableRowEntries>
+			</TableControl>
+		</View>
+		<View>
+			<Name>SqlRecovery_List</Name>
+			<ViewSelectedBy>
+				<TypeName>SqlServerMaintenance.Restore</TypeName>
+			</ViewSelectedBy>
+			<ListControl>
+				<!-- ################ LIST DEFINITIONS ################ -->
+				<ListEntries>
+					<ListEntry>
+						<ListItems>
+							<ListItem>
+								<Label>Database Name</Label>
+								<PropertyName>DatabaseName</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Backup Database Name</Label>
+								<PropertyName>BackupDatabaseName</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Database GUID</Label>
+								<PropertyName>DatabaseGUID</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Backup File Name</Label>
+								<PropertyName>BackupFileName</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Backup Finish Date</Label>
+								<PropertyName>BackupFinishDate</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Backup Type</Label>
+								<PropertyName>BackupType</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Recovery Model</Label>
+								<PropertyName>RecoveryModel</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>First LSN</Label>
+								<PropertyName>FirstLSN</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Last LSN</Label>
+								<PropertyName>LastLSN</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Checkpoint LSN</Label>
+								<PropertyName>CheckpointLSN</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Database Backup LSN</Label>
+								<PropertyName>DatabaseBackupLSN</PropertyName>
+							</ListItem>
+							<ListItem>
+								<Label>Restore DML</Label>
+								<PropertyName>RestoreDML</PropertyName>
+							</ListItem>
+						</ListItems>
+					</ListEntry>
+				</ListEntries>
+			</ListControl>
+		</View>
+		<View>
+			<Name>SqlServerMaintenanceBackup</Name>
+			<ViewSelectedBy>
+				<TypeName>SqlServerMaintenance.Backup</TypeName>
+			</ViewSelectedBy>
+			<TableControl>
+				<TableHeaders>
+					<TableColumnHeader>
+						<Label>Database Name</Label>
+						<Width>48</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>Pages</Label>
+						<Width>16</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>Seconds</Label>
+						<Width>10</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>MB/sec</Label>
+						<Width>10</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+				</TableHeaders>
+				<TableRowEntries>
+					<TableRowEntry>
+						<TableColumnItems>
+							<TableColumnItem>
+								<PropertyName>DatabaseName</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<PropertyName>Pages</PropertyName>
+								<Alignment>right</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<PropertyName>Seconds</PropertyName>
+								<Alignment>right</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<PropertyName>MBPerSecond</PropertyName>
+								<Alignment>right</Alignment>
+							</TableColumnItem>
+						</TableColumnItems>
+					</TableRowEntry>
+				</TableRowEntries>
+			</TableControl>
+		</View>
+	</ViewDefinitions>
+</Configuration>
