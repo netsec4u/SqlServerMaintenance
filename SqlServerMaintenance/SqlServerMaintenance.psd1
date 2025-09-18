@@ -4,7 +4,7 @@
 RootModule = 'SqlServerMaintenance.psm1'
 
 # Version number of this module.
-ModuleVersion = '2.5.4.0'
+ModuleVersion = '2.5.5.0'
 
 # Supported PSEditions
 CompatiblePSEditions = @('Core', 'Desktop')
@@ -22,7 +22,7 @@ CompanyName = ''
 Copyright = '(c) 2021 Robert Eder. All rights reserved.'
 
 # Description of the functionality provided by this module
-Description = 'Module provides management of SQL Server.'
+Description = 'Provides maintenance functions to manage SQL Server.'
 
 # Minimum version of the Windows PowerShell engine required by this module
 PowerShellVersion = '5.1'
@@ -87,6 +87,7 @@ FunctionsToExport = @(
 	'Get-SqlInstanceQueryStoreUsage',
 	'Get-SqlInstanceTDEStatus',
 	'Get-SqlServerMaintenanceConfiguration',
+	'Initialize-SqlServerMaintenanceDatabase',
 	'Invoke-CycleFullTextIndexLog',
 	'Invoke-LogShipping',
 	'Invoke-SqlBackupVerification',
@@ -195,18 +196,18 @@ PrivateData = @{
 		</EmailNotification>
 		<AdminDatabase DatabaseName="Admin">
 			<Statistics>
-				<Backup TableName="Statistics_Backup" RetentionDays="90" />
-				<ColumnStore TableName="Statistics_ColumnStore" RetentionDays="60" />
-				<Database TableName="Statistics_Database" RetentionDays="365" />
-				<FullTextIndex TableName="Statistics_FullTextIndex" RetentionDays="60" />
-				<Index TableName="Statistics_Index" RetentionDays="60" />
-				<QueryStore TableName="Statistics_QueryStore" RetentionDays="60" />
-				<TableStatistics TableName="Statistics_TableStatistics" RetentionDays="60" />
+				<Backup SchemaName="dbo" TableName="Statistics_Backup" RetentionDays="90" />
+				<ColumnStore SchemaName="dbo" TableName="Statistics_ColumnStore" RetentionDays="60" />
+				<Database SchemaName="dbo" TableName="Statistics_Database" RetentionDays="365" />
+				<FullTextIndex SchemaName="dbo" TableName="Statistics_FullTextIndex" RetentionDays="60" />
+				<Index SchemaName="dbo" TableName="Statistics_Index" RetentionDays="60" />
+				<QueryStore SchemaName="dbo" TableName="Statistics_QueryStore" RetentionDays="60" />
+				<TableStatistics SchemaName="dbo" TableName="Statistics_TableStatistics" RetentionDays="60" />
 			</Statistics>
 			<Tests>
-				<Backup TableName="Tests_Backup" RetentionDays="40" />
+				<Backup SchemaName="dbo" TableName="Tests_Backup" RetentionDays="40" />
 			</Tests>
-			<SqlAgentAlerts TableName="SQLAgentAlertEvents" RetentionDays="30" />
+			<SqlAgentAlerts SchemaName="dbo" TableName="SQLAgentAlertEvents" RetentionDays="30" />
 		</AdminDatabase>
 	</Config>'
 

@@ -4067,7 +4067,8 @@ function Get-SqlInstanceDataFileUsage {
 			$SmoServer.Databases.Refresh()
 
 			$StatisticsDatabaseName = $Script:PSMConfig.Config.AdminDatabase.DatabaseName
-			$DBStatisticsTable = $Script:PSMConfig.Config.AdminDatabase.Statistics.Database.TableName
+			$StatisticsSchemaName = $Script:PSMConfig.Config.AdminDatabase.Statistics.Database.SchemaName
+			$StatisticsTableName = $Script:PSMConfig.Config.AdminDatabase.Statistics.Database.TableName
 		}
 		catch {
 			$ErrorRecord = $_
@@ -4121,9 +4122,9 @@ function Get-SqlInstanceDataFileUsage {
 		,	[Day] = DATEDIFF(day, LAST_VALUE(CollectionDate) OVER (ORDER BY CollectionDate ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING), CollectionDate)
 		,	[FileSizeMB]
 		,	[UsedSpaceMB]
-		FROM {0}
-		WHERE DatabaseName = N'{1}'
-			AND LogicalFileName = N'{2}'
+		FROM [{0}].[{1}]
+		WHERE DatabaseName = N'{2}'
+			AND LogicalFileName = N'{3}'
 		ORDER BY [Day];"
 
 		$DataFileProperties = @(
@@ -4177,7 +4178,14 @@ function Get-SqlInstanceDataFileUsage {
 							$SqlDataFileUsage.DataFileUsedSpace = $File.UsedSpace / 1024
 							$SqlDataFileUsage.DataFileAvailableSpace = $File.AvailableSpace / 1024
 
-							$StatsQuery = [string]::Format($QueryString, $DBStatisticsTable, $SqlDataFileUsage.DatabaseName, $SqlDataFileUsage.DataFileName)
+							$FormatStringArray = @(
+								$StatisticsSchemaName,
+								$StatisticsTableName,
+								$SqlDataFileUsage.DatabaseName,
+								$SqlDataFileUsage.DataFileName
+							)
+
+							$StatsQuery = [string]::Format($QueryString, $FormatStringArray)
 
 							$DataSet = $SmoServer.Databases[$StatisticsDatabaseName].ExecuteWithResults($StatsQuery)
 
@@ -5465,6 +5473,8 @@ function Get-SqlServerMaintenanceConfiguration {
 					foreach ($Statistic in $Script:PSMConfig.SelectNodes('./Config/AdminDatabase/Statistics/*')) {
 						[PSCustomObject][ordered]@{
 							'StatisticName' = $Statistic.LocalName
+							'SchemaName' = $Statistic.SchemaName
+							'TableName' = $Statistic.TableName
 							'RetentionInDays' = $Statistic.RetentionDays
 						}
 					}
@@ -5473,12 +5483,16 @@ function Get-SqlServerMaintenanceConfiguration {
 					foreach ($Test in $Script:PSMConfig.SelectNodes('./Config/AdminDatabase/Tests/*')) {
 						[PSCustomObject][ordered]@{
 							'TestName' = $Test.LocalName
+							'SchemaName' = $Test.SchemaName
+							'TableName' = $Test.TableName
 							'RetentionInDays' = $Test.RetentionDays
 						}
 					}
 				}
 				'SqlAgentAlerts' {
 					[PSCustomObject][ordered]@{
+						'SchemaName' = $Script:PSMConfig.Config.AdminDatabase.SqlAgentAlerts.SchemaName
+						'TableName' = $Script:PSMConfig.Config.AdminDatabase.SqlAgentAlerts.TableName
 						'RetentionInDays' = $Script:PSMConfig.Config.AdminDatabase.SqlAgentAlerts.RetentionDays
 					}
 				}
@@ -5760,6 +5774,470 @@ function Get-TimeInTimeZone {
 
 	 end {
 	 }
+}
+
+function Initialize-SqlServerMaintenanceDatabase {
+	<#
+	.EXTERNALHELP
+	SqlServerMaintenance-help.xml
+	#>
+
+	[System.Diagnostics.DebuggerStepThrough()]
+
+	[CmdletBinding(
+		PositionalBinding = $false,
+		SupportsShouldProcess = $true,
+		ConfirmImpact = 'Medium',
+		DefaultParameterSetName = 'ServerInstance'
+	)]
+
+	[OutputType([System.Void])]
+
+	param (
+		[Parameter(
+			Mandatory = $true,
+			ValueFromPipeline = $false,
+			ValueFromPipelineByPropertyName = $false,
+			ParameterSetName = 'ServerInstance'
+		)]
+		[ValidateLength(1,128)]
+		[string]$ServerInstance,
+
+		[Parameter(
+			Mandatory = $true,
+			ValueFromPipeline = $false,
+			ValueFromPipelineByPropertyName = $false,
+			ParameterSetName = 'SmoServerObject'
+		)]
+		[Microsoft.SqlServer.Management.Smo.Server]$SmoServerObject
+	)
+
+	begin {
+		try {
+			$ServerInstanceParameterSets = @('ServerInstance')
+
+			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
+				$SmoServerParameters = @{
+					'ServerInstance' = $ServerInstance
+					'DatabaseName' = 'master'
+				}
+
+				$SmoServer = Connect-SmoServer @SmoServerParameters
+			} else {
+				$SmoServer = $SmoServerObject
+			}
+
+			$AdminDatabase = $Script:PSMConfig.Config.AdminDatabase
+
+			$DatabaseObject = Get-SmoDatabaseObject -SmoServerObject $SmoServer -DatabaseName $AdminDatabase.DatabaseName
+		}
+		catch {
+			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
+				if (Test-Path -Path Variable:\SmoServer) {
+					if ($SmoServer -is [Microsoft.SqlServer.Management.Smo.Server]) {
+						Disconnect-SmoServer -SmoServerObject $SmoServer
+					}
+				}
+			}
+
+			throw $_
+		}
+
+		$SchemaDDL_FormatString = "IF NOT EXISTS (
+				SELECT name
+				FROM sys.schemas
+				WHERE name = N'{0}'
+			)
+				EXEC(N'CREATE SCHEMA [{0}] AUTHORIZATION [dbo]');"
+
+		$DDL_FormatString = "IF NOT EXISTS (
+			SELECT TABLE_CATALOG
+			FROM INFORMATION_SCHEMA.TABLES
+			WHERE TABLE_TYPE = N'BASE TABLE'
+				AND TABLE_SCHEMA = N'{0}'
+				AND TABLE_NAME = N'{1}'
+		)
+		BEGIN
+			CREATE TABLE [{0}].[{1}](
+				[SQLAgentAlertEventID] [int] IDENTITY(1,1) NOT NULL,
+				[EventDateTime] [datetime2](0) NULL,
+				[ComputerName] [nvarchar](128) NULL,
+				[ServerName] [nvarchar](128) NULL,
+				[InstanceName] [nvarchar](128) NULL,
+				[SQLServerInstance] [nvarchar](128) NULL,
+				[MasterSQLServerAgentServiceName] [nvarchar](128) NULL,
+				[DatabaseName] [nvarchar](128) NULL,
+				[JobID] [uniqueidentifier] NULL,
+				[JobName] [nvarchar](128) NULL,
+				[JobStartDateTime] [datetime2](0) NULL,
+				[StepID] [int] NULL,
+				[StepName] [nvarchar](128) NULL,
+				[StepCount] [int] NULL,
+				[OSCommand] [nvarchar](128) NULL,
+				[SQLDirectory] [nvarchar](128) NULL,
+				[SQLLogDirectory] [nvarchar](128) NULL,
+				[ErrorNumber] [int] NULL,
+				[Severity] [tinyint] NULL,
+				[MessageText] [nvarchar](2048) NULL,
+				[SentDateTime] [datetimeoffset](7) NULL,
+				[ClientIPAddress] [varchar](15) NULL,
+				CONSTRAINT [PK_SQLAgentAlertEvents] PRIMARY KEY CLUSTERED
+				(
+					[SQLAgentAlertEventID] ASC
+				),
+				INDEX [IX_SentDateTime] NONCLUSTERED (
+					[SentDateTime] ASC,
+					[EventDateTime] ASC
+				)
+			);
+		END
+
+		IF NOT EXISTS (
+			SELECT TABLE_CATALOG
+			FROM INFORMATION_SCHEMA.TABLES
+			WHERE TABLE_TYPE = N'BASE TABLE'
+				AND TABLE_SCHEMA = N'{2}'
+				AND TABLE_NAME = N'{3}'
+		)
+		BEGIN
+			CREATE TABLE [{2}].[{3}](
+				[StatisticID] [int] IDENTITY(1,1) NOT NULL,
+				[CollectionDate] [datetimeoffset](0) NOT NULL,
+				[DatabaseName] [nvarchar](128) NOT NULL,
+				[DatabaseGUID] [uniqueidentifier] NOT NULL,
+				[MediaName] [nvarchar](128) NOT NULL,
+				[BackupType] [char](4) NOT NULL,
+				[Pages] [bigint] NOT NULL,
+				[Seconds] [decimal](9, 4) NOT NULL,
+				[MBPerSecond] [decimal](9, 4) NOT NULL,
+				CONSTRAINT [PK_Statistics_Backup] PRIMARY KEY CLUSTERED
+				(
+					[StatisticID] ASC
+				),
+				INDEX [IX_CollectionDate]
+				(
+					[CollectionDate] ASC
+				)
+			);
+		END
+
+		IF NOT EXISTS (
+			SELECT TABLE_CATALOG
+			FROM INFORMATION_SCHEMA.TABLES
+			WHERE TABLE_TYPE = N'BASE TABLE'
+				AND TABLE_SCHEMA = N'{4}'
+				AND TABLE_NAME = N'{5}'
+		)
+		BEGIN
+			CREATE TABLE [{4}].[{5}](
+				[StatisticID] [int] IDENTITY(1,1) NOT NULL,
+				[CollectionDate] [datetimeoffset](0) NOT NULL,
+				[DatabaseName] [nvarchar](128) NOT NULL,
+				[SchemaName] [nvarchar](128) NOT NULL,
+				[ObjectID] [int] NOT NULL,
+				[ObjectName] [nvarchar](128) NOT NULL,
+				[IndexID] [int] NOT NULL,
+				[IndexName] [nvarchar](128) NULL,
+				[IndexType] [nvarchar](60) NOT NULL,
+				[PartitionNumber] [int] NOT NULL,
+				[CountRGs] [int] NOT NULL,
+				[CountRGsResult] [int] NOT NULL,
+				[TotalRows] [bigint] NOT NULL,
+				[AvgRowsPerRG] [bigint] NOT NULL,
+				[AvgRowsPerRGResult] [bigint] NOT NULL,
+				[CountRGLessThanQualityMeasure] [int] NOT NULL,
+				[CountRGLessThanQualityMeasureResult] [int] NOT NULL,
+				[PercentageRGLessThanQualityMeasure] [decimal](5, 2) NOT NULL,
+				[PercentageRGLessThanQualityMeasureResult] [decimal](5, 2) NOT NULL,
+				[DeletedRowsPercent] [decimal](5, 2) NOT NULL,
+				[DeletedRowsPercentResult] [decimal](5, 2) NOT NULL,
+				[NumRowgroupsWithDeletedRows] [int] NOT NULL,
+				[NumRowgroupsWithDeletedRowsResult] [int] NOT NULL,
+				CONSTRAINT [PK_Statistics_ColumnStore] PRIMARY KEY CLUSTERED
+				(
+					[StatisticID] ASC
+				),
+				INDEX [IX_CollectionDate]
+				(
+					[CollectionDate] ASC
+				)
+			);
+		END
+
+		IF NOT EXISTS (
+			SELECT TABLE_CATALOG
+			FROM INFORMATION_SCHEMA.TABLES
+			WHERE TABLE_TYPE = N'BASE TABLE'
+				AND TABLE_SCHEMA = N'{6}'
+				AND TABLE_NAME = N'{7}'
+		)
+		BEGIN
+			CREATE TABLE [{6}].[{7}](
+				[StatisticID] [int] IDENTITY(1,1) NOT NULL,
+				[CollectionDate] [datetimeoffset](0) NOT NULL,
+				[DatabaseName] [nvarchar](128) NOT NULL,
+				[DatabaseGuid] [char](36) NULL,
+				[LogicalFileName] [nvarchar](128) NOT NULL,
+				[PhysicalFileName] [nvarchar](512) NOT NULL,
+				[IsPrimaryFile] [bit] NOT NULL,
+				[IsLogFile] [bit] NOT NULL,
+				[IsOffline] [bit] NOT NULL,
+				[IsReadOnly] [bit] NOT NULL,
+				[RecoveryModel] [nvarchar](16) NOT NULL,
+				[CompatibilityLevel] [char](10) NULL,
+				[FileSizeMB] [decimal](18, 2) NOT NULL,
+				[UsedSpaceMB] [decimal](18, 2) NOT NULL,
+				[GrowthMB] [decimal](18, 2) NULL,
+				CONSTRAINT [PK_Statistics_Database] PRIMARY KEY CLUSTERED
+				(
+					[StatisticID] ASC
+				),
+				INDEX [IX_CollectionDate]
+				(
+					[CollectionDate] ASC
+				)
+			);
+		END
+
+		IF NOT EXISTS (
+			SELECT TABLE_CATALOG
+			FROM INFORMATION_SCHEMA.TABLES
+			WHERE TABLE_TYPE = N'BASE TABLE'
+				AND TABLE_SCHEMA = N'{8}'
+				AND TABLE_NAME = N'{9}'
+		)
+		BEGIN
+			CREATE TABLE [{8}].[{9}](
+				[StatisticID] [int] IDENTITY(1,1) NOT NULL,
+				[CollectionDate] [datetimeoffset](0) NOT NULL,
+				[DatabaseName] [nvarchar](128) NOT NULL,
+				[SchemaName] [nvarchar](128) NOT NULL,
+				[ObjectID] [int] NOT NULL,
+				[ObjectName] [nvarchar](128) NOT NULL,
+				[CatalogId] [int] NOT NULL,
+				[CatalogName] [nvarchar](128) NOT NULL,
+				[UniqueIndexID] [int] NOT NULL,
+				[IndexSizeMb] [decimal](9, 2) NOT NULL,
+				[IndexSizeMbResult] [decimal](9, 2) NULL,
+				[FragmentsCount] [int] NOT NULL,
+				[FragmentsCountResult] [int] NULL,
+				[LargestFragmentMb] [decimal](9, 2) NOT NULL,
+				[LargestFragmentMbResult] [decimal](9, 2) NULL,
+				[IndexFragmentationSpaceMb] [decimal](9, 2) NOT NULL,
+				[IndexFragmentationSpaceMbResult] [decimal](9, 2) NULL,
+				[IndexFragmentationPct] [decimal](5, 2) NOT NULL,
+				[IndexFragmentationPctResult] [decimal](5, 2) NULL,
+				CONSTRAINT [PK_FullTextIndexStats] PRIMARY KEY CLUSTERED
+				(
+					[StatisticID] ASC
+				),
+				INDEX [IX_CollectionDate]
+				(
+					[CollectionDate] ASC
+				)
+			);
+		END
+
+		IF NOT EXISTS (
+			SELECT TABLE_CATALOG
+			FROM INFORMATION_SCHEMA.TABLES
+			WHERE TABLE_TYPE = N'BASE TABLE'
+				AND TABLE_SCHEMA = N'{10}'
+				AND TABLE_NAME = N'{11}'
+		)
+		BEGIN
+			CREATE TABLE [{10}].[{11}](
+				[StatisticID] [int] IDENTITY(1,1) NOT NULL,
+				[CollectionDate] [datetimeoffset](0) NOT NULL,
+				[DatabaseName] [nvarchar](128) NOT NULL,
+				[SchemaName] [nvarchar](128) NOT NULL,
+				[ObjectID] [int] NOT NULL,
+				[ObjectName] [nvarchar](128) NOT NULL,
+				[IndexID] [int] NOT NULL,
+				[IndexName] [nvarchar](128) NULL,
+				[IndexType] [nvarchar](60) NOT NULL,
+				[PartitionNumber] [int] NOT NULL,
+				[AllowPageLocks] [bit] NOT NULL,
+				[FillFactor] [tinyint] NOT NULL,
+				[FillFactorResult] [tinyint] NULL,
+				[PageCount] [bigint] NOT NULL,
+				[PageCountResult] [bigint] NULL,
+				[AvgFragmentation] [float] NOT NULL,
+				[AvgFragmentationResult] [float] NULL,
+				[ForwardedRecordCount] [bigint] NULL,
+				[ForwardedRecordCountResult] [bigint] NULL,
+				[AvgPageSpaceUsed] [float] NULL,
+				[AvgPageSpaceUsedResult] [float] NULL,
+				CONSTRAINT [PK_IndexStats] PRIMARY KEY CLUSTERED
+				(
+					[StatisticID] ASC
+				),
+				INDEX [IX_CollectionDate]
+				(
+					[CollectionDate] ASC
+				)
+			);
+		END
+
+		IF NOT EXISTS (
+			SELECT TABLE_CATALOG
+			FROM INFORMATION_SCHEMA.TABLES
+			WHERE TABLE_TYPE = N'BASE TABLE'
+				AND TABLE_SCHEMA = N'{12}'
+				AND TABLE_NAME = N'{13}'
+		)
+		BEGIN
+			CREATE TABLE [{12}].[{13}](
+				[StatisticID] [int] IDENTITY(1,1) NOT NULL,
+				[CollectionDate] [datetimeoffset](0) NOT NULL,
+				[DatabaseName] [nvarchar](128) NOT NULL,
+				[DesiredState] [nvarchar](60) NOT NULL,
+				[ActualState] [nvarchar](60) NOT NULL,
+				[ReadOnlyReason] [int] NOT NULL,
+				[CurrentStorageSizeInMB] [bigint] NOT NULL,
+				[MaxStorageSizeInMB] [bigint] NOT NULL,
+				CONSTRAINT [PK_Statistics_QueryStore] PRIMARY KEY CLUSTERED
+				(
+					[StatisticID] ASC
+				),
+				INDEX [IX_CollectionDate]
+				(
+					[CollectionDate] ASC
+				)
+			);
+		END
+
+		IF NOT EXISTS (
+			SELECT TABLE_CATALOG
+			FROM INFORMATION_SCHEMA.TABLES
+			WHERE TABLE_TYPE = N'BASE TABLE'
+				AND TABLE_SCHEMA = N'{14}'
+				AND TABLE_NAME = N'{15}'
+		)
+		BEGIN
+			CREATE TABLE [{14}].[{15}](
+				[StatisticID] [int] IDENTITY(1,1) NOT NULL,
+				[CollectionDate] [datetimeoffset](0) NOT NULL,
+				[DatabaseName] [nvarchar](128) NOT NULL,
+				[SchemaName] [nvarchar](128) NOT NULL,
+				[ObjectName] [nvarchar](128) NOT NULL,
+				[StatisticsName] [nvarchar](128) NOT NULL,
+				[RowCount] [bigint] NULL,
+				[RowCountResult] [bigint] NULL,
+				[RowsSampled] [bigint] NULL,
+				[RowsSampledResult] [bigint] NULL,
+				[LastUpdated] [datetime2](7) NULL,
+				[LastUpdatedResult] [datetime2](7) NULL,
+				[ModificationCount] [bigint] NULL,
+				[ModificationCountResult] [bigint] NULL,
+				CONSTRAINT [PK_Statistics_Stats] PRIMARY KEY CLUSTERED
+				(
+					[StatisticID] ASC
+				),
+				INDEX [IX_CollectionDate]
+				(
+					[CollectionDate] ASC
+				)
+			);
+		END
+
+		IF NOT EXISTS (
+			SELECT TABLE_CATALOG
+			FROM INFORMATION_SCHEMA.TABLES
+			WHERE TABLE_TYPE = N'BASE TABLE'
+				AND TABLE_SCHEMA = N'{16}'
+				AND TABLE_NAME = N'{17}'
+		)
+		BEGIN
+			CREATE TABLE [{16}].[{17}](
+				[TestID] [int] IDENTITY(1,1) NOT NULL,
+				[CollectionDate] [datetimeoffset](0) NOT NULL,
+				[BackupDateTime] [datetime2](0) NOT NULL,
+				[ServerName] [nvarchar](128) NOT NULL,
+				[BackupFolder] [nvarchar](256) NOT NULL,
+				[BackupFileName] [nvarchar](128) NOT NULL,
+				[BackupType] [char](1) NOT NULL,
+				[DatabaseName] [nvarchar](128) NULL,
+				[DatabaseGUID] [uniqueidentifier] NULL,
+				[FirstLSN] [numeric](25, 0) NULL,
+				[LastLSN] [numeric](25, 0) NULL,
+				[CheckpointLSN] [numeric](25, 0) NULL,
+				[DatabaseBackupLSN] [numeric](25, 0) NULL,
+				[TestStatus] [char](1) NULL,
+				[TestDateTime] [datetimeoffset](0) NULL,
+				[BackupPosition] [smallint] NOT NULL,
+				CONSTRAINT [PK_Tests_Backup] PRIMARY KEY CLUSTERED
+				(
+					[TestID] ASC
+				),
+				CONSTRAINT [AK_BackupFileName] UNIQUE NONCLUSTERED
+				(
+					[BackupFileName] ASC,
+					[BackupFolder] ASC,
+					[BackupPosition] ASC
+				),
+				INDEX [IX_CollectionDate]
+				(
+					[CollectionDate] ASC
+				),
+				INDEX [IX_BackupFolder]
+				(
+					[BackupFolder] ASC,
+					[BackupDateTime] ASC,
+					[BackupType] ASC,
+					[TestStatus] ASC
+				)
+			);
+		END"
+	}
+
+	process {
+		try {
+			$NewSchemas = $AdminDatabase.SelectNodes("//*[@SchemaName]").SchemaName.where({$_ -notin $DatabaseObject.Schemas.Name}) | Select-Object -Unique
+
+			foreach ($NewSchema in $NewSchemas) {
+				if ($PSCmdlet.ShouldProcess($NewSchema, 'Create database schema')) {
+					$DatabaseObject.ExecuteNonQuery([string]::Format($SchemaDDL_FormatString, $NewSchema))
+				}
+			}
+
+			$FormatStringArray = @(
+				$AdminDatabase.SqlAgentAlerts.SchemaName
+				$AdminDatabase.SqlAgentAlerts.TableName
+				$AdminDatabase.Statistics.Backup.SchemaName
+				$AdminDatabase.Statistics.Backup.TableName
+				$AdminDatabase.Statistics.ColumnStore.SchemaName
+				$AdminDatabase.Statistics.ColumnStore.TableName
+				$AdminDatabase.Statistics.Database.SchemaName
+				$AdminDatabase.Statistics.Database.TableName
+				$AdminDatabase.Statistics.FullTextIndex.SchemaName
+				$AdminDatabase.Statistics.FullTextIndex.TableName
+				$AdminDatabase.Statistics.Index.SchemaName
+				$AdminDatabase.Statistics.Index.TableName
+				$AdminDatabase.Statistics.QueryStore.SchemaName
+				$AdminDatabase.Statistics.QueryStore.TableName
+				$AdminDatabase.Statistics.TableStatistics.SchemaName
+				$AdminDatabase.Statistics.TableStatistics.TableName
+				$AdminDatabase.Tests.Backup.SchemaName
+				$AdminDatabase.Tests.Backup.TableName
+			)
+
+			if ($PSCmdlet.ShouldProcess($DatabaseObject.Name, 'Create database tables')) {
+				$DatabaseObject.ExecuteNonQuery([string]::Format($DDL_FormatString, $FormatStringArray))
+			}
+		}
+		catch {
+			throw $_
+		}
+		finally {
+			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
+				Disconnect-SmoServer -SmoServerObject $SmoServer
+			}
+		}
+	}
+
+	end {
+	}
 }
 
 function Invoke-CycleFullTextIndexLog {
@@ -6685,7 +7163,9 @@ function Invoke-SqlBackupVerification {
 	begin {
 		try {
 			$TestsDatabaseName = $Script:PSMConfig.Config.AdminDatabase.DatabaseName
-			$BackupTestTable = $Script:PSMConfig.Config.AdminDatabase.Tests.Backup.TableName
+			$TestSchemaName = $Script:PSMConfig.Config.AdminDatabase.Tests.Backup.SchemaName
+			$TestTableName = $Script:PSMConfig.Config.AdminDatabase.Tests.Backup.TableName
+
 			$ServerInstanceParameterSets = @('ByInstancePath-SqlInstance', 'ByServerInstance-SqlInstance', 'Default-SqlInstance')
 
 			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
@@ -6787,24 +7267,24 @@ function Invoke-SqlBackupVerification {
 		$Query_LastTested = "SELECT TOP(1) BackupDateTime AT TIME ZONE 'UTC' AS BackupDateTime
 			,	BackupFileName
 			,	TestStatus
-			FROM {0} t
-			WHERE BackupFolder = N'{1}'
+			FROM [{0}].[{1}] t
+			WHERE BackupFolder = N'{2}'
 				AND BackupType = 'L'
 				AND TestStatus IN ('F', 'S')
 			ORDER BY t.BackupDateTime DESC;"
 
 		$Query_FailedTests = "SELECT BackupFileName
-			FROM {0}
-			WHERE BackupFolder = N'{1}'
+			FROM [{0}].[{1}]
+			WHERE BackupFolder = N'{2}'
 				AND BackupType IN ('D', 'F')
 				AND TestStatus = 'F';"
 
 		$Query_TestedBackups = "SELECT BackupFileName
-			FROM {0}
+			FROM [{0}].[{1}]
 			WHERE TestStatus IS NOT NULL
-				AND BackupFolder = N'{1}';"
+				AND BackupFolder = N'{2}';"
 
-		$Insert_BackupFile = "INSERT INTO {0} (CollectionDate, BackupDateTime, ServerName, BackupFolder, BackupFileName, BackupType, BackupPosition, DatabaseGUID, DatabaseName, FirstLSN, LastLSN, CheckpointLSN, DatabaseBackupLSN)
+		$Insert_BackupFile = "INSERT INTO [{0}].[{1}] (CollectionDate, BackupDateTime, ServerName, BackupFolder, BackupFileName, BackupType, BackupPosition, DatabaseGUID, DatabaseName, FirstLSN, LastLSN, CheckpointLSN, DatabaseBackupLSN)
 			SELECT CollectionDate
 			,	BackupDateTime
 			,	ServerName
@@ -6820,23 +7300,23 @@ function Invoke-SqlBackupVerification {
 			,	DatabaseBackupLSN
 			FROM (
 				VALUES (
-					'{1}', '{2}', N'{3}', N'{4}', N'{5}', UPPER('{6}'), {7}, '{8}', N'{9}', '{10}', '{11}', '{12}', '{13}'
+					'{2}', '{3}', N'{4}', N'{5}', N'{6}', UPPER('{7}'), {8}, '{9}', N'{10}', '{11}', '{12}', '{13}', '{14}'
 				)
 			) v(CollectionDate, BackupDateTime, ServerName, BackupFolder, BackupFileName, BackupType, BackupPosition, DatabaseGUID, DatabaseName, FirstLSN, LastLSN, CheckpointLSN, DatabaseBackupLSN)
 			WHERE NOT EXISTS (
 				SELECT 1
-				FROM {0}
-				WHERE BackupFolder = N'{4}'
-					AND BackupFileName = N'{5}'
-					AND BackupPosition = {7}
+				FROM [{0}].[{1}]
+				WHERE BackupFolder = N'{5}'
+					AND BackupFileName = N'{6}'
+					AND BackupPosition = {8}
 			);"
 
-		$Update_BackupFile = "UPDATE {0}
-			SET TestStatus = '{4}'
-			,	TestDateTime = '{5}'
-			WHERE BackupFolder = N'{1}'
-				AND BackupFileName = N'{2}'
-				AND BackupPosition = {3};"
+		$Update_BackupFile = "UPDATE [{0}].[{1}]
+			SET TestStatus = '{5}'
+			,	TestDateTime = '{6}'
+			WHERE BackupFolder = N'{2}'
+				AND BackupFileName = N'{3}'
+				AND BackupPosition = {4};"
 
 		$DropTestDatabaseDDL = 'DROP DATABASE IF EXISTS [{0}];'
 
@@ -6921,7 +7401,8 @@ function Invoke-SqlBackupVerification {
 									$TestRecoveryDatabaseName = 'TestRecovery_' + [Guid]::NewGuid().ToString()
 
 									$FormatStringArray = @(
-										$BackupTestTable,
+										$TestSchemaName,
+										$TestTableName,
 										$DatabaseFolder
 									)
 
@@ -7025,7 +7506,8 @@ function Invoke-SqlBackupVerification {
 										#EndRegion
 									} else {
 										$FormatStringArray = @(
-											$BackupTestTable,
+											$TestSchemaName,
+											$TestTableName,
 											$DatabaseFolder
 										)
 
@@ -7044,7 +7526,7 @@ function Invoke-SqlBackupVerification {
 										switch ($LastLogBackupTest.TestStatus) {
 											'F' {
 												#Region Failed Backup
-												$NextBackups = $SqlBackupFiles.where({$_.Extension -In ('.bak', '.dif') -and $_.BackupDate -gt $LastLogBackupTest.BackupDateTime}) | Sort-Object -Property BackupDate
+												[SqlServerMaintenance.BackupFileInfo[]]$NextBackups = $SqlBackupFiles.where({$_.Extension -In ('.bak', '.dif') -and $_.BackupDate -gt $LastLogBackupTest.BackupDateTime}) | Sort-Object -Property BackupDate
 
 												if ($NextBackups.Count -eq 0) {
 													throw [System.Management.Automation.ErrorRecord]::New(
@@ -7129,8 +7611,6 @@ function Invoke-SqlBackupVerification {
 																	break
 																}
 															}
-
-															$BackupFileInfo.Add($($NextBackupFile))
 														}
 													}
 													#EndRegion
@@ -7232,7 +7712,8 @@ function Invoke-SqlBackupVerification {
 
 												foreach ($BackupHeader in $BackupHeaders) {
 													$FormatStringArray = @(
-														$BackupTestTable,
+														$TestSchemaName,
+														$TestTableName,
 														[DateTimeOffset]::Now.ToSTring(),
 														$OrphanedBackup.BackupDate,
 														$InstanceFolder.Name,
@@ -7256,7 +7737,8 @@ function Invoke-SqlBackupVerification {
 													[void](Invoke-SqlClientNonQuery @SqlClientNonQueryParameters)
 
 													$FormatStringArray = @(
-														$BackupTestTable,
+														$TestSchemaName,
+														$TestTableName,
 														$DatabaseFolder,
 														$OrphanedBackup.Name,
 														$BackupHeader.Position,
@@ -7278,7 +7760,8 @@ function Invoke-SqlBackupVerification {
 
 									#Region Build Restore DDL
 									$FormatStringArray = @(
-										$BackupTestTable,
+										$TestSchemaName,
+										$TestTableName,
 										$DatabaseFolder
 									)
 
@@ -7310,7 +7793,8 @@ function Invoke-SqlBackupVerification {
 										$BackupFile = $BackupFileInfo.where({$_.Name -eq $RecoveryItem.BackupFileName.Name})
 
 										$FormatStringArray = @(
-											$BackupTestTable,
+											$TestSchemaName,
+											$TestTableName,
 											[DateTimeOffset]::Now.ToSTring(),
 											$BackupFile.BackupDate.ToString(),
 											$InstanceFolder.Name,
@@ -7407,7 +7891,8 @@ function Invoke-SqlBackupVerification {
 
 										if ($RestoreStatus -ne 'E') {
 											$FormatStringArray = @(
-												$BackupTestTable,
+												$TestSchemaName,
+												$TestTableName,
 												$DatabaseFolder,
 												$RecoveryItem.BackupFileName.Name,
 												$RecoveryItem.BackupPosition,
@@ -7792,7 +8277,8 @@ function Invoke-SqlInstanceBackup {
 			$RetainDays = $SmoServer.Configuration.MediaRetention.RunValue
 
 			$StatisticsDatabaseName = $Script:PSMConfig.Config.AdminDatabase.DatabaseName
-			$DBStatisticsTable = $Script:PSMConfig.Config.AdminDatabase.Statistics.Backup.TableName
+			$StatisticsSchemaName = $Script:PSMConfig.Config.AdminDatabase.Statistics.Backup.SchemaName
+			$StatisticsTableName = $Script:PSMConfig.Config.AdminDatabase.Statistics.Backup.TableName
 		}
 		catch {
 			$ErrorRecord = $_
@@ -7859,8 +8345,8 @@ function Invoke-SqlInstanceBackup {
 					AND database_guid = s.database_guid
 				ORDER BY backup_finish_date
 			) bs;"
-		$Query_BackupStatistics = "INSERT INTO [dbo].[{0}] (CollectionDate, DatabaseName, DatabaseGUID, MediaName, BackupType, Pages, Seconds, MBPerSecond)
-			VALUES (SYSDATETIMEOFFSET(), N'{1}', CAST('{2}' AS UNIQUEIDENTIFIER), N'{3}', '{4}', {5}, {6}, {7});"
+		$Query_BackupStatistics = "INSERT INTO [{0}].[{1}] (CollectionDate, DatabaseName, DatabaseGUID, MediaName, BackupType, Pages, Seconds, MBPerSecond)
+			VALUES (SYSDATETIMEOFFSET(), N'{2}', CAST('{3}' AS UNIQUEIDENTIFIER), N'{4}', '{5}', {6}, {7}, {8});"
 	}
 
 	process {
@@ -8099,7 +8585,8 @@ function Invoke-SqlInstanceBackup {
 						$Backup.MBPerSecond = $RegExMatches.Groups.Where({$_.Name -eq 'MBPerSecond'}).Value
 
 						$FormatStringArray = @(
-							$DBStatisticsTable,
+							$StatisticsSchemaName,
+							$StatisticsTableName,
 							$Backup.DatabaseName.Replace("'", "''"),
 							$Database.DatabaseGuid
 							$BackupParameters.MediaName.Replace("'", "''"),
@@ -8610,7 +9097,8 @@ function Invoke-SqlInstanceColumnStoreMaintenance {
 			$SmoServer.Databases.Refresh()
 
 			$StatisticsDatabaseName = $Script:PSMConfig.Config.AdminDatabase.DatabaseName
-			$ColumnStoreStatisticsTable = $Script:PSMConfig.Config.AdminDatabase.Statistics.ColumnStore.TableName
+			$StatisticsSchemaName = $Script:PSMConfig.Config.AdminDatabase.Statistics.ColumnStore.SchemaName
+			$StatisticsTableName = $Script:PSMConfig.Config.AdminDatabase.Statistics.ColumnStore.TableName
 		}
 		catch {
 			$ErrorRecord = $_
@@ -8874,7 +9362,7 @@ function Invoke-SqlInstanceColumnStoreMaintenance {
 
 						$SqlClientBulkCopyParameters = @{
 							'SqlConnection' = $SmoServer.ConnectionContext.SqlConnectionObject
-							'TableName' = $ColumnStoreStatisticsTable
+							'TableName' = [string]::Format('[{0}].[{1}]', $StatisticsSchemaName, $StatisticsTableName)
 							'DataTable' = $ColumnStoreStats.Tables[0]
 						}
 
@@ -9126,7 +9614,7 @@ function Invoke-SqlInstanceFullTextIndexMaintenance {
 		DefaultParameterSetName = 'ServerInstance'
 	)]
 
-	[OutputType([SqlServerMaintenance.Index])]
+	[OutputType([SqlServerMaintenance.FullTextIndex])]
 
 	param (
 		[Parameter(
@@ -9212,7 +9700,8 @@ function Invoke-SqlInstanceFullTextIndexMaintenance {
 			$SmoServer.Databases.Refresh()
 
 			$StatisticsDatabaseName = $Script:PSMConfig.Config.AdminDatabase.DatabaseName
-			$FullTextIndexStatisticsTable = $Script:PSMConfig.Config.AdminDatabase.Statistics.FullTextIndex.TableName
+			$StatisticsSchemaName = $Script:PSMConfig.Config.AdminDatabase.Statistics.FullTextIndex.SchemaName
+			$StatisticsTable = $Script:PSMConfig.Config.AdminDatabase.Statistics.FullTextIndex.TableName
 		}
 		catch {
 			$ErrorRecord =  $_
@@ -9427,7 +9916,7 @@ function Invoke-SqlInstanceFullTextIndexMaintenance {
 
 						$SqlClientBulkCopyParameters = @{
 							'SqlConnection' = $SmoServer.ConnectionContext.SqlConnectionObject
-							'TableName' = $FullTextIndexStatisticsTable
+							'TableName' = [string]::Format('[{0}].[{1}]', $StatisticsSchemaName, $StatisticsTable)
 							'DataTable' = $FullTextIndexStats.Tables[0]
 						}
 
@@ -9616,7 +10105,8 @@ function Invoke-SqlInstanceIndexMaintenance {
 			$SmoServer.Databases.Refresh()
 
 			$StatisticsDatabaseName = $Script:PSMConfig.Config.AdminDatabase.DatabaseName
-			$IndexStatisticsTable = $Script:PSMConfig.Config.AdminDatabase.Statistics.Index.TableName
+			$StatisticsSchemaName = $Script:PSMConfig.Config.AdminDatabase.Statistics.Index.SchemaName
+			$StatisticsTableName = $Script:PSMConfig.Config.AdminDatabase.Statistics.Index.TableName
 		}
 		catch {
 			$ErrorRecord = $_
@@ -10027,7 +10517,7 @@ function Invoke-SqlInstanceIndexMaintenance {
 
 						$SqlClientBulkCopyParameters = @{
 							'SqlConnection' = $SmoServer.ConnectionContext.SqlConnectionObject
-							'TableName' = $IndexStatisticsTable
+							'TableName' = [string]::Format('[{0}].[{1}]', $StatisticsSchemaName, $StatisticsTableName)
 							'DataTable' = $IndexPhysicalStats.Tables[0]
 						}
 
@@ -10313,7 +10803,8 @@ function Invoke-SqlInstanceStatisticsMaintenance {
 			}
 
 			$StatisticsDatabaseName = $Script:PSMConfig.Config.AdminDatabase.DatabaseName
-			$TableStatisticsTable = $Script:PSMConfig.Config.AdminDatabase.Statistics.TableStatistics.TableName
+			$StatisticsSchemaName = $Script:PSMConfig.Config.AdminDatabase.Statistics.TableStatistics.SchemaName
+			$StatisticsTableName = $Script:PSMConfig.Config.AdminDatabase.Statistics.TableStatistics.TableName
 
 			if ($PSCmdlet.ParameterSetName -in $DynamicSetArray) {
 				$RowCountThreshold = 1024
@@ -10555,7 +11046,7 @@ function Invoke-SqlInstanceStatisticsMaintenance {
 
 						$SqlClientBulkCopyParameters = @{
 							'SqlConnection' = $SmoServer.ConnectionContext.SqlConnectionObject
-							'TableName' = $TableStatisticsTable
+							'TableName' = [string]::Format('[{0}].[{1}]', $StatisticsSchemaName, $StatisticsTableName)
 							'DataTable' = $StatisticsProperties.Tables[0]
 						}
 
@@ -11183,6 +11674,7 @@ function Read-SqlAgentAlert {
 	begin {
 		try {
 			$SqlAgentAlertsDatabaseName = $Script:PSMConfig.Config.AdminDatabase.DatabaseName
+			$SqlAgentAlertsSchemaName = $Script:PSMConfig.Config.AdminDatabase.SqlAgentAlerts.SchemaName
 			$SqlAgentAlertsTableName = $Script:PSMConfig.Config.AdminDatabase.SqlAgentAlerts.TableName
 			$ServerInstanceParameterSets = @('ServerInstance')
 
@@ -11261,7 +11753,7 @@ function Read-SqlAgentAlert {
 		,	ClientIPAddress
 		,	MessageText
 		,	SentDateTime
-		FROM {0}
+		FROM {0}.{1}
 		WHERE SentDateTime IS NULL
 		ORDER BY EventDateTime;'
 
@@ -11282,7 +11774,7 @@ function Read-SqlAgentAlert {
 		try {
 			$SqlClientDataSetParameters = @{
 				'SqlConnection' = $SqlConnection
-				'SqlCommand' = [string]::Format($Query_SqlAgentAlertEvent, $SqlAgentAlertsTableName)
+				'SqlCommand' = [string]::Format($Query_SqlAgentAlertEvent, $SqlAgentAlertsSchemaName, $SqlAgentAlertsTableName)
 				'DataSetName' = 'SqlAgentAlerts'
 				'DataTableName' = $SqlAgentAlertsTableName
 				'OutputAs' = 'DataSet'
@@ -12491,7 +12983,9 @@ function Remove-SqlAgentAlertHistory {
 	begin {
 		try {
 			$AdminDatabaseName = $Script:PSMConfig.Config.AdminDatabase.DatabaseName
+			$SqlAgentAlertsSchemaName = $Script:PSMConfig.Config.AdminDatabase.SqlAgentAlerts.SchemaName
 			$SqlAgentAlertsTableName = $Script:PSMConfig.Config.AdminDatabase.SqlAgentAlerts.TableName
+
 			$ServerInstanceParameterSets = @('ServerInstance')
 
 			if (-not $PSBoundParameters.ContainsKey('Retention')) {
@@ -12561,14 +13055,14 @@ function Remove-SqlAgentAlertHistory {
 		}
 
 		$DeleteByRetention = 'DELETE
-		FROM {0}
-		WHERE EventDateTime < DATEADD(day, -{1}, SYSDATETIMEOFFSET())
-			AND SentDateTime < DATEADD(day, -{1}, SYSDATETIMEOFFSET());'
+		FROM [{0}].[{1}]
+		WHERE EventDateTime < DATEADD(day, -{2}, SYSDATETIMEOFFSET())
+			AND SentDateTime < DATEADD(day, -{2}, SYSDATETIMEOFFSET());'
 	}
 
 	process {
 		try {
-			$SqlNonQuery = [string]::Format($DeleteByRetention, $SqlAgentAlertsTableName, $Retention)
+			$SqlNonQuery = [string]::Format($DeleteByRetention, $SqlAgentAlertsSchemaName, $SqlAgentAlertsTableName, $Retention)
 
 			if ($PSCmdlet.ShouldProcess($SqlAgentAlertsTableName, 'Remove records older than retention period')) {
 				[void](Invoke-SqlClientNonQuery -SqlConnection $SqlConnection -SqlCommandText $SqlNonQuery -CommandTimeout 300)
@@ -14000,7 +14494,8 @@ function Save-SqlInstanceDatabaseStatistic {
 			$SmoServer.Databases.Refresh()
 
 			$StatisticsDatabaseName = $Script:PSMConfig.Config.AdminDatabase.DatabaseName
-			$TableStatisticsTable = $Script:PSMConfig.Config.AdminDatabase.Statistics.Database.TableName
+			$StatisticsSchemaName = $Script:PSMConfig.Config.AdminDatabase.Statistics.Database.SchemaName
+			$StatisticsTableName = $Script:PSMConfig.Config.AdminDatabase.Statistics.Database.TableName
 		}
 		catch {
 			$ErrorRecord = $_
@@ -14128,7 +14623,7 @@ function Save-SqlInstanceDatabaseStatistic {
 
 				$SqlClientBulkCopyParameters = @{
 					'SqlConnection' = $SmoServer.ConnectionContext.SqlConnectionObject
-					'TableName' = $TableStatisticsTable
+					'TableName' = [string]::Format('[{0}].[{1}]', $StatisticsSchemaName, $StatisticsTableName)
 					'DataTable' = $DataTable
 				}
 
@@ -14241,7 +14736,8 @@ function Save-SqlInstanceQueryStoreOption {
 			$SmoServer.Databases.Refresh()
 
 			$StatisticsDatabaseName = $Script:PSMConfig.Config.AdminDatabase.DatabaseName
-			$TableStatisticsTable = $Script:PSMConfig.Config.AdminDatabase.Statistics.QueryStore.TableName
+			$StatisticsSchemaName = $Script:PSMConfig.Config.AdminDatabase.Statistics.QueryStore.SchemaName
+			$StatisticsTableName = $Script:PSMConfig.Config.AdminDatabase.Statistics.QueryStore.TableName
 		}
 		catch {
 			$ErrorRecord = $_
@@ -14364,7 +14860,7 @@ function Save-SqlInstanceQueryStoreOption {
 
 				$SqlClientBulkCopyParameters = @{
 					'SqlConnection' = $SmoServer.ConnectionContext.SqlConnectionObject
-					'TableName' = $TableStatisticsTable
+					'TableName' = [string]::Format('[{0}].[{1}]', $StatisticsSchemaName, $StatisticsTableName)
 					'DataTable' = $DataTable
 				}
 
@@ -14855,11 +15351,41 @@ function Set-SqlServerMaintenanceConfiguration {
 				$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
 				#EndRegion
 
+				#Region SchemaName
+				$ParameterName = 'SchemaName'
+
+				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
+				$ParameterAttribute.Mandatory = $false
+				$ParameterAttribute.ParameterSetName = 'Statistics'
+
+				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
+				$AttributeCollection.Add($ParameterAttribute)
+
+				$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string], $AttributeCollection)
+
+				$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
+				#EndRegion
+
+				#Region TableName
+				$ParameterName = 'TableName'
+
+				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
+				$ParameterAttribute.Mandatory = $false
+				$ParameterAttribute.ParameterSetName = 'Statistics'
+
+				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
+				$AttributeCollection.Add($ParameterAttribute)
+
+				$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string], $AttributeCollection)
+
+				$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
+				#EndRegion
+
 				#Region RetentionInDays
 				$ParameterName = 'RetentionInDays'
 
 				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
-				$ParameterAttribute.Mandatory = $true
+				$ParameterAttribute.Mandatory = $false
 				$ParameterAttribute.ParameterSetName = 'Statistics'
 
 				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
@@ -14889,11 +15415,41 @@ function Set-SqlServerMaintenanceConfiguration {
 				$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
 				#EndRegion
 
+				#Region SchemaName
+				$ParameterName = 'SchemaName'
+
+				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
+				$ParameterAttribute.Mandatory = $false
+				$ParameterAttribute.ParameterSetName = 'Tests'
+
+				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
+				$AttributeCollection.Add($ParameterAttribute)
+
+				$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string], $AttributeCollection)
+
+				$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
+				#EndRegion
+
+				#Region TableName
+				$ParameterName = 'TableName'
+
+				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
+				$ParameterAttribute.Mandatory = $false
+				$ParameterAttribute.ParameterSetName = 'Tests'
+
+				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
+				$AttributeCollection.Add($ParameterAttribute)
+
+				$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string], $AttributeCollection)
+
+				$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
+				#EndRegion
+
 				#Region RetentionInDays
 				$ParameterName = 'RetentionInDays'
 
 				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
-				$ParameterAttribute.Mandatory = $true
+				$ParameterAttribute.Mandatory = $false
 				$ParameterAttribute.ParameterSetName = 'Tests'
 
 				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
@@ -14908,6 +15464,36 @@ function Set-SqlServerMaintenanceConfiguration {
 				#EndRegion
 			}
 			'SqlAgentAlerts' {
+				#Region SchemaName
+				$ParameterName = 'SchemaName'
+
+				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
+				$ParameterAttribute.Mandatory = $true
+				$ParameterAttribute.ParameterSetName = 'SqlAgentAlerts'
+
+				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
+				$AttributeCollection.Add($ParameterAttribute)
+
+				$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string], $AttributeCollection)
+
+				$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
+				#EndRegion
+
+				#Region TableName
+				$ParameterName = 'TableName'
+
+				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
+				$ParameterAttribute.Mandatory = $true
+				$ParameterAttribute.ParameterSetName = 'SqlAgentAlerts'
+
+				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
+				$AttributeCollection.Add($ParameterAttribute)
+
+				$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string], $AttributeCollection)
+
+				$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
+				#EndRegion
+
 				#Region RetentionInDays
 				$ParameterName = 'RetentionInDays'
 
@@ -14985,13 +15571,43 @@ function Set-SqlServerMaintenanceConfiguration {
 					$Script:PSMConfig.Config.AdminDatabase.DatabaseName = $PSBoundParameters['DatabaseName']
 				}
 				'Statistics' {
-					$Script:PSMConfig.Config.AdminDatabase.Statistics."$($PSBoundParameters['StatisticName'])".RetentionDays = $PSBoundParameters['RetentionInDays'].ToString()
+					if ($PSBoundParameters['SchemaName']) {
+						$Script:PSMConfig.Config.AdminDatabase.Statistics."$($PSBoundParameters['StatisticName'])".SchemaName = $PSBoundParameters['SchemaName']
+					}
+
+					if ($PSBoundParameters['TableName']) {
+						$Script:PSMConfig.Config.AdminDatabase.Statistics."$($PSBoundParameters['StatisticName'])".TableName = $PSBoundParameters['TableName']
+					}
+
+					if ($PSBoundParameters['RetentionInDays']) {
+						$Script:PSMConfig.Config.AdminDatabase.Statistics."$($PSBoundParameters['StatisticName'])".RetentionDays = $PSBoundParameters['RetentionInDays'].ToString()
+					}
 				}
 				'Tests' {
-					$Script:PSMConfig.Config.AdminDatabase.Tests."$($PSBoundParameters['TestName'])".RetentionDays = $PSBoundParameters['RetentionInDays'].ToString()
+					if ($PSBoundParameters['SchemaName']) {
+						$Script:PSMConfig.Config.AdminDatabase.Tests."$($PSBoundParameters['TestName'])".SchemaName = $PSBoundParameters['SchemaName']
+					}
+
+					if ($PSBoundParameters['TableName']) {
+						$Script:PSMConfig.Config.AdminDatabase.Tests."$($PSBoundParameters['TestName'])".TableName = $PSBoundParameters['TableName']
+					}
+
+					if ($PSBoundParameters['RetentionInDays']) {
+						$Script:PSMConfig.Config.AdminDatabase.Tests."$($PSBoundParameters['TestName'])".RetentionDays = $PSBoundParameters['RetentionInDays'].ToString()
+					}
 				}
 				'SqlAgentAlerts' {
-					$Script:PSMConfig.Config.AdminDatabase.SqlAgentAlerts.RetentionDays = $PSBoundParameters['RetentionInDays'].ToString()
+					if ($PSBoundParameters['SchemaName']) {
+						$Script:PSMConfig.Config.AdminDatabase.SqlAgentAlerts.SchemaName = $PSBoundParameters['SchemaName']
+					}
+
+					if ($PSBoundParameters['TableName']) {
+						$Script:PSMConfig.Config.AdminDatabase.SqlAgentAlerts.TableName = $PSBoundParameters['TableNames']
+					}
+
+					if ($PSBoundParameters['RetentionInDays']) {
+						$Script:PSMConfig.Config.AdminDatabase.SqlAgentAlerts.RetentionDays = $PSBoundParameters['RetentionInDays'].ToString()
+					}
 				}
 				Default {
 					throw [System.Management.Automation.ErrorRecord]::New(
