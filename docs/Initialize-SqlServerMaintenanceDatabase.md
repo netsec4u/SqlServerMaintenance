@@ -6,32 +6,34 @@ Locale: en-US
 Module Name: SqlServerMaintenance
 ms.date: 07/29/2025
 PlatyPS schema version: 2024-05-01
-title: Get-LSSecondaryDatabase
+title: Initialize-SqlServerMaintenanceDatabase
 ---
 
-# Get-LSSecondaryDatabase
+# Initialize-SqlServerMaintenanceDatabase
 
 ## SYNOPSIS
 
-Retrieve log shipping databases for secondary role.
+Creates supporting tables for various functions within the module.
 
 ## SYNTAX
 
 ### ServerInstance (Default)
 
 ```
-Get-LSSecondaryDatabase
+Initialize-SqlServerMaintenanceDatabase
   -ServerInstance <string>
-  [-DatabaseName <string>]
+  [-WhatIf]
+  [-Confirm]
   [<CommonParameters>]
 ```
 
-### SqlConnection
+### SmoServerObject
 
 ```
-Get-LSSecondaryDatabase
-  -SqlConnection <SqlConnection>
-  [-DatabaseName <string>]
+Initialize-SqlServerMaintenanceDatabase
+  -SmoServerObject <Server>
+  [-WhatIf]
+  [-Confirm]
   [<CommonParameters>]
 ```
 
@@ -42,41 +44,36 @@ This cmdlet has the following aliases:
 
 ## DESCRIPTION
 
-Retrieve log shipping databases for secondary role.
+Creates supporting tables for various functions within the module.
 
 ## EXAMPLES
 
-### EXAMPLE 1
+### Example 1
 
-Get-LSSecondaryDatabase -ServerInstance .
+Initialize-SqlServerMaintenanceDatabase -ServerInstance .
 
-List all log shipping secondary databases on local server.
+Creates supporting tables on local SQL Server instance.
 
-### EXAMPLE 2
+### Example 2
 
-Get-LSSecondaryDatabase -ServerInstance . -DatabaseName AdventureWorks
+$SmoServer = Connect-SmoServer -ServerInstance MyServer
 
-List log shipping secondary database AdventureWorks on local server.
+Initialize-SqlServerMaintenanceDatabase -SmoServerObject $SmoServer
 
-### EXAMPLE 3
-
-$SqlConnection = Connect-SqlServerInstance -ServerInstance . -DatabaseName master
-
-Get-LSSecondaryDatabase -SqlConnection $SqlConnection -DatabaseName AdventureWorks
-
-List log shipping secondary database AdventureWorks using the specified sql connection.
+Creates supporting tables using the specified Smo session.
 
 ## PARAMETERS
 
-### -DatabaseName
+### -Confirm
 
-Specifies the name of the database to return.
+Prompts you for confirmation before running the cmdlet.
 
 ```yaml
-Type: System.String
-DefaultValue: None
+Type: System.Management.Automation.SwitchParameter
+DefaultValue: False
 SupportsWildcards: false
-Aliases: []
+Aliases:
+- cf
 ParameterSets:
 - Name: (All)
   Position: Named
@@ -110,19 +107,42 @@ AcceptedValues: []
 HelpMessage: ''
 ```
 
-### -SqlConnection
+### -SmoServerObject
 
-Specifies SQL connection object.
+Specifies SQL Server Management Object.
 
 ```yaml
-Type: Microsoft.Data.SqlClient.SqlConnection
+Type: Microsoft.SqlServer.Management.Smo.Server
 DefaultValue: None
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
-- Name: SqlConnection
+- Name: SmoServerObject
   Position: Named
   IsRequired: true
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
+DontShow: false
+AcceptedValues: []
+HelpMessage: ''
+```
+
+### -WhatIf
+
+Shows what would happen if the cmdlet runs.
+The cmdlet is not run.
+
+```yaml
+Type: System.Management.Automation.SwitchParameter
+DefaultValue: False
+SupportsWildcards: false
+Aliases:
+- wi
+ParameterSets:
+- Name: (All)
+  Position: Named
+  IsRequired: false
   ValueFromPipeline: false
   ValueFromPipelineByPropertyName: false
   ValueFromRemainingArguments: false
@@ -142,7 +162,7 @@ This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable
 
 ## OUTPUTS
 
-### SqlServerMaintenance.SqlLogShippingSecondary
+### System.Void
 
 
 

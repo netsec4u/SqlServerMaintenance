@@ -2,7 +2,32 @@
 
 ## Description
 
-This module contains functions for SQL Server maintenance.  These include backups and restore of databases, index and statistics maintenance, and database integrety checks and more.
+This module contains functions for SQL Server maintenance.  These include backups and restore of databases, index and statistics maintenance, and database integrity checks and more.
+
+The features include:
+- Server Hygiene
+	- Cycle SQL Server Error Logs
+	- Cycle Full Text Index Logs
+	- Purge History
+- Database Backup
+	- Full Backup
+	- Adaptive differential Backup
+	- Transaction Log Backup
+	- Backup retention
+- Database Statistics
+	- Database Statistics
+	- Query Store Statistics
+- Database Integrity
+- Database Monitoring
+	- Data Growth
+- Database Optimization
+	- Index Maintenance
+	- Column Store Index Maintenance
+	- Table Statistics Maintenance
+	- Full Text Index Maintenance
+- Miscellaneous
+	- Database Snapshot
+	- Log Shipping
 
 ## Support
 

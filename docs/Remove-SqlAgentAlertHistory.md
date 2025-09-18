@@ -1,147 +1,200 @@
-﻿---
+---
+document type: cmdlet
 external help file: SqlServerMaintenance-help.xml
+HelpUri: ''
+Locale: en-US
 Module Name: SqlServerMaintenance
-online version:
-schema: 2.0.0
+ms.date: 07/29/2025
+PlatyPS schema version: 2024-05-01
+title: Remove-SqlAgentAlertHistory
 ---
 
 # Remove-SqlAgentAlertHistory
 
 ## SYNOPSIS
-Remove SQL Agent alert history.
+
+Remove SQL Agent alert history beyond retention period.
 
 ## SYNTAX
 
 ### ServerInstance (Default)
+
 ```
 Remove-SqlAgentAlertHistory
-	-ServerInstance <String>
-	[-Retention <Int32>]
-	[-WhatIf]
-	[-Confirm]
-	[<CommonParameters>]
+  -ServerInstance <string>
+  [-Retention <int>]
+  [-WhatIf]
+  [-Confirm]
+  [<CommonParameters>]
 ```
 
 ### SqlConnection
+
 ```
 Remove-SqlAgentAlertHistory
-	-SqlConnection <SqlConnection>
-	[-Retention <Int32>]
-	[-WhatIf]
-	[-Confirm]
-	[<CommonParameters>]
+  -SqlConnection <SqlConnection>
+  [-Retention <int>]
+  [-WhatIf]
+  [-Confirm]
+  [<CommonParameters>]
 ```
 
+## ALIASES
+
+This cmdlet has the following aliases:
+  None
+
 ## DESCRIPTION
+
 Remove SQL Agent alert history beyond retention period.
 
 ## EXAMPLES
 
 ### EXAMPLE 1
-```powershell
+
 Remove-SqlAgentAlertHistory -ServerInstance .
-```
 
 Remove SQL Agent Alert history for sql instance.
 
 ### EXAMPLE 2
-```powershell
+
 $SqlConnection = Connect-SqlServerInstance -ServerInstance . -DatabaseName master
 
 Remove-SqlAgentAlertHistory -SqlConnection $SqlConnection
-```
 
 Remove SQL Agent Alert history using the specified Sql connection.
 
 ## PARAMETERS
 
-### -Retention
-Specifies the number of days to retain.
-
-```yaml
-Type: Int32
-Parameter Sets: (All)
-Aliases:
-
-Required: False
-Position: Named
-Default value: 0
-Accept pipeline input: False
-Accept wildcard characters: False
-```
-
-### -ServerInstance
-Specifies the name of a SQL Server instance.
-
-```yaml
-Type: String
-Parameter Sets: ServerInstance
-Aliases:
-
-Required: True
-Position: Named
-Default value: None
-Accept pipeline input: False
-Accept wildcard characters: False
-```
-
-### -SqlConnection
-Specifies SQL connection object.
-
-```yaml
-Type: SqlConnection
-Parameter Sets: SqlConnection
-Aliases:
-
-Required: True
-Position: Named
-Default value: None
-Accept pipeline input: False
-Accept wildcard characters: False
-```
-
 ### -Confirm
+
 Prompts you for confirmation before running the cmdlet.
 
 ```yaml
-Type: SwitchParameter
-Parameter Sets: (All)
-Aliases: cf
+Type: System.Management.Automation.SwitchParameter
+DefaultValue: False
+SupportsWildcards: false
+Aliases:
+- cf
+ParameterSets:
+- Name: (All)
+  Position: Named
+  IsRequired: false
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
+DontShow: false
+AcceptedValues: []
+HelpMessage: ''
+```
 
-Required: False
-Position: Named
-Default value: None
-Accept pipeline input: False
-Accept wildcard characters: False
+### -Retention
+
+Specifies the number of days to retain.
+
+```yaml
+Type: System.Int32
+DefaultValue: 0
+SupportsWildcards: false
+Aliases: []
+ParameterSets:
+- Name: (All)
+  Position: Named
+  IsRequired: false
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
+DontShow: false
+AcceptedValues: []
+HelpMessage: ''
+```
+
+### -ServerInstance
+
+Specifies the name of a SQL Server instance.
+
+```yaml
+Type: System.String
+DefaultValue: None
+SupportsWildcards: false
+Aliases: []
+ParameterSets:
+- Name: ServerInstance
+  Position: Named
+  IsRequired: true
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
+DontShow: false
+AcceptedValues: []
+HelpMessage: ''
+```
+
+### -SqlConnection
+
+Specifies SQL connection object.
+
+```yaml
+Type: Microsoft.Data.SqlClient.SqlConnection
+DefaultValue: None
+SupportsWildcards: false
+Aliases: []
+ParameterSets:
+- Name: SqlConnection
+  Position: Named
+  IsRequired: true
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
+DontShow: false
+AcceptedValues: []
+HelpMessage: ''
 ```
 
 ### -WhatIf
+
 Shows what would happen if the cmdlet runs.
 The cmdlet is not run.
 
 ```yaml
-Type: SwitchParameter
-Parameter Sets: (All)
-Aliases: wi
-
-Required: False
-Position: Named
-Default value: None
-Accept pipeline input: False
-Accept wildcard characters: False
+Type: System.Management.Automation.SwitchParameter
+DefaultValue: False
+SupportsWildcards: false
+Aliases:
+- wi
+ParameterSets:
+- Name: (All)
+  Position: Named
+  IsRequired: false
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
+DontShow: false
+AcceptedValues: []
+HelpMessage: ''
 ```
 
 ### CommonParameters
-This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable, -InformationAction, -InformationVariable, -OutVariable, -OutBuffer, -PipelineVariable, -Verbose, -WarningAction, and -WarningVariable. For more information, see [about_CommonParameters](http://go.microsoft.com/fwlink/?LinkID=113216).
+
+This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable,
+-InformationAction, -InformationVariable, -OutBuffer, -OutVariable, -PipelineVariable,
+-ProgressAction, -Verbose, -WarningAction, and -WarningVariable. For more information, see
+[about_CommonParameters](https://go.microsoft.com/fwlink/?LinkID=113216).
 
 ## INPUTS
-
-### None
 
 ## OUTPUTS
 
 ### System.Void
 
+
+
 ## NOTES
 
+
+
+
 ## RELATED LINKS
+
+None.
+

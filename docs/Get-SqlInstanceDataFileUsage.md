@@ -1,221 +1,295 @@
-﻿---
+---
+document type: cmdlet
 external help file: SqlServerMaintenance-help.xml
+HelpUri: ''
+Locale: en-US
 Module Name: SqlServerMaintenance
-online version:
-schema: 2.0.0
+ms.date: 07/29/2025
+PlatyPS schema version: 2024-05-01
+title: Get-SqlInstanceDataFileUsage
 ---
 
 # Get-SqlInstanceDataFileUsage
 
 ## SYNOPSIS
-Gets data file usage.
+
+Gets data file usage on all databases or a specified database.
 
 ## SYNTAX
 
 ### ServerInstance (Default)
+
 ```
 Get-SqlInstanceDataFileUsage
-	-ServerInstance <String>
-	[-DatabaseName <String[]>]
-	[-FreeSpaceThreshold <Int32>]
-	[-MinimumSamples <Int32>]
-	[-StatisticPeriod <Int32>]
-	[-ProjectionPeriod <Int32>]
-	[-MinimumFileGrowth <Int32>]
-	[-ReliabilityThreshold <Decimal>]
-	[<CommonParameters>]
+  -ServerInstance <string>
+  [-DatabaseName <string[]>]
+  [-FreeSpaceThreshold <int>]
+  [-MinimumSamples <int>]
+  [-StatisticPeriod <int>]
+  [-ProjectionPeriod <int>]
+  [-MinimumFileGrowth <int>]
+  [-ReliabilityThreshold <decimal>]
+  [<CommonParameters>]
 ```
 
 ### SmoServerObject
+
 ```
 Get-SqlInstanceDataFileUsage
-	-SmoServerObject <Server>
-	[-DatabaseName <String[]>]
-	[-FreeSpaceThreshold <Int32>]
-	[-MinimumSamples <Int32>]
-	[-StatisticPeriod <Int32>]
-	[-ProjectionPeriod <Int32>]
-	[-MinimumFileGrowth <Int32>]
-	[-ReliabilityThreshold <Decimal>]
-	[<CommonParameters>]
+  -SmoServerObject <Server>
+  [-DatabaseName <string[]>]
+  [-FreeSpaceThreshold <int>]
+  [-MinimumSamples <int>]
+  [-StatisticPeriod <int>]
+  [-ProjectionPeriod <int>]
+  [-MinimumFileGrowth <int>]
+  [-ReliabilityThreshold <decimal>]
+  [<CommonParameters>]
 ```
 
+## ALIASES
+
+This cmdlet has the following aliases:
+  None
+
 ## DESCRIPTION
+
 Gets data file usage on all databases or a specified database.
 
 ## EXAMPLES
 
 ### EXAMPLE 1
-```powershell
+
 Get-SqlInstanceDataFileUsage -ServerInstance .
-```
 
 Get data file usage for all databases.
 
 ### EXAMPLE 2
-```powershell
+
 Get-SqlInstanceDataFileUsage -ServerInstance . -DatabaseName AdventureWorks
-```
 
 Get data file usage for AdventureWorks database.
 
 ### EXAMPLE 3
-```powershell
+
 $SmoServer = Connect-SmoServer -ServerInstance MyServer
 
 Get-SqlInstanceDataFileUsage -SmoServerObject $SmoServer -DatabaseName AdventureWorks
-```
 
 Get data file usage for AdventureWorks database using the specified Smo session.
 
 ## PARAMETERS
 
 ### -DatabaseName
+
 Specifies the name of the database to gather data file usage.
 
 ```yaml
-Type: String[]
-Parameter Sets: (All)
-Aliases:
-
-Required: False
-Position: Named
-Default value: None
-Accept pipeline input: False
-Accept wildcard characters: False
+Type: System.String[]
+DefaultValue: None
+SupportsWildcards: false
+Aliases: []
+ParameterSets:
+- Name: (All)
+  Position: Named
+  IsRequired: false
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
+DontShow: false
+AcceptedValues: []
+HelpMessage: ''
 ```
 
 ### -FreeSpaceThreshold
+
 Specifies the free space threshold.
 
 ```yaml
-Type: Int32
-Parameter Sets: (All)
-Aliases:
-
-Required: False
-Position: Named
-Default value: 15
-Accept pipeline input: False
-Accept wildcard characters: False
+Type: System.Int32
+DefaultValue: 15
+SupportsWildcards: false
+Aliases: []
+ParameterSets:
+- Name: (All)
+  Position: Named
+  IsRequired: false
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
+DontShow: false
+AcceptedValues: []
+HelpMessage: ''
 ```
 
 ### -MinimumFileGrowth
+
 Specifies the minimum file growth in MB.
 
 ```yaml
-Type: Int32
-Parameter Sets: (All)
-Aliases:
-
-Required: False
-Position: Named
-Default value: 64
-Accept pipeline input: False
-Accept wildcard characters: False
+Type: System.Int32
+DefaultValue: 64
+SupportsWildcards: false
+Aliases: []
+ParameterSets:
+- Name: (All)
+  Position: Named
+  IsRequired: false
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
+DontShow: false
+AcceptedValues: []
+HelpMessage: ''
 ```
 
 ### -MinimumSamples
+
 Specifies the minimum number of samples to project growth.
 
 ```yaml
-Type: Int32
-Parameter Sets: (All)
-Aliases:
-
-Required: False
-Position: Named
-Default value: 5
-Accept pipeline input: False
-Accept wildcard characters: False
+Type: System.Int32
+DefaultValue: 5
+SupportsWildcards: false
+Aliases: []
+ParameterSets:
+- Name: (All)
+  Position: Named
+  IsRequired: false
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
+DontShow: false
+AcceptedValues: []
+HelpMessage: ''
 ```
 
 ### -ProjectionPeriod
+
 Specifies the number of days to project growth.
 
 ```yaml
-Type: Int32
-Parameter Sets: (All)
-Aliases:
-
-Required: False
-Position: Named
-Default value: 30
-Accept pipeline input: False
-Accept wildcard characters: False
+Type: System.Int32
+DefaultValue: 30
+SupportsWildcards: false
+Aliases: []
+ParameterSets:
+- Name: (All)
+  Position: Named
+  IsRequired: false
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
+DontShow: false
+AcceptedValues: []
+HelpMessage: ''
 ```
 
 ### -ReliabilityThreshold
+
 Specifies the threshold for automatically growing logical file.
 
 ```yaml
-Type: Decimal
-Parameter Sets: (All)
-Aliases:
-
-Required: False
-Position: Named
-Default value: 0.85
-Accept pipeline input: False
-Accept wildcard characters: False
+Type: System.Decimal
+DefaultValue: 0.85
+SupportsWildcards: false
+Aliases: []
+ParameterSets:
+- Name: (All)
+  Position: Named
+  IsRequired: false
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
+DontShow: false
+AcceptedValues: []
+HelpMessage: ''
 ```
 
 ### -ServerInstance
+
 Specifies the name of a SQL Server instance.
 
 ```yaml
-Type: String
-Parameter Sets: ServerInstance
-Aliases:
-
-Required: True
-Position: Named
-Default value: None
-Accept pipeline input: False
-Accept wildcard characters: False
+Type: System.String
+DefaultValue: None
+SupportsWildcards: false
+Aliases: []
+ParameterSets:
+- Name: ServerInstance
+  Position: Named
+  IsRequired: true
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
+DontShow: false
+AcceptedValues: []
+HelpMessage: ''
 ```
 
 ### -SmoServerObject
+
 Specifies SQL Server Management Object.
 
 ```yaml
-Type: Server
-Parameter Sets: SmoServerObject
-Aliases:
-
-Required: True
-Position: Named
-Default value: None
-Accept pipeline input: False
-Accept wildcard characters: False
+Type: Microsoft.SqlServer.Management.Smo.Server
+DefaultValue: None
+SupportsWildcards: false
+Aliases: []
+ParameterSets:
+- Name: SmoServerObject
+  Position: Named
+  IsRequired: true
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
+DontShow: false
+AcceptedValues: []
+HelpMessage: ''
 ```
 
 ### -StatisticPeriod
+
 Specified number of days of statistics used to calculate growth rate.
 
 ```yaml
-Type: Int32
-Parameter Sets: (All)
-Aliases:
-
-Required: False
-Position: Named
-Default value: 30
-Accept pipeline input: False
-Accept wildcard characters: False
+Type: System.Int32
+DefaultValue: 30
+SupportsWildcards: false
+Aliases: []
+ParameterSets:
+- Name: (All)
+  Position: Named
+  IsRequired: false
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
+DontShow: false
+AcceptedValues: []
+HelpMessage: ''
 ```
 
 ### CommonParameters
-This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable, -InformationAction, -InformationVariable, -OutVariable, -OutBuffer, -PipelineVariable, -Verbose, -WarningAction, and -WarningVariable. For more information, see [about_CommonParameters](http://go.microsoft.com/fwlink/?LinkID=113216).
+
+This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable,
+-InformationAction, -InformationVariable, -OutBuffer, -OutVariable, -PipelineVariable,
+-ProgressAction, -Verbose, -WarningAction, and -WarningVariable. For more information, see
+[about_CommonParameters](https://go.microsoft.com/fwlink/?LinkID=113216).
 
 ## INPUTS
-
-### None
 
 ## OUTPUTS
 
 ### SqlServerMaintenance.SqlDataFileUsage
 
+
+
 ## NOTES
 
+
+
+
 ## RELATED LINKS
+
+None.
+

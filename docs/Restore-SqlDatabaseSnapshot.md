@@ -1,147 +1,204 @@
-﻿---
+---
+document type: cmdlet
 external help file: SqlServerMaintenance-help.xml
+HelpUri: ''
+Locale: en-US
 Module Name: SqlServerMaintenance
-online version:
-schema: 2.0.0
+ms.date: 07/29/2025
+PlatyPS schema version: 2024-05-01
+title: Restore-SqlDatabaseSnapshot
 ---
 
 # Restore-SqlDatabaseSnapshot
 
 ## SYNOPSIS
+
 Restore database to snapshot.
 
 ## SYNTAX
 
 ### ServerInstance (Default)
+
 ```
 Restore-SqlDatabaseSnapshot
-	-ServerInstance <String>
-	-DatabaseSnapshotName <String>
-	[-WhatIf]
-	[-Confirm]
-	[<CommonParameters>]
+  -ServerInstance <string>
+  -DatabaseSnapshotName <string>
+  [-WhatIf]
+  [-Confirm]
+  [<CommonParameters>]
 ```
 
 ### SmoServerObject
+
 ```
 Restore-SqlDatabaseSnapshot
-	-SmoServerObject <Server>
-	-DatabaseSnapshotName <String>
-	[-WhatIf]
-	[-Confirm]
-	[<CommonParameters>]
+  -SmoServerObject <Server>
+  -DatabaseSnapshotName <string>
+  [-WhatIf]
+  [-Confirm]
+  [<CommonParameters>]
 ```
 
+## ALIASES
+
+This cmdlet has the following aliases:
+  None
+
 ## DESCRIPTION
+
 Restore database to snapshot.
 
 ## EXAMPLES
 
 ### Example 1
-```powershell
+
 Restore-SqlDatabaseSnapshot -ServerInstance MyServer -DatabaseSnapshotName AdventureWorksSnapshot
-```
 
 Restores database to snapshot AdventureWorksSnapshot.
 
 ### Example 2
-```powershell
+
 $SmoServer = Connect-SmoServer -ServerInstance MyServer
 
 Restore-SqlDatabaseSnapshot -SmoServerObject $SmoServer -DatabaseSnapshotName AdventureWorksSnapshot
-```
 
 Restores database to snapshot AdventureWorksSnapshot using the specified Smo session.
 
 ## PARAMETERS
 
-### -DatabaseSnapshotName
-Specifies the name of the snapshot to restore.
-
-```yaml
-Type: String
-Parameter Sets: (All)
-Aliases:
-
-Required: True
-Position: Named
-Default value: None
-Accept pipeline input: True (ByPropertyName, ByValue)
-Accept wildcard characters: False
-```
-
-### -ServerInstance
-Specifies the name of a SQL Server instance.
-
-```yaml
-Type: String
-Parameter Sets: ServerInstance
-Aliases:
-
-Required: True
-Position: Named
-Default value: None
-Accept pipeline input: False
-Accept wildcard characters: False
-```
-
-### -SmoServerObject
-Specifies SQL Server Management Object.
-
-```yaml
-Type: Server
-Parameter Sets: SmoServerObject
-Aliases:
-
-Required: True
-Position: Named
-Default value: None
-Accept pipeline input: False
-Accept wildcard characters: False
-```
-
 ### -Confirm
+
 Prompts you for confirmation before running the cmdlet.
 
 ```yaml
-Type: SwitchParameter
-Parameter Sets: (All)
-Aliases: cf
+Type: System.Management.Automation.SwitchParameter
+DefaultValue: False
+SupportsWildcards: false
+Aliases:
+- cf
+ParameterSets:
+- Name: (All)
+  Position: Named
+  IsRequired: false
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
+DontShow: false
+AcceptedValues: []
+HelpMessage: ''
+```
 
-Required: False
-Position: Named
-Default value: None
-Accept pipeline input: False
-Accept wildcard characters: False
+### -DatabaseSnapshotName
+
+Specifies the name of the snapshot to restore.
+
+```yaml
+Type: System.String
+DefaultValue: None
+SupportsWildcards: false
+Aliases: []
+ParameterSets:
+- Name: (All)
+  Position: Named
+  IsRequired: true
+  ValueFromPipeline: true
+  ValueFromPipelineByPropertyName: true
+  ValueFromRemainingArguments: false
+DontShow: false
+AcceptedValues: []
+HelpMessage: ''
+```
+
+### -ServerInstance
+
+Specifies the name of a SQL Server instance.
+
+```yaml
+Type: System.String
+DefaultValue: None
+SupportsWildcards: false
+Aliases: []
+ParameterSets:
+- Name: ServerInstance
+  Position: Named
+  IsRequired: true
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
+DontShow: false
+AcceptedValues: []
+HelpMessage: ''
+```
+
+### -SmoServerObject
+
+Specifies SQL Server Management Object.
+
+```yaml
+Type: Microsoft.SqlServer.Management.Smo.Server
+DefaultValue: None
+SupportsWildcards: false
+Aliases: []
+ParameterSets:
+- Name: SmoServerObject
+  Position: Named
+  IsRequired: true
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
+DontShow: false
+AcceptedValues: []
+HelpMessage: ''
 ```
 
 ### -WhatIf
+
 Shows what would happen if the cmdlet runs.
 The cmdlet is not run.
 
 ```yaml
-Type: SwitchParameter
-Parameter Sets: (All)
-Aliases: wi
-
-Required: False
-Position: Named
-Default value: None
-Accept pipeline input: False
-Accept wildcard characters: False
+Type: System.Management.Automation.SwitchParameter
+DefaultValue: False
+SupportsWildcards: false
+Aliases:
+- wi
+ParameterSets:
+- Name: (All)
+  Position: Named
+  IsRequired: false
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
+DontShow: false
+AcceptedValues: []
+HelpMessage: ''
 ```
 
 ### CommonParameters
-This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable, -InformationAction, -InformationVariable, -OutVariable, -OutBuffer, -PipelineVariable, -Verbose, -WarningAction, and -WarningVariable. For more information, see [about_CommonParameters](http://go.microsoft.com/fwlink/?LinkID=113216).
+
+This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable,
+-InformationAction, -InformationVariable, -OutBuffer, -OutVariable, -PipelineVariable,
+-ProgressAction, -Verbose, -WarningAction, and -WarningVariable. For more information, see
+[about_CommonParameters](https://go.microsoft.com/fwlink/?LinkID=113216).
 
 ## INPUTS
 
 ### System.String
 
+
+
 ## OUTPUTS
 
 ### System.Void
 
+
+
 ## NOTES
 
+
+
+
 ## RELATED LINKS
+
+None.
+
