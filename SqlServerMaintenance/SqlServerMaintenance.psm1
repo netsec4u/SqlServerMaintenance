@@ -15701,13 +15701,15 @@ function Switch-SqlInstanceTDECertificate {
 			$AGReplicaList = [System.Collections.Generic.List[string]]::New()
 
 			if (-not [string]::IsNullOrEmpty($SmoServer.ClusterName)) {
-				$AGReplicaList.AddRange([string[]]$($SmoServer.AvailabilityGroups.AvailabilityReplicas.Name | Select-Object -Unique))
+				$AGReplicaList.AddRange([string[]]$($SmoServer.AvailabilityGroups.Where({$_.IsDistributedAvailabilityGroup -eq $false}).AvailabilityReplicas.Name | Select-Object -Unique))
 			}
 
 			$DatabaseObject = Get-SmoDatabaseObject -SmoServerObject $SmoServer -DatabaseName 'master'
 
 			if ($PSBoundParameters.ContainsKey('CertificateName')) {
-				if ($null -eq $(Get-SmoDatabaseCertificate -DatabaseObject $DatabaseObject -CertificateName $CertificateName)) {
+				$Certificate = Get-SmoDatabaseCertificate -DatabaseObject $DatabaseObject -CertificateName $CertificateName
+
+				if ($null -eq $Certificate) {
 					throw [System.Management.Automation.ErrorRecord]::New(
 						[System.ArgumentException]::New('Certificate not found.'),
 						'1',
@@ -15715,24 +15717,24 @@ function Switch-SqlInstanceTDECertificate {
 						$CertificateName
 					)
 				}
-			}
-
-			$Certificates = $(Get-SmoDatabaseCertificate -DatabaseObject $DatabaseObject).where({$_.Subject -eq 'TDE Certificate' -and $_.ExpirationDate -gt $(Get-Date)})
-
-			if ($Certificates.Count -eq 0) {
-				$Timestamp = $(Get-Date).ToUniversalTime().ToString('yyyyMMddHHmmss')
-
-				if ([string]::IsNullOrEmpty($SmoServer.ClusterName)) {
-					$CertificateName = [string]::Format('TDE_{0}_{1}', $SmoServer.NetName, $Timestamp)
-				} else {
-					$CertificateName = [string]::Format('TDE_{0}_{1}', $SmoServer.ClusterName, $Timestamp)
-				}
-
-				$Certificate = $null
 			} else {
-				$Certificate = Sort-Object -InputObject $Certificates -Property 'ExpirationDate' -Descending | Select-Object -First 1
+				$Certificates = $(Get-SmoDatabaseCertificate -DatabaseObject $DatabaseObject).where({$_.Subject -eq 'TDE Certificate' -and $_.ExpirationDate -gt $(Get-Date)})
 
-				$CertificateName = $Certificate.Name
+				if ($Certificates.Count -eq 0) {
+					$Timestamp = $(Get-Date).ToUniversalTime().ToString('yyyyMMddHHmmss')
+
+					if ([string]::IsNullOrEmpty($SmoServer.ClusterName)) {
+						$CertificateName = [string]::Format('TDE_{0}_{1}', $SmoServer.NetName, $Timestamp)
+					} else {
+						$CertificateName = [string]::Format('TDE_{0}_{1}', $SmoServer.ClusterName, $Timestamp)
+					}
+
+					$Certificate = $null
+				} else {
+					$Certificate = Sort-Object -InputObject $Certificates -Property 'ExpirationDate' -Descending | Select-Object -First 1
+
+					$CertificateName = $Certificate.Name
+				}
 			}
 
 			$SmoServer.Databases.Refresh()

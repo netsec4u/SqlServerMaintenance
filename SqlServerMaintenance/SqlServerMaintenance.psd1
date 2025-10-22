@@ -4,7 +4,7 @@
 RootModule = 'SqlServerMaintenance.psm1'
 
 # Version number of this module.
-ModuleVersion = '2.5.5.0'
+ModuleVersion = '2.5.5.1'
 
 # Supported PSEditions
 CompatiblePSEditions = @('Core', 'Desktop')
@@ -45,7 +45,7 @@ PowerShellVersion = '5.1'
 # Modules that must be imported into the global environment prior to importing this module
 RequiredModules = @(
 	@{ModuleName="SqlServerTools"; ModuleVersion="3.6.0.0"; GUID="0dbb8289-ae5b-4633-afc8-dfaf0acbe06c"},
-	@{ModuleName="MailTools"; ModuleVersion="2.2.5.0"; GUID="2e6c86d5-98ac-4bb7-bc9a-9ff2fab701a0"}
+	@{ModuleName="MailTools"; ModuleVersion="2.2.10.0"; GUID="2e6c86d5-98ac-4bb7-bc9a-9ff2fab701a0"}
 )
 
 # Assemblies that must be loaded prior to importing this module
