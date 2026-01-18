@@ -102,6 +102,32 @@ try {
 				)
 			}
 		}
+
+		if ($PSVersionTable.PSEdition -eq 'Core') {
+			$BinPath = Join-Path -Path $PSScriptRoot -ChildPath 'Bin\OxyPlot\2.2.0\Net8.0' -Resolve
+		} else {
+			$BinPath = Join-Path -Path $PSScriptRoot -ChildPath 'Bin\OxyPlot\2.2.0\Net462' -Resolve
+		}
+
+		$OxyPlotAssemblies = @(
+			'OxyPlot.dll'
+			'OxyPlot.Wpf.dll'
+		)
+
+		foreach ($Assembly in $OxyPlotAssemblies) {
+			$AssemblyPath = Join-Path -Path $BinPath -ChildPath $Assembly -Resolve
+
+			if (Test-Path -LiteralPath $AssemblyPath) {
+				[void][System.Reflection.Assembly]::LoadFrom($AssemblyPath)
+			} else {
+				throw [System.Management.Automation.ErrorRecord]::New(
+					[Exception]::New("Required assembly '$Assembly' not found."),
+					'1',
+					[System.Management.Automation.ErrorCategory]::ResourceUnavailable,
+					$AssemblyPath
+				)
+			}
+		}
 	}
 }
 catch {
@@ -2321,7 +2347,7 @@ function Get-DatabasePrimaryFile {
 			ValueFromPipelineByPropertyName = $false
 		)]
 		[ValidatePathExists('Leaf')]
-		[System.IO.FileInfo]$MDFPath
+		[System.IO.FileInfo][TransformPath()]$MDFPath
 	)
 
 	begin {
@@ -4168,6 +4194,8 @@ function Get-SqlInstanceDataFileUsage {
 				foreach ($FileGroup in $Database.FileGroups.where({$_.FileGroupType -ne 'MemoryOptimizedDataFileGroup'})) {
 					foreach ($File in $FileGroup.Files) {
 						try {
+							$File.Refresh()
+
 							$SqlDataFileUsage = [SqlServerMaintenance.SqlDataFileUsage]::New()
 
 							$SqlDataFileUsage.SqlInstance = $SmoServer.Name
@@ -4204,6 +4232,7 @@ function Get-SqlInstanceDataFileUsage {
 								$LinearRegression = [Regression.Linear]::New($DataView.Day, $DataView.UsedSpaceMB)
 
 								$MeasuredStat = [PsCustomObject][Ordered]@{
+									'FirstDateTime' = ($DataView.CollectionDate | Measure-Object -Minimum).Minimum
 									'LastDateTime' = ($DataView.CollectionDate | Measure-Object -Maximum).Maximum
 									'LastDay' = ($DataView.Day | Measure-Object -Maximum).Maximum
 									'MaxFileSizeMB' = ($DataView.FileSizeMB | Measure-Object -Maximum).Maximum
@@ -4293,105 +4322,6 @@ function Get-SqlInstanceDataFileUsage {
 													)
 												}
 
-												$DailyGrowRateText = [string]::Format('Daily Growth Rate: {0} {1}', $FormatStringArray)
-
-												$chart1 = [System.Windows.Forms.DataVisualization.Charting.Chart]::New()
-												$chart1.Width = 1000
-												$chart1.Height = 400
-												$chart1.BackColor = [System.Drawing.Color]::Transparent
-												$chart1.ForeColor = [System.Drawing.Color]::Violet
-
-												$ChartTitle = [System.Windows.Forms.DataVisualization.Charting.Title]::New()
-												$ChartTitle.Text = 'Logical File Growth'
-												$ChartTitle.Alignment = [System.Drawing.ContentAlignment]::TopLeft
-												$ChartTitle.Font = [System.Drawing.Font]::New('Arial','14', [System.Drawing.FontStyle]::Bold)
-												$ChartTitle.ForeColor = [System.Drawing.Color]::Teal
-
-												[void]$chart1.Titles.Add($ChartTitle)
-
-												$ChartTitle = [System.Windows.Forms.DataVisualization.Charting.Title]::New()
-												$ChartTitle.Text = $DailyGrowRateText
-												$ChartTitle.Alignment = [System.Drawing.ContentAlignment]::TopLeft
-												$ChartTitle.Font = [System.Drawing.Font]::New('Arial','10', [System.Drawing.FontStyle]::Bold)
-												$ChartTitle.ForeColor = [System.Drawing.Color]::Teal
-
-												[void]$chart1.Titles.Add($ChartTitle)
-
-												$ChartArea = [System.Windows.Forms.DataVisualization.Charting.ChartArea]::New()
-												$ChartArea.Name = 'ChartArea1'
-												$ChartArea.BackColor = [System.Drawing.Color]::Transparent
-
-												$ChartArea.AxisX.Title = 'Date'
-												$ChartArea.AxisX.TitleFont = [System.Drawing.Font]::New('Arial','10', [System.Drawing.FontStyle]::Regular)
-												$ChartArea.AxisX.TitleForeColor = [System.Drawing.Color]::Teal
-												$ChartArea.AxisX.Interval = 1
-												$ChartArea.AxisX.LabelStyle.Font = [System.Drawing.Font]::New('Arial','10', [System.Drawing.FontStyle]::Regular)
-												$ChartArea.AxisX.LabelStyle.ForeColor = [System.Drawing.Color]::Teal
-												$ChartArea.AxisX.LineColor = [System.Drawing.Color]::LightSlateGray
-												$ChartArea.AxisX.MajorGrid.LineColor = [System.Drawing.Color]::LightSlateGray
-												$ChartArea.AxisX.MajorTickMark.LineColor = [System.Drawing.Color]::LightSlateGray
-												$ChartArea.AxisX.MinorGrid.LineColor = [System.Drawing.Color]::LightSlateGray
-												$ChartArea.AxisX.MinorTickMark.LineColor = [System.Drawing.Color]::LightSlateGray
-
-												$ChartArea.AxisY.Title = 'Used Space (MB)'
-												$ChartArea.AxisX.TitleFont = [System.Drawing.Font]::New('Arial','10', [System.Drawing.FontStyle]::Regular)
-												$ChartArea.AxisY.TitleForeColor = [System.Drawing.Color]::Teal
-												$ChartArea.AxisY.Interval = [int](($MeasuredStat.MaxFileSizeMB - $MeasuredStat.MinUsedSpaceMB) / 8)
-												$ChartArea.AxisY.LabelStyle.Font = [System.Drawing.Font]::New('Arial','10', [System.Drawing.FontStyle]::Regular)
-												$ChartArea.AxisY.LabelStyle.ForeColor = [System.Drawing.Color]::Teal
-												$ChartArea.AxisY.LineColor = [System.Drawing.Color]::LightSlateGray
-												$ChartArea.AxisY.MajorGrid.LineColor = [System.Drawing.Color]::LightSlateGray
-												$ChartArea.AxisY.MajorTickMark.LineColor = [System.Drawing.Color]::LightSlateGray
-												$ChartArea.AxisY.MinorGrid.LineColor = [System.Drawing.Color]::LightSlateGray
-												$ChartArea.AxisY.MinorTickMark.LineColor = [System.Drawing.Color]::LightSlateGray
-												$ChartArea.AxisY.Minimum = [math]::Floor($MeasuredStat.MinUsedSpaceMB - (($MeasuredStat.MaxFileSizeMB - $MeasuredStat.MinUsedSpaceMB) / 8))
-												$ChartArea.AxisY.Maximum = [math]::Ceiling($MeasuredStat.MaxFileSizeMB + (($MeasuredStat.MaxFileSizeMB - $MeasuredStat.MinUsedSpaceMB) / 8))
-
-												$chart1.ChartAreas.Add($ChartArea)
-
-												$Legend = [System.Windows.Forms.DataVisualization.Charting.Legend]::New()
-												$Legend.Name = 'Legend1'
-												$Legend.BackColor = [System.Drawing.Color]::Transparent
-												$Legend.Font = [System.Drawing.Font]::New('Arial','10', [System.Drawing.FontStyle]::Regular)
-												$Legend.ForeColor = [System.Drawing.Color]::Teal
-
-												$chart1.Legends.Add($Legend)
-
-												[void]$chart1.Series.Add('Logical File Size')
-												$chart1.Series['Logical File Size'].ChartType = [System.Windows.Forms.DataVisualization.Charting.SeriesChartType]::Line
-												$chart1.Series['Logical File Size'].IsVisibleInLegend = $true
-												$chart1.Series['Logical File Size'].BorderWidth = 3
-												$chart1.Series['Logical File Size'].ChartArea = 'ChartArea1'
-												$chart1.Series['Logical File Size'].Legend = 'Legend1'
-												$chart1.Series['Logical File Size'].Color = [System.Drawing.Color]::Lime
-
-												[void]$chart1.Series.Add('Used Space')
-												$chart1.Series['Used Space'].ChartType = [System.Windows.Forms.DataVisualization.Charting.SeriesChartType]::FastPoint
-												$chart1.Series['Used Space'].BorderWidth = 3
-												$chart1.Series['Used Space'].IsVisibleInLegend = $true
-												$chart1.Series['Used Space'].ChartArea = 'ChartArea1'
-												$chart1.Series['Used Space'].Legend = 'Legend1'
-												$chart1.Series['Used Space'].Color = [System.Drawing.Color]::Cyan
-
-												[void]$chart1.Series.Add('Growth Trend')
-												$chart1.Series['Growth Trend'].ChartType = [System.Windows.Forms.DataVisualization.Charting.SeriesChartType]::Line
-												$chart1.Series['Growth Trend'].IsVisibleInLegend = $true
-												$chart1.Series['Growth Trend'].BorderWidth = 3
-												$chart1.Series['Growth Trend'].ChartArea = 'ChartArea1'
-												$chart1.Series['Growth Trend'].Legend = 'Legend1'
-												$chart1.Series['Growth Trend'].Color = [System.Drawing.Color]::Violet
-
-												foreach ($Row in $DataView) {
-													$Date = $Row.CollectionDate.ToString('yyyy-MM-dd')
-
-													[void]$chart1.Series['Used Space'].points.AddXY($Date, $Row.UsedSpaceMB)
-													[void]$chart1.Series['Logical File Size'].points.AddXY($Date, $Row.FileSizeMB)
-
-													if (-not [System.Double]::IsNaN($LinearRegression.Slope)) {
-														[void]$chart1.Series['Growth Trend'].points.AddXY($Date, $LinearRegression.CalculatePrediction($Row.Day))
-													}
-												}
-
 												if ([System.Double]::IsNaN($LinearRegression.Slope) -or [math]::Round($LinearRegression.Slope, 10, [MidpointRounding]::AwayFromZero) -eq 0) {
 													$DaysLeft = [math]::Round($($DataView.Count / 2), 0, [MidpointRounding]::AwayFromZero)
 												} else {
@@ -4402,22 +4332,117 @@ function Get-SqlInstanceDataFileUsage {
 													$DaysLeft = [math]::Round($($DataView.Count / 2), 0, [MidpointRounding]::AwayFromZero)
 												}
 
+												$DailyGrowRateText = [string]::Format('Daily Growth Rate: {0} {1}', $FormatStringArray)
+
+												$PlotModel = [OxyPlot.PlotModel]::New()
+												
+												$PlotModel.Background = [OxyPlot.OxyColors]::Transparent
+												$PlotModel.TextColor = [OxyPlot.OxyColor]::FromRgb(0x1E, 0x90, 0xFF)
+
+												$PlotModel.Title = 'Logical File Growth'
+												$PlotModel.TitleHorizontalAlignment = [OxyPlot.TitleHorizontalAlignment]::CenteredWithinPlotArea
+												$PlotModel.TitleFont = 'Arial'
+												$PlotModel.TitleFontWeight = [OxyPlot.FontWeights]::Bold
+												$PlotModel.TitleColor = [OxyPlot.OxyColor]::FromRgb(0x1E, 0x90, 0xFF)
+												$PlotModel.TitleFontSize = 16
+
+												$PlotModel.Subtitle = $DailyGrowRateText
+												$PlotModel.SubtitleFont = 'Arial'
+												$PlotModel.SubtitleFontWeight = [OxyPlot.FontWeights]::Normal
+												$PlotModel.SubtitleColor = [OxyPlot.OxyColor]::FromRgb(0x1E, 0x90, 0xFF)
+												$PlotModel.SubtitleFontSize = 12
+
+												$Legend = [OxyPlot.Legends.Legend]::New()
+												$Legend.LegendPosition = [OxyPlot.Legends.LegendPosition]::BottomCenter
+												$Legend.LegendPlacement = [OxyPlot.Legends.LegendPlacement]::Outside
+												$Legend.LegendOrientation = [OxyPlot.Legends.LegendOrientation]::Horizontal
+												$Legend.Font = 'Arial'
+												$Legend.FontSize = 12
+												$Legend.TextColor = [OxyPlot.OxyColor]::FromRgb(0x1E, 0x90, 0xFF)
+
+												$PlotModel.Legends.Add($Legend)
+
+												$Axis_X = [OxyPlot.Axes.DateTimeAxis]::New()
+
+												$Axis_X.Position = [OxyPlot.Axes.AxisPosition]::Bottom
+												$Axis_X.Title = "Date"
+												$Axis_X.TitleFont = 'Arial'
+												$Axis_X.TitleFontSize = 12
+												$Axis_X.TitleColor = [OxyPlot.OxyColor]::FromRgb(0x1E, 0x90, 0xFF)
+												$Axis_X.AxisTitleDistance = 20
+												$Axis_X.Angle = -45
+												$Axis_X.IntervalType = [OxyPlot.Axes.DateTimeIntervalType]::Days
+												$Axis_X.MinorIntervalType = [OxyPlot.Axes.DateTimeIntervalType]::Days
+												$Axis_X.StringFormat = "yyyy-MM-dd"
+												$Axis_X.MajorStep = [System.Math]::Ceiling($($MeasuredStat.LastDateTime.Add($DaysLeft) - $MeasuredStat.FirstDateTime).TotalDays / 20)
+												$Axis_X.MajorGridlineStyle = [OxyPlot.LineStyle]::Dash
+
+												$PlotModel.Axes.Add($Axis_X)
+
+												$Axis_Y = [OxyPlot.Axes.LinearAxis]::New()
+
+												$Axis_Y.Position = [OxyPlot.Axes.AxisPosition]::Left
+												$Axis_Y.Title = "Used Space (MB)"
+												$Axis_Y.TitleFont = 'Arial'
+												$Axis_Y.TitleFontSize = 12
+												$Axis_Y.TitleColor = [OxyPlot.OxyColor]::FromRgb(0x1E, 0x90, 0xFF)
+												$Axis_Y.AxisTitleDistance = 20
+												$Axis_Y.MajorStep = [int](($MeasuredStat.MaxFileSizeMB - $MeasuredStat.MinUsedSpaceMB) / 8)
+												$Axis_Y.Minimum = [math]::Floor($MeasuredStat.MinUsedSpaceMB - (($MeasuredStat.MaxFileSizeMB - $MeasuredStat.MinUsedSpaceMB) / 8))
+												$Axis_Y.Maximum = [math]::Ceiling($MeasuredStat.MaxFileSizeMB + (($MeasuredStat.MaxFileSizeMB - $MeasuredStat.MinUsedSpaceMB) / 8))
+												$Axis_Y.MajorGridlineStyle = [OxyPlot.LineStyle]::Dash
+
+												$PlotModel.Axes.Add($Axis_Y)
+
+												$StairStepSeries = [OxyPlot.Series.StairStepSeries]::New()
+												$StairStepSeries.Title = "Logical File Size"
+												$StairStepSeries.Color = [OxyPlot.OxyColor]::FromRgb(0x00, 0xFF, 0x85)
+
+												$ScatterSeries = [OxyPlot.Series.ScatterSeries]::New()
+												$ScatterSeries.Title = "Used Space"
+												$ScatterSeries.MarkerType = [OxyPlot.MarkerType]::Circle
+												$ScatterSeries.MarkerFill = [OxyPlot.OxyColor]::FromRgb(0xFF, 0x57, 0x22)
+												$ScatterSeries.MarkerSize = 3
+
+												$LineSeries = [OxyPlot.Series.LineSeries]::New()
+												$LineSeries.Title = "Growth Trend"
+												$LineSeries.Color = [OxyPlot.OxyColor]::FromRgb(0x1E, 0x90, 0xFF)
+												$LineSeries.StrokeThickness = 2
+
+												foreach ($Row in $DataView) {
+													$DateTimeAxisValue = [OxyPlot.Axes.DateTimeAxis]::ToDouble($Row.CollectionDate.DateTime)
+
+													$StairStepSeries.Points.Add([OxyPlot.DataPoint]::New($DateTimeAxisValue, $Row.FileSizeMB))
+													$ScatterSeries.Points.Add([OxyPlot.Series.ScatterPoint]::New($DateTimeAxisValue, $Row.UsedSpaceMB))
+
+													if (-not [System.Double]::IsNaN($LinearRegression.Slope)) {
+														$LineSeries.Points.Add([OxyPlot.DataPoint]::New($DateTimeAxisValue, $LinearRegression.CalculatePrediction($Row.Day)))
+													}
+												}
+
+												$PlotModel.Series.Add($StairStepSeries)
+												$PlotModel.Series.Add($ScatterSeries)
+
 												$DataView.Dispose()
 
 												for ($i = 1; $i -lt $DaysLeft; $i++) {
-													$Date = $Row.CollectionDate.AddDays($i).ToString('yyyy-MM-dd')
+													$Date = $Row.CollectionDate.AddDays($i).DateTime
+													$DataPoint = [OxyPlot.DataPoint]::New([OxyPlot.Axes.DateTimeAxis]::ToDouble($Date), $LinearRegression.CalculatePrediction($MeasuredStat.LastDay + $i))
 
-													[void]$chart1.Series['Growth Trend'].points.AddXY($Date, $LinearRegression.CalculatePrediction($MeasuredStat.LastDay + $i))
+													$LineSeries.Points.Add($DataPoint)
 												}
+
+												$PlotModel.Series.Add($LineSeries)
 
 												$MemoryStream = [System.IO.MemoryStream]::New()
 
-												$chart1.SaveImage($MemoryStream, 'png')
+												$PngExporter = [OxyPlot.Wpf.PngExporter]::New()
 
-												$ChartTitle.Dispose()
-												$ChartArea.Dispose()
-												$Legend.Dispose()
-												[void]$chart1.Dispose()
+												$PngExporter.Width = 1024
+												$PngExporter.Height = 768
+												$PngExporter.Resolution = 96
+
+												$PngExporter.Export($PlotModel, $MemoryStream)
 
 												$MemoryStream.Position = 0
 											}
@@ -11191,7 +11216,7 @@ function Join-Path2 {
 				}
 			}
 
-			[string]$OutputPath = [IO.Path]::Combine($PathList)
+			[string]$OutputPath = [System.IO.Path]::GetFullPath([System.IO.Path]::Combine($PathList))
 
 			if ($Resolve) {
 				if (-not (Test-path -LiteralPath $OutputPath)) {
