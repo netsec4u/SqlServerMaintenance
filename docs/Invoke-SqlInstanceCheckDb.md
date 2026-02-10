@@ -1,6 +1,6 @@
 ---
 document type: cmdlet
-external help file: SqlServerMaintenance-help.xml
+external help file: SqlServerMaintenance-Help.xml
 HelpUri: ''
 Locale: en-US
 Module Name: SqlServerMaintenance
@@ -58,23 +58,28 @@ Perform CheckDb on all databases or a specified database.
 
 ## EXAMPLES
 
-### EXAMPLE 1
+### Example 1
 
+```powershell
 Invoke-SqlInstanceCheckDb -ServerInstance .
+```
 
 Performs CheckDB against all database on local server.
 
-### EXAMPLE 2
+### Example 2
 
+```powershell
 $SmoServer = Connect-SmoServer -ServerInstance MyServer
-
 Invoke-SqlInstanceCheckDb -SmoServerObject $SmoServer
+```
 
 Performs CheckDB against all database using the specified Smo session.
 
-### EXAMPLE 3
+### Example 3
 
+```powershell
 Invoke-SqlInstanceCheckDb -ServerInstance . -Database AdventureWorks
+```
 
 Performs CheckDB against database AdventureWorks on local server.
 
@@ -210,8 +215,7 @@ HelpMessage: ''
 
 ### -ServerInstance
 
-Specifies the name of a SQL Server instance.
-This server instance becomes the target of the CheckDb operation.
+The name of the SQL Server instance to connect to.
 
 ```yaml
 Type: System.String
@@ -232,7 +236,7 @@ HelpMessage: ''
 
 ### -SmoServerObject
 
-Specifies SQL Server Management Object.
+An existing SMO Server object representing the SQL Server instance.
 
 ```yaml
 Type: Microsoft.SqlServer.Management.Smo.Server

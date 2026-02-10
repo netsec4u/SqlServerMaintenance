@@ -1,6 +1,6 @@
 ---
 document type: cmdlet
-external help file: SqlServerMaintenance-help.xml
+external help file: SqlServerMaintenance-Help.xml
 HelpUri: ''
 Locale: en-US
 Module Name: SqlServerMaintenance
@@ -54,15 +54,18 @@ Create database snapshot.
 
 ### Example 1
 
+```powershell
 Checkpoint-SqlDatabaseSnapshot -ServerInstance MyServer -DatabaseName AdventureWorks -DatabaseSnapshotName AdventureWorksSnapshot
+```
 
 Creates snapshot on database AdventureWorks called AdventureWorksSnapshot.
 
 ### Example 2
 
+```powershell
 $SmoServer = Connect-SmoServer -ServerInstance MyServer
-
 Checkpoint-SqlDatabaseSnapshot -SmoServerObject $SmoServer -DatabaseName AdventureWorks -DatabaseSnapshotName AdventureWorksSnapshot
+```
 
 Creates snapshot on database AdventureWorks called AdventureWorksSnapshot.
 
@@ -134,7 +137,7 @@ HelpMessage: ''
 
 ### -ServerInstance
 
-Specifies the name of a SQL Server instance.
+The name of the SQL Server instance to connect to.
 
 ```yaml
 Type: System.String
@@ -155,7 +158,7 @@ HelpMessage: ''
 
 ### -SmoServerObject
 
-Specifies SQL Server Management Object.
+An existing SMO Server object representing the SQL Server instance.
 
 ```yaml
 Type: Microsoft.SqlServer.Management.Smo.Server

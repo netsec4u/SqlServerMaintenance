@@ -1,6 +1,6 @@
 ---
 document type: cmdlet
-external help file: SqlServerMaintenance-help.xml
+external help file: SqlServerMaintenance-Help.xml
 HelpUri: ''
 Locale: en-US
 Module Name: SqlServerMaintenance
@@ -54,29 +54,36 @@ Perform Log Shipping backup, copy, or restore operation.
 
 ## EXAMPLES
 
-### EXAMPLE 1
+### Example 1
 
+```powershell
 Invoke-LogShipping -ServerInstance . -LSOperation Backup
+```
 
 Performs log ship backup for all database on local server.
 
-### EXAMPLE 2
+### Example 2
 
+```powershell
 Invoke-LogShipping -ServerInstance . -DatabaseName AdventureWorks -LSOperation Backup
+```
 
 Performs log ship backup for database AdventureWorks on local server.
 
-### EXAMPLE 3
+### Example 3
 
+```powershell
 Invoke-LogShipping -SqlConnection $SqlConnection -DatabaseName AdventureWorks
+```
 
 Performs log ship backup for database AdventureWorks using the specified Sql connection.
 
-### EXAMPLE 4
+### Example 4
 
+```powershell
 $SqlConnection = Connect-SqlServerInstance -ServerInstance . -DatabaseName master
-
 Invoke-LogShipping -SqlConnection $SqlConnection -DatabaseName AdventureWorks -Session $PSSession
+```
 
 Performs log ship backup for database AdventureWorks using the specified Sql connection and execute within specified PSSession.
 
@@ -191,7 +198,7 @@ HelpMessage: ''
 
 ### -SqlConnection
 
-Specifies SQL connection object.
+An open SQL Client Connection object.
 
 ```yaml
 Type: Microsoft.Data.SqlClient.SqlConnection

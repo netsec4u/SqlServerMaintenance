@@ -1,6 +1,6 @@
 ---
 document type: cmdlet
-external help file: SqlServerMaintenance-help.xml
+external help file: SqlServerMaintenance-Help.xml
 HelpUri: ''
 Locale: en-US
 Module Name: SqlServerMaintenance
@@ -48,15 +48,18 @@ Retrieves database information from SQL database MDF data file, including origin
 
 ### Example 1
 
+```powershell
 Get-DatabasePrimaryFile -ServerInstance . -MDFPath C:\MyData\database.mdf
+```
 
 Returns database information for the C:\MyData\database.mdf data file on local server.
 
 ### Example 2
 
+```powershell
 $SqlConnection = Connect-SqlServerInstance -ServerInstance . -DatabaseName master
-
 Get-DatabasePrimaryFile -SqlConnection $SqlConnection -MDFPath C:\MyData\database.mdf
+```
 
 Returns database information for the C:\MyData\database.mdf data file using the specified sql connection.
 
@@ -85,7 +88,7 @@ HelpMessage: ''
 
 ### -ServerInstance
 
-SQL Server host name and instance name.
+The name of the SQL Server instance to connect to.
 
 ```yaml
 Type: System.String
@@ -106,7 +109,7 @@ HelpMessage: ''
 
 ### -SqlConnection
 
-Specifies SQL connection object.
+An open SQL Client Connection object.
 
 ```yaml
 Type: Microsoft.Data.SqlClient.SqlConnection

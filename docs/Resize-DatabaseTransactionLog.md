@@ -1,6 +1,6 @@
 ---
 document type: cmdlet
-external help file: SqlServerMaintenance-help.xml
+external help file: SqlServerMaintenance-Help.xml
 HelpUri: ''
 Locale: en-US
 Module Name: SqlServerMaintenance
@@ -53,17 +53,20 @@ Transaction log may not be sized to exact size specified due to VLF boundaries.
 
 ## EXAMPLES
 
-### EXAMPLE 1
+### Example 1
 
+```powershell
 Resize-DatabaseTransactionLog -ServerInstance . -DatabaseName AdventureWorks -LogFileSize 1024
+```
 
 Resize transaction log file to 1024MB.
 
-### EXAMPLE 2
+### Example 2
 
+```powershell
 $SmoServer = Connect-SmoServer -ServerInstance MyServer
-
 Resize-DatabaseTransactionLog -SmoServerObject $SmoServer -DatabaseName AdventureWorks -LogFileSize 1024
+```
 
 Resize transaction log file to 1024MB using the specified Smo session.
 
@@ -113,7 +116,7 @@ HelpMessage: ''
 
 ### -ServerInstance
 
-Specifies the name of a SQL Server instance.
+The name of the SQL Server instance to connect to.
 
 ```yaml
 Type: System.String
@@ -155,7 +158,7 @@ HelpMessage: ''
 
 ### -SmoServerObject
 
-Specifies SQL Server Management Object.
+An existing SMO Server object representing the SQL Server instance.
 
 ```yaml
 Type: Microsoft.SqlServer.Management.Smo.Server

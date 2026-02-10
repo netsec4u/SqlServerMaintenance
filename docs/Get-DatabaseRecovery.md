@@ -1,6 +1,6 @@
 ---
 document type: cmdlet
-external help file: SqlServerMaintenance-help.xml
+external help file: SqlServerMaintenance-Help.xml
 HelpUri: ''
 Locale: en-US
 Module Name: SqlServerMaintenance
@@ -134,46 +134,55 @@ Generates TSQL to restore full/differential backups, restore transaction log bac
 
 ## EXAMPLES
 
-### EXAMPLE 1
+### Example 1
 
+```powershell
 Get-DatabaseRecovery -BackupPath "D:\MSSQL\Backup" -DatabaseName "AdventureWorks" -RecoveryDateTime "6/4/2021 13:00:00 -04:00" -ServerInstance MySqlServer
+```
 
 Get database recovery commands for AdventureWorks database to recover to "6/4/2021 13:00:00 -04:00" using SQL instance MySqlServer.
 
-### EXAMPLE 2
+### Example 2
 
+```powershell
 $SmoServer = Connect-SmoServer -ServerInstance MyServer
-
 Get-DatabaseRecovery -BackupPath "D:\MSSQL\Backup" -DatabaseName "AdventureWorks" -RecoveryDateTime "6/4/2021 13:00:00 -04:00" -SmoServerObject $SmoServer
+```
 
 Get database recovery commands for AdventureWorks database to recover to "6/4/2021 13:00:00 -04:00" using SmoServer object.
 
-### EXAMPLE 3
+### Example 3
 
+```powershell
 Get-DatabaseRecovery -BackupPath "D:\MSSQL\Backup" -DatabaseName "AdventureWorks" -StopBeforeMark "MyMarkedTransaction" -MarkDateTime "6/4/2021 13:00:00 -04:00" -ServerInstance MySqlServer
+```
 
 Get database recovery commands for AdventureWorks database to recover to before marked transaction before "6/4/2021 13:00:00 -04:00" using SQL instance MySqlServer.
 
-### EXAMPLE 4
+### Example 4
 
+```powershell
 Get-DatabaseRecovery -BackupPath "D:\MSSQL\Backup" -DatabaseName "AdventureWorks" -StopBeforeMark "MyMarkedTransaction" -MarkDateTime "6/4/2021 13:00:00 -04:00" -SmoServerObject $SmoServer
+```
 
 Get database recovery commands for AdventureWorks database to recover to before marked transaction before "6/4/2021 13:00:00 -04:00" using SmoServer object.
 
-### EXAMPLE 5
+### Example 5
 
+```powershell
 $BackupFileInfo = [SqlServerMaintenance.BackupFileInfo]::New('C:\MyBackup.bak')
-
 Get-DatabaseRecovery -BackupFileInfo $BackupFileInfo -ServerInstance MySqlServer
+```
 
 Get database recovery commands from backup file list to recover using SQL instance MySqlServer.
 
-### EXAMPLE 6
+### Example 6
 
+```powershell
 $SmoServer = Connect-SmoServer -ServerInstance MyServer
 $BackupFileInfo = [SqlServerMaintenance.BackupFileInfo]::New('C:\MyBackup.bak')
-
 Get-DatabaseRecovery -BackupFileInfo $BackupFileInfo -SmoServerObject $SmoServer
+```
 
 Get database recovery commands from backup file list to recover using SmoServer object.
 
@@ -464,7 +473,7 @@ HelpMessage: ''
 
 ### -ServerInstance
 
-SQL Server host name and instance name.
+The name of the SQL Server instance to connect to.
 
 ```yaml
 Type: System.String
@@ -524,7 +533,7 @@ HelpMessage: ''
 
 ### -SmoServerObject
 
-Specifies SQL Server Management Object.
+An existing SMO Server object representing the SQL Server instance.
 
 ```yaml
 Type: Microsoft.SqlServer.Management.Smo.Server

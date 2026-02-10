@@ -1,6 +1,6 @@
 ---
 document type: cmdlet
-external help file: SqlServerMaintenance-help.xml
+external help file: SqlServerMaintenance-Help.xml
 HelpUri: ''
 Locale: en-US
 Module Name: SqlServerMaintenance
@@ -48,23 +48,28 @@ Get availability group database replica status information.
 
 ## EXAMPLES
 
-### EXAMPLE 1
+### Example 1
 
+```powershell
 Get-AvailabilityGroupDatabaseReplicaStatus -ServerInstance .
+```
 
 Get availability group database replica status for all databases.
 
-### EXAMPLE 2
+### Example 2
 
+```powershell
 Get-AvailabilityGroupDatabaseReplicaStatus -ServerInstance . -DatabaseName AdventureWorks
+```
 
 Get availability group database replica status for AdventureWorks database.
 
-### EXAMPLE 3
+### Example 3
 
+```powershell
 $SqlConnection = Connect-SqlServerInstance -ServerInstance . -DatabaseName master
-
 Get-AvailabilityGroupDatabaseReplicaStatus -SqlConnection $SqlConnection -DatabaseName AdventureWorks
+```
 
 Get availability group database replica status for AdventureWorks database.
 
@@ -114,7 +119,7 @@ HelpMessage: ''
 
 ### -ServerInstance
 
-Specifies the name of a SQL Server instance.
+The name of the SQL Server instance to connect to.
 
 ```yaml
 Type: System.String
@@ -135,7 +140,7 @@ HelpMessage: ''
 
 ### -SmoServerObject
 
-Specifies SQL Server Management Object.
+An existing SMO Server object representing the SQL Server instance.
 
 ```yaml
 Type: Microsoft.SqlServer.Management.Smo.Server

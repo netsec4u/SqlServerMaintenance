@@ -1,6 +1,6 @@
 ---
 document type: cmdlet
-external help file: SqlServerMaintenance-help.xml
+external help file: SqlServerMaintenance-Help.xml
 HelpUri: ''
 Locale: en-US
 Module Name: SqlServerMaintenance
@@ -72,23 +72,28 @@ Remove database test from tests table.
 
 ## EXAMPLES
 
-### EXAMPLE 1
+### Example 1
 
+```powershell
 Remove-DbTest -ServerInstance .
+```
 
 Remove database tests older than retention period.
 
-### EXAMPLE 2
+### Example 2
 
+```powershell
 Remove-DbTest -ServerInstance . -TestName Backup
+```
 
 Remove Backup tests older than retention period.
 
-### EXAMPLE 3
+### Example 3
 
+```powershell
 $SqlConnection = Connect-SqlServerInstance -ServerInstance . -DatabaseName master
-
 Remove-DbTest -SqlConnection $SqlConnection -TestName Backup
+```
 
 Remove Backup tests older than retention period using the specified Sql connection.
 
@@ -145,8 +150,7 @@ HelpMessage: ''
 
 ### -ServerInstance
 
-Specifies the name of a SQL Server instance.
-This server instance becomes the target of the index maintenance operation.
+The name of the SQL Server instance to connect to.
 
 ```yaml
 Type: System.String
@@ -173,7 +177,7 @@ HelpMessage: ''
 
 ### -SqlConnection
 
-Specifies SQL connection object.
+An open SQL Client Connection object.
 
 ```yaml
 Type: Microsoft.Data.SqlClient.SqlConnection

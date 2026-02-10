@@ -1,6 +1,6 @@
 ---
 document type: cmdlet
-external help file: SqlServerMaintenance-help.xml
+external help file: SqlServerMaintenance-Help.xml
 HelpUri: ''
 Locale: en-US
 Module Name: SqlServerMaintenance
@@ -52,15 +52,18 @@ Remove database snapshot.
 
 ### Example 1
 
+```powershell
 Remove-SqlDatabaseSnapshot -ServerInstance MyServer -DatabaseSnapshotName AdventureWorksSnapshot
+```
 
 Removes snapshot called AdventureWorksSnapshot.
 
 ### Example 2
 
+```powershell
 $SmoServer = Connect-SmoServer -ServerInstance MyServer
-
 Remove-SqlDatabaseSnapshot -SmoServerObject $SmoServer -DatabaseSnapshotName AdventureWorksSnapshot
+```
 
 Removes snapshot called AdventureWorksSnapshot using the specified Smo session.
 
@@ -111,7 +114,7 @@ HelpMessage: ''
 
 ### -ServerInstance
 
-Specifies the name of a SQL Server instance.
+The name of the SQL Server instance to connect to.
 
 ```yaml
 Type: System.String
@@ -132,7 +135,7 @@ HelpMessage: ''
 
 ### -SmoServerObject
 
-Specifies SQL Server Management Object.
+An existing SMO Server object representing the SQL Server instance.
 
 ```yaml
 Type: Microsoft.SqlServer.Management.Smo.Server

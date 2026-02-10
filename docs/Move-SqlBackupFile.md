@@ -1,6 +1,6 @@
 ---
 document type: cmdlet
-external help file: SqlServerMaintenance-help.xml
+external help file: SqlServerMaintenance-Help.xml
 HelpUri: ''
 Locale: en-US
 Module Name: SqlServerMaintenance
@@ -40,9 +40,11 @@ Move SQL backup files to new location.
 
 ## EXAMPLES
 
-### EXAMPLE 1
+### Example 1
 
+```powershell
 Move-SqlBackupFile -SourcePath C:\SqlBackups -DestinationPath D:\SqlBackups
+```
 
 Moves SQL backup files from C:\SqlBackups to D:\SqlBackups.
 

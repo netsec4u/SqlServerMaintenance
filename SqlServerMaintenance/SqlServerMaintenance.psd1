@@ -4,7 +4,7 @@
 RootModule = 'SqlServerMaintenance.psm1'
 
 # Version number of this module.
-ModuleVersion = '2.6.0.0'
+ModuleVersion = '2.6.0.1'
 
 # Supported PSEditions
 CompatiblePSEditions = @('Core', 'Desktop')
@@ -171,6 +171,12 @@ PrivateData = @{
 				* returns error, even in ssms
 			* Invoke-SqlInstanceStatisticsMaintenance
 				* SmoServer ambagious parameter set selection
+		'
+
+		ExternalReferences = '
+			OxyPlot (https://oxyplot.github.io/)
+				Licensed under the MIT License (MIT)
+				Documentation: https://docs.dndocs.com/n/OxyPlot.Core/2.1.2/api/index.html
 		'
 
 		# Prerelease string of this module

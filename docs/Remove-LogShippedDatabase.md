@@ -1,6 +1,6 @@
 ---
 document type: cmdlet
-external help file: SqlServerMaintenance-help.xml
+external help file: SqlServerMaintenance-Help.xml
 HelpUri: ''
 Locale: en-US
 Module Name: SqlServerMaintenance
@@ -138,36 +138,45 @@ Remove database from log shipping.
 
 ## EXAMPLES
 
-### EXAMPLE 1
+### Example 1
 
+```powershell
 Remove-LogShippedDatabase -PrimaryServerInstance MySQLInstance -SecondaryServerInstance MyBackupInstance -DatabaseName AdventureWorks
+```
 
 Removes database AdventureWorks from log shipping on SQL server instance MySQLInstance.
 
-### EXAMPLE 2
+### Example 2
 
+```powershell
 $PrimarySmoServer = Connect-SmoServer -ServerInstance MyServer
 $SecondarySmoServer = Connect-SmoServer -ServerInstance MySecondaryServer
-
 Remove-LogShippedDatabase -PrimarySmoServerObject $PrimarySmoServer -SecondarySmoServerObject $SecondarySmoServer -DatabaseName AdventureWorks
+```
 
 Removes database AdventureWorks from log shipping using the specified Smo session.
 
-### EXAMPLE 3
+### Example 3
 
+```powershell
 Remove-LogShippedDatabase -PrimaryServerInstance MySQLInstance -SecondaryServerInstance MyBackupInstance -DatabaseName AdventureWorks -SetSecondaryWriteable
+```
 
 Removes database AdventureWorks from log shipping on SQL server instance MySQLInstance and sets the secondary database on MyBackupInstance writable.
 
-### EXAMPLE 4
+### Example 4
 
+```powershell
 Remove-LogShippedDatabase -PrimaryServerInstance MySQLInstance -SecondaryServerInstance MyBackupInstance -DatabaseName AdventureWorks -DropSecondaryDatabase
+```
 
 Removes database AdventureWorks from log shipping on SQL server instance MySQLInstance and drops the secondary database on MyBackupInstance.
 
-### EXAMPLE 5
+### Example 5
 
+```powershell
 Remove-LogShippedDatabase -PrimaryServerInstance MySQLInstance -SecondaryServerInstance MyBackupInstance -DatabaseName AdventureWorks -ConfigurationOnly
+```
 
 Removes configuration only for database AdventureWorks from log shipping on SQL server instance MySQLInstance.
 

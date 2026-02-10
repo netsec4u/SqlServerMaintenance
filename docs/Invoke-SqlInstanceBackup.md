@@ -1,6 +1,6 @@
 ---
 document type: cmdlet
-external help file: SqlServerMaintenance-help.xml
+external help file: SqlServerMaintenance-Help.xml
 HelpUri: ''
 Locale: en-US
 Module Name: SqlServerMaintenance
@@ -106,29 +106,36 @@ Perform a backup all databases on instance or specified database to a local or n
 
 ## EXAMPLES
 
-### EXAMPLE 1
+### Example 1
 
+```powershell
 Invoke-SqlInstanceBackup -ServerInstance . -BackupType Full
+```
 
 Performs ful backup for all database on local server.
 
-### EXAMPLE 2
+### Example 2
 
+```powershell
 $SmoServer = Connect-SmoServer -ServerInstance MyServer
-
 Invoke-SqlInstanceBackup -SmoServerObject $SmoServer -BackupType Full
+```
 
 Performs ful backup for all database using the specified Smo session.
 
-### EXAMPLE 3
+### Example 3
 
+```powershell
 Invoke-SqlInstanceBackup -ServerInstance . -DatabaseName AdventureWorks -BackupType Full -CopyOnly
+```
 
 Performs copy only ful backup for database AdventureWorks on local server.
 
-### EXAMPLE 4
+### Example 4
 
+```powershell
 Invoke-SqlInstanceBackup -ServerInstance . -DatabaseName AdventureWorks -BackupType Log -TailLog
+```
 
 Performs tail log backup for database AdventureWorks on local server.
 
@@ -285,8 +292,7 @@ HelpMessage: ''
 
 ### -ServerInstance
 
-Specifies the name of a SQL Server instance.
-This server instance becomes the target of the backup operation.
+The name of the SQL Server instance to connect to.
 
 ```yaml
 Type: System.String
@@ -319,7 +325,7 @@ HelpMessage: ''
 
 ### -SmoServerObject
 
-Specifies SQL Server Management Object.
+An existing SMO Server object representing the SQL Server instance.
 
 ```yaml
 Type: Microsoft.SqlServer.Management.Smo.Server

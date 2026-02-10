@@ -1,6 +1,6 @@
 ---
 document type: cmdlet
-external help file: SqlServerMaintenance-help.xml
+external help file: SqlServerMaintenance-Help.xml
 HelpUri: ''
 Locale: en-US
 Module Name: SqlServerMaintenance
@@ -46,23 +46,28 @@ Save query store statistics on all databases or a specified database.
 
 ## EXAMPLES
 
-### EXAMPLE 1
+### Example 1
 
+```powershell
 Save-SqlInstanceQueryStoreOption -ServerInstance .
+```
 
 Save query store options for all databases on SQL instance.
 
-### EXAMPLE 2
+### Example 2
 
+```powershell
 $SmoServer = Connect-SmoServer -ServerInstance MyServer
-
 Save-SqlInstanceQueryStoreOption -SmoServerObject $SmoServer
+```
 
 Save query store options for all databases using the specified Smo session.
 
-### EXAMPLE 3
+### Example 3
 
+```powershell
 Save-SqlInstanceQueryStoreOption -ServerInstance . -DatabaseName AdventureWorks
+```
 
 Save query store options for AdventureWorks database.
 
@@ -91,8 +96,7 @@ HelpMessage: ''
 
 ### -ServerInstance
 
-Specifies the name of a SQL Server instance.
-This server instance becomes the target of saving query store options.
+The name of the SQL Server instance to connect to.
 
 ```yaml
 Type: System.String
@@ -113,7 +117,7 @@ HelpMessage: ''
 
 ### -SmoServerObject
 
-Specifies SQL Server Management Object.
+An existing SMO Server object representing the SQL Server instance.
 
 ```yaml
 Type: Microsoft.SqlServer.Management.Smo.Server

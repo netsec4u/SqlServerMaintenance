@@ -256,6 +256,18 @@ Class ArgumentCompleterResult {
 	}
 }
 
+class TransformPath : System.Management.Automation.ArgumentTransformationAttribute {
+	[object]Transform([System.Management.Automation.EngineIntrinsics]$EngineIntrinsics, [object]$InputData) {
+		if ([System.IO.Path]::IsPathRooted($InputData)) {
+			return $InputData
+		} else {
+			return [System.IO.Path]::GetFullPath([System.IO.Path]::Combine($PWD.Path, $InputData))
+		}
+
+		throw [System.InvalidOperationException]::New('Unexpected error.')
+	}
+}
+
 class ValidateInterval : System.Management.Automation.ValidateArgumentsAttribute {
 	[object]$LowerBound
 	[object]$UpperBound
@@ -1117,7 +1129,7 @@ Remove-Variable -Name @('TypeDefinition', 'ReferencedAssemblies', 'TypeParameter
 function Add-LogShippedDatabase {
 	<#
 	.EXTERNALHELP
-	SqlServerMaintenance-help.xml
+	SqlServerMaintenance-Help.xml
 	#>
 
 	[System.Diagnostics.DebuggerStepThrough()]
@@ -1683,7 +1695,7 @@ function Add-LogShippedDatabase {
 function Checkpoint-SqlDatabaseSnapshot {
 	<#
 	.EXTERNALHELP
-	SqlServerMaintenance-help.xml
+	SqlServerMaintenance-Help.xml
 	#>
 
 	[System.Diagnostics.DebuggerStepThrough()]
@@ -1806,7 +1818,7 @@ function Checkpoint-SqlDatabaseSnapshot {
 function Find-OrphanedDatabasePhysicalFile {
 	<#
 	.EXTERNALHELP
-	SqlServerMaintenance-help.xml
+	SqlServerMaintenance-Help.xml
 	#>
 
 	[System.Diagnostics.DebuggerStepThrough()]
@@ -1955,7 +1967,7 @@ function Find-OrphanedDatabasePhysicalFile {
 function Find-OrphanedDatabaseUser {
 	<#
 	.EXTERNALHELP
-	SqlServerMaintenance-help.xml
+	SqlServerMaintenance-Help.xml
 	#>
 
 	[System.Diagnostics.DebuggerStepThrough()]
@@ -2078,7 +2090,7 @@ function Find-OrphanedDatabaseUser {
 function Get-AvailabilityGroupDatabaseReplicaStatus {
 	<#
 	.EXTERNALHELP
-	SqlServerMaintenance-help.xml
+	SqlServerMaintenance-Help.xml
 	#>
 
 	[System.Diagnostics.DebuggerStepThrough()]
@@ -2196,7 +2208,7 @@ function Get-AvailabilityGroupDatabaseReplicaStatus {
 function Get-AvailabilityGroupSeedingStatus {
 	<#
 	.EXTERNALHELP
-	SqlServerMaintenance-help.xml
+	SqlServerMaintenance-Help.xml
 	#>
 
 	[System.Diagnostics.DebuggerStepThrough()]
@@ -2309,7 +2321,7 @@ function Get-AvailabilityGroupSeedingStatus {
 function Get-DatabasePrimaryFile {
 	<#
 	.EXTERNALHELP
-	SqlServerMaintenance-help.xml
+	SqlServerMaintenance-Help.xml
 	#>
 
 	[System.Diagnostics.DebuggerStepThrough()]
@@ -2444,7 +2456,7 @@ function Get-DatabasePrimaryFile {
 function Get-DatabaseRecovery {
 	<#
 	.EXTERNALHELP
-	SqlServerMaintenance-help.xml
+	SqlServerMaintenance-Help.xml
 	#>
 
 	[System.Diagnostics.DebuggerStepThrough()]
@@ -3270,7 +3282,7 @@ function Get-DatabaseRecovery {
 function Get-DatabaseTransactionLogInfo {
 	<#
 	.EXTERNALHELP
-	SqlServerMaintenance-help.xml
+	SqlServerMaintenance-Help.xml
 	#>
 
 	[System.Diagnostics.DebuggerStepThrough()]
@@ -3461,7 +3473,7 @@ function Get-DatabaseTransactionLogInfoDataSet {
 function Get-LSPrimaryDatabase {
 	<#
 	.EXTERNALHELP
-	SqlServerMaintenance-help.xml
+	SqlServerMaintenance-Help.xml
 	#>
 
 	[System.Diagnostics.DebuggerStepThrough()]
@@ -3594,7 +3606,7 @@ function Get-LSPrimaryDatabase {
 function Get-LSSecondaryDatabase {
 	<#
 	.EXTERNALHELP
-	SqlServerMaintenance-help.xml
+	SqlServerMaintenance-Help.xml
 	#>
 
 	[System.Diagnostics.DebuggerStepThrough()]
@@ -3850,7 +3862,7 @@ function Get-SqlBackupFile {
 function Get-SqlDatabaseSnapshot {
 	<#
 	.EXTERNALHELP
-	SqlServerMaintenance-help.xml
+	SqlServerMaintenance-Help.xml
 	#>
 
 	[System.Diagnostics.DebuggerStepThrough()]
@@ -3966,7 +3978,7 @@ function Get-SqlDatabaseSnapshot {
 function Get-SqlInstanceDataFileUsage {
 	<#
 	.EXTERNALHELP
-	SqlServerMaintenance-help.xml
+	SqlServerMaintenance-Help.xml
 	#>
 
 	[System.Diagnostics.DebuggerStepThrough()]
@@ -4335,7 +4347,7 @@ function Get-SqlInstanceDataFileUsage {
 												$DailyGrowRateText = [string]::Format('Daily Growth Rate: {0} {1}', $FormatStringArray)
 
 												$PlotModel = [OxyPlot.PlotModel]::New()
-												
+
 												$PlotModel.Background = [OxyPlot.OxyColors]::Transparent
 												$PlotModel.TextColor = [OxyPlot.OxyColor]::FromRgb(0x1E, 0x90, 0xFF)
 
@@ -4570,7 +4582,7 @@ function Get-SqlInstanceDataFileUsage {
 function Get-SqlInstanceLogFileGrowthRate {
 	<#
 	.EXTERNALHELP
-	SqlServerMaintenance-help.xml
+	SqlServerMaintenance-Help.xml
 	#>
 
 	[System.Diagnostics.DebuggerStepThrough()]
@@ -4834,7 +4846,7 @@ function Get-SqlInstanceLogFileGrowthRate {
 function Get-SqlInstanceLogFileVLFCount {
 	<#
 	.EXTERNALHELP
-	SqlServerMaintenance-help.xml
+	SqlServerMaintenance-Help.xml
 	#>
 
 	[System.Diagnostics.DebuggerStepThrough()]
@@ -5089,7 +5101,7 @@ function Get-SqlInstanceLogFileVLFCount {
 function Get-SqlInstanceQueryStoreUsage {
 	<#
 	.EXTERNALHELP
-	SqlServerMaintenance-help.xml
+	SqlServerMaintenance-Help.xml
 	#>
 
 	[System.Diagnostics.DebuggerStepThrough()]
@@ -5345,7 +5357,7 @@ function Get-SqlInstanceQueryStoreUsage {
 function Get-SqlInstanceTDEStatus {
 	<#
 	.EXTERNALHELP
-	SqlServerMaintenance-help.xml
+	SqlServerMaintenance-Help.xml
 	#>
 
 	[System.Diagnostics.DebuggerStepThrough()]
@@ -5442,7 +5454,7 @@ function Get-SqlInstanceTDEStatus {
 function Get-SqlServerMaintenanceConfiguration {
 	<#
 	.EXTERNALHELP
-	SqlServerMaintenance-help.xml
+	SqlServerMaintenance-Help.xml
 	#>
 
 	[System.Diagnostics.DebuggerStepThrough()]
@@ -5804,7 +5816,7 @@ function Get-TimeInTimeZone {
 function Initialize-SqlServerMaintenanceDatabase {
 	<#
 	.EXTERNALHELP
-	SqlServerMaintenance-help.xml
+	SqlServerMaintenance-Help.xml
 	#>
 
 	[System.Diagnostics.DebuggerStepThrough()]
@@ -6268,7 +6280,7 @@ function Initialize-SqlServerMaintenanceDatabase {
 function Invoke-CycleFullTextIndexLog {
 	<#
 	.EXTERNALHELP
-	SqlServerMaintenance-help.xml
+	SqlServerMaintenance-Help.xml
 	#>
 
 	[System.Diagnostics.DebuggerStepThrough()]
@@ -6530,7 +6542,7 @@ function Invoke-CycleFullTextIndexLog {
 function Invoke-LogShipping {
 	<#
 	.EXTERNALHELP
-	SqlServerMaintenance-help.xml
+	SqlServerMaintenance-Help.xml
 	#>
 
 	[System.Diagnostics.DebuggerStepThrough()]
@@ -7044,7 +7056,7 @@ function Invoke-RetryScriptBlock {
 function Invoke-SqlBackupVerification {
 	<#
 	.EXTERNALHELP
-	SqlServerMaintenance-help.xml
+	SqlServerMaintenance-Help.xml
 	#>
 
 	[System.Diagnostics.DebuggerStepThrough()]
@@ -8089,7 +8101,7 @@ function Invoke-SqlBackupVerification {
 function Invoke-SqlInstanceBackup {
 	<#
 	.EXTERNALHELP
-	SqlServerMaintenance-help.xml
+	SqlServerMaintenance-Help.xml
 	#>
 
 	[System.Diagnostics.DebuggerStepThrough()]
@@ -8701,7 +8713,7 @@ function Invoke-SqlInstanceBackup {
 function Invoke-SqlInstanceCheckDb {
 	<#
 	.EXTERNALHELP
-	SqlServerMaintenance-help.xml
+	SqlServerMaintenance-Help.xml
 	#>
 
 	[System.Diagnostics.DebuggerStepThrough()]
@@ -9038,7 +9050,7 @@ function Invoke-SqlInstanceCheckDb {
 function Invoke-SqlInstanceColumnStoreMaintenance {
 	<#
 	.EXTERNALHELP
-	SqlServerMaintenance-help.xml
+	SqlServerMaintenance-Help.xml
 	#>
 
 	[System.Diagnostics.DebuggerStepThrough()]
@@ -9286,6 +9298,10 @@ function Invoke-SqlInstanceColumnStoreMaintenance {
 				try {
 					$ColumnStoreStats = $Database.ExecuteWithResults($QueryString)
 
+					if ($ColumnStoreStats.Tables[0].Rows.Count -eq 0) {
+						continue
+					}
+
 					foreach ($Row in $ColumnStoreStats.Tables[0]) {
 						try {
 							$IndexOutput = [SqlServerMaintenance.Index]::New()
@@ -9461,7 +9477,7 @@ function Invoke-SqlInstanceColumnStoreMaintenance {
 function Invoke-SqlInstanceCycleErrorLog {
 	<#
 	.EXTERNALHELP
-	SqlServerMaintenance-help.xml
+	SqlServerMaintenance-Help.xml
 	#>
 
 	[System.Diagnostics.DebuggerStepThrough()]
@@ -9627,7 +9643,7 @@ function Invoke-SqlInstanceCycleErrorLog {
 function Invoke-SqlInstanceFullTextIndexMaintenance {
 	<#
 	.EXTERNALHELP
-	SqlServerMaintenance-help.xml
+	SqlServerMaintenance-Help.xml
 	#>
 
 	[System.Diagnostics.DebuggerStepThrough()]
@@ -9852,6 +9868,10 @@ function Invoke-SqlInstanceFullTextIndexMaintenance {
 				try {
 					$FullTextIndexStats = $Database.ExecuteWithResults($QueryString)
 
+					if ($FullTextIndexStats.Tables[0].Rows.Count -eq 0) {
+						continue
+					}
+
 					$RebuiltFullTextCatalogs = [System.Collections.Generic.HashSet[string]]::New()
 
 					foreach ($Row in $FullTextIndexStats.Tables[0]) {
@@ -10015,7 +10035,7 @@ function Invoke-SqlInstanceFullTextIndexMaintenance {
 function Invoke-SqlInstanceIndexMaintenance {
 	<#
 	.EXTERNALHELP
-	SqlServerMaintenance-help.xml
+	SqlServerMaintenance-Help.xml
 	#>
 
 	[System.Diagnostics.DebuggerStepThrough()]
@@ -10304,6 +10324,10 @@ function Invoke-SqlInstanceIndexMaintenance {
 
 				try {
 					$IndexPhysicalStats = $Database.ExecuteWithResults($QueryString)
+
+					if ($IndexPhysicalStats.Tables[0].Rows.Count -eq 0) {
+						continue
+					}
 
 					foreach ($Row in $IndexPhysicalStats.Tables[0]) {
 						try {
@@ -10616,7 +10640,7 @@ function Invoke-SqlInstanceIndexMaintenance {
 function Invoke-SqlInstanceStatisticsMaintenance {
 	<#
 	.EXTERNALHELP
-	SqlServerMaintenance-help.xml
+	SqlServerMaintenance-Help.xml
 	#>
 
 	[System.Diagnostics.DebuggerStepThrough()]
@@ -10986,6 +11010,10 @@ function Invoke-SqlInstanceStatisticsMaintenance {
 				try {
 					$StatisticsProperties = $Database.ExecuteWithResults($QueryString)
 
+					if ($StatisticsProperties.Tables[0].Rows.Count -eq 0) {
+						continue
+					}
+
 					foreach ($Row in $StatisticsProperties.Tables[0]) {
 						if ([string]::IsNullOrEmpty($StatisticsOptions)) {
 							$SqlNonQuery = [string]::Format('UPDATE STATISTICS [{0}].[{1}] [{2}];', $Row.SchemaName, $Row.ObjectName, $Row.StatisticsName)
@@ -11243,7 +11271,7 @@ function Join-Path2 {
 function Move-SqlBackupFile {
 	<#
 	.EXTERNALHELP
-	SqlServerMaintenance-help.xml
+	SqlServerMaintenance-Help.xml
 	#>
 
 	[System.Diagnostics.DebuggerStepThrough()]
@@ -11321,7 +11349,7 @@ function Move-SqlBackupFile {
 function Move-SqlDatabaseTable {
 	<#
 	.EXTERNALHELP
-	SqlServerMaintenance-help.xml
+	SqlServerMaintenance-Help.xml
 	#>
 
 	[System.Diagnostics.DebuggerStepThrough()]
@@ -11656,7 +11684,7 @@ function Move-SqlDatabaseTable {
 function Read-SqlAgentAlert {
 	<#
 	.EXTERNALHELP
-	SqlServerMaintenance-help.xml
+	SqlServerMaintenance-Help.xml
 	#>
 
 	[System.Diagnostics.DebuggerStepThrough()]
@@ -12107,7 +12135,7 @@ function Remove-BackupTestDatabase {
 function Remove-DbStatistic {
 	<#
 	.EXTERNALHELP
-	SqlServerMaintenance-help.xml
+	SqlServerMaintenance-Help.xml
 	#>
 
 	[System.Diagnostics.DebuggerStepThrough()]
@@ -12356,7 +12384,7 @@ function Remove-DbStatistic {
 function Remove-DbTest {
 	<#
 	.EXTERNALHELP
-	SqlServerMaintenance-help.xml
+	SqlServerMaintenance-Help.xml
 	#>
 
 	[System.Diagnostics.DebuggerStepThrough()]
@@ -12590,7 +12618,7 @@ function Remove-DbTest {
 function Remove-LogShippedDatabase {
 	<#
 	.EXTERNALHELP
-	SqlServerMaintenance-help.xml
+	SqlServerMaintenance-Help.xml
 	#>
 
 	[System.Diagnostics.DebuggerStepThrough()]
@@ -12964,7 +12992,7 @@ function Remove-LogShippedDatabase {
 function Remove-SqlAgentAlertHistory {
 	<#
 	.EXTERNALHELP
-	SqlServerMaintenance-help.xml
+	SqlServerMaintenance-Help.xml
 	#>
 
 	[System.Diagnostics.DebuggerStepThrough()]
@@ -13133,7 +13161,7 @@ function Remove-SqlAgentAlertHistory {
 function Remove-SqlBackupFile {
 	<#
 	.EXTERNALHELP
-	SqlServerMaintenance-help.xml
+	SqlServerMaintenance-Help.xml
 	#>
 
 	[System.Diagnostics.DebuggerStepThrough()]
@@ -13288,7 +13316,7 @@ function Remove-SqlBackupFile {
 function Remove-SqlDatabaseSnapshot {
 	<#
 	.EXTERNALHELP
-	SqlServerMaintenance-help.xml
+	SqlServerMaintenance-Help.xml
 	#>
 
 	[System.Diagnostics.DebuggerStepThrough()]
@@ -13396,7 +13424,7 @@ function Remove-SqlDatabaseSnapshot {
 function Remove-SqlInstanceFileHistory {
 	<#
 	.EXTERNALHELP
-	SqlServerMaintenance-help.xml
+	SqlServerMaintenance-Help.xml
 	#>
 
 	[System.Diagnostics.DebuggerStepThrough()]
@@ -13604,7 +13632,7 @@ function Remove-SqlInstanceFileHistory {
 function Remove-SqlInstanceHistory {
 	<#
 	.EXTERNALHELP
-	SqlServerMaintenance-help.xml
+	SqlServerMaintenance-Help.xml
 	#>
 
 	[System.Diagnostics.DebuggerStepThrough()]
@@ -13854,7 +13882,7 @@ function Remove-SqlInstanceHistory {
 function Resize-DatabaseLogicalFile {
 	<#
 	.EXTERNALHELP
-	SqlServerMaintenance-help.xml
+	SqlServerMaintenance-Help.xml
 	#>
 
 	[System.Diagnostics.DebuggerStepThrough()]
@@ -14082,7 +14110,7 @@ function Resize-DatabaseLogicalFile {
 function Resize-DatabaseTransactionLog {
 	<#
 	.EXTERNALHELP
-	SqlServerMaintenance-help.xml
+	SqlServerMaintenance-Help.xml
 	#>
 
 	[System.Diagnostics.DebuggerStepThrough()]
@@ -14340,7 +14368,7 @@ function Resize-DatabaseTransactionLog {
 function Restore-SqlDatabaseSnapshot {
 	<#
 	.EXTERNALHELP
-	SqlServerMaintenance-help.xml
+	SqlServerMaintenance-Help.xml
 	#>
 
 	[System.Diagnostics.DebuggerStepThrough()]
@@ -14460,7 +14488,7 @@ function Restore-SqlDatabaseSnapshot {
 function Save-SqlInstanceDatabaseStatistic {
 	<#
 	.EXTERNALHELP
-	SqlServerMaintenance-help.xml
+	SqlServerMaintenance-Help.xml
 	#>
 
 	[System.Diagnostics.DebuggerStepThrough()]
@@ -14702,7 +14730,7 @@ function Save-SqlInstanceDatabaseStatistic {
 function Save-SqlInstanceQueryStoreOption {
 	<#
 	.EXTERNALHELP
-	SqlServerMaintenance-help.xml
+	SqlServerMaintenance-Help.xml
 	#>
 
 	[System.Diagnostics.DebuggerStepThrough()]
@@ -14939,7 +14967,7 @@ function Save-SqlInstanceQueryStoreOption {
 function Send-DatabaseMail {
 	<#
 	.EXTERNALHELP
-	SqlServerMaintenance-help.xml
+	SqlServerMaintenance-Help.xml
 	#>
 
 	[System.Diagnostics.DebuggerStepThrough()]
@@ -15209,7 +15237,7 @@ function Send-DatabaseMail {
 function Set-SqlServerMaintenanceConfiguration {
 	<#
 	.EXTERNALHELP
-	SqlServerMaintenance-help.xml
+	SqlServerMaintenance-Help.xml
 	#>
 
 	[System.Diagnostics.DebuggerStepThrough()]
@@ -15660,7 +15688,7 @@ function Set-SqlServerMaintenanceConfiguration {
 function Switch-SqlInstanceTDECertificate {
 	<#
 	.EXTERNALHELP
-	SqlServerMaintenance-help.xml
+	SqlServerMaintenance-Help.xml
 	#>
 
 	[System.Diagnostics.DebuggerStepThrough()]

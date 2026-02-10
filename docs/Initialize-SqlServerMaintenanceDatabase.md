@@ -1,6 +1,6 @@
 ---
 document type: cmdlet
-external help file: SqlServerMaintenance-help.xml
+external help file: SqlServerMaintenance-Help.xml
 HelpUri: ''
 Locale: en-US
 Module Name: SqlServerMaintenance
@@ -50,15 +50,18 @@ Creates supporting tables for various functions within the module.
 
 ### Example 1
 
+```powershell
 Initialize-SqlServerMaintenanceDatabase -ServerInstance .
+```
 
 Creates supporting tables on local SQL Server instance.
 
 ### Example 2
 
+```powershell
 $SmoServer = Connect-SmoServer -ServerInstance MyServer
-
 Initialize-SqlServerMaintenanceDatabase -SmoServerObject $SmoServer
+```
 
 Creates supporting tables using the specified Smo session.
 
@@ -88,7 +91,7 @@ HelpMessage: ''
 
 ### -ServerInstance
 
-Specifies the name of a SQL Server instance.
+The name of the SQL Server instance to connect to.
 
 ```yaml
 Type: System.String
@@ -109,7 +112,7 @@ HelpMessage: ''
 
 ### -SmoServerObject
 
-Specifies SQL Server Management Object.
+An existing SMO Server object representing the SQL Server instance.
 
 ```yaml
 Type: Microsoft.SqlServer.Management.Smo.Server

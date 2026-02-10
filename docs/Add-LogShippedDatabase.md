@@ -1,6 +1,6 @@
 ---
 document type: cmdlet
-external help file: SqlServerMaintenance-help.xml
+external help file: SqlServerMaintenance-Help.xml
 HelpUri: ''
 Locale: en-US
 Module Name: SqlServerMaintenance
@@ -58,18 +58,21 @@ Add database to log shipping.
 
 ## EXAMPLES
 
-### EXAMPLE 1
+### Example 1
 
+```powershell
 Add-LogShippedDatabase -PrimaryServerInstance MySQLInstance -SecondaryServerInstance MyBackupInstance -DatabaseName AdventureWorks -StagingPath \\MyFileServer\Staging
+```
 
 Adds database AdventureWorks to log shipping on SQL server instance MySQLInstance to log ship to MyBackupInstance.
 
-### EXAMPLE 2
+### Example 2
 
+```powershell
 $PrimarySmoServer = Connect-SmoServer -ServerInstance MyServer
 $SecondarySmoServer = Connect-SmoServer -ServerInstance MySecondaryServer
-
 Add-LogShippedDatabase -PrimarySmoServerObject $PrimarySmoServer -SecondarySmoServerObject $SecondarySmoServer -DatabaseName AdventureWorks -StagingPath \\MyFileServer\Staging
+```
 
 Adds database AdventureWorks to log shipping by Smo Server connections.
 

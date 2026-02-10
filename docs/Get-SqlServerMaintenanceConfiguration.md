@@ -1,6 +1,6 @@
 ---
 document type: cmdlet
-external help file: SqlServerMaintenance-help.xml
+external help file: SqlServerMaintenance-Help.xml
 HelpUri: ''
 Locale: en-US
 Module Name: SqlServerMaintenance
@@ -36,9 +36,11 @@ Get module configuration.
 
 ## EXAMPLES
 
-### EXAMPLE 1
+### Example 1
 
+```powershell
 Get-SqlServerMaintenanceConfiguration -SettingName SmtpSettings
+```
 
 Get module configuration for SmtpSettings.
 

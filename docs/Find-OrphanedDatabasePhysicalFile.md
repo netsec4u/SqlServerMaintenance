@@ -1,6 +1,6 @@
 ---
 document type: cmdlet
-external help file: SqlServerMaintenance-help.xml
+external help file: SqlServerMaintenance-Help.xml
 HelpUri: ''
 Locale: en-US
 Module Name: SqlServerMaintenance
@@ -46,15 +46,18 @@ Finds database files that are currently not associated with any attached databas
 
 ### Example 1
 
+```powershell
 Find-OrphanedDatabasePhysicalFile -ServerInstance MySqlServer
+```
 
 Finds the orphaned database files on SQL instance MySqlServer.
 
 ### Example 2
 
+```powershell
 $SmoServer = Connect-SmoServer -ServerInstance MyServer
-
 Find-OrphanedDatabasePhysicalFile -SmoServerObject $SmoServer
+```
 
 Finds the orphaned database files using SmoServer object.
 
@@ -62,7 +65,7 @@ Finds the orphaned database files using SmoServer object.
 
 ### -ServerInstance
 
-SQL Server host name and instance name.
+The name of the SQL Server instance to connect to.
 
 ```yaml
 Type: System.String
@@ -83,7 +86,7 @@ HelpMessage: ''
 
 ### -SmoServerObject
 
-Specifies SQL Server Management Object.
+An existing SMO Server object representing the SQL Server instance.
 
 ```yaml
 Type: Microsoft.SqlServer.Management.Smo.Server

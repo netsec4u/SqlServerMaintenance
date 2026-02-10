@@ -1,6 +1,6 @@
 ---
 document type: cmdlet
-external help file: SqlServerMaintenance-help.xml
+external help file: SqlServerMaintenance-Help.xml
 HelpUri: ''
 Locale: en-US
 Module Name: SqlServerMaintenance
@@ -88,47 +88,60 @@ Perform table statistics maintenance on all databases or a specified database.
 
 ## EXAMPLES
 
-### EXAMPLE 1
+### Example 1
 
+```powershell
 Invoke-SqlInstanceStatisticsMaintenance -ServerInstance .
+```
 
 Performs table statistics maintenance against all database on local server based on dynamic threshold.
 
-### EXAMPLE 2
+### Example 2
 
+```powershell
 $SmoServer = Connect-SmoServer -ServerInstance MyServer
-
 Invoke-SqlInstanceStatisticsMaintenance -SmoServerObject $SmoServer
+```
 
 Performs table statistics maintenance against all database using specified Smo session.
 
-### EXAMPLE 3
+### Example 3
 
+```powershell
 Invoke-SqlInstanceStatisticsMaintenance -ServerInstance . -Database AdventureWorks
+```
 
 Performs table statistics maintenance against database AdventureWorks on local server based on dynamic threshold.
 
-### EXAMPLE 4
+### Example 4
 
+```powershell
 Invoke-SqlInstanceStatisticsMaintenance -ServerInstance . -Database AdventureWorks -RowCountThreshold 1024 -ModificationCountThreshold 100
+```
 
 Use static threshold where statics with a row count more than 1024 rows and 100 rows modified.
 
-### EXAMPLE 5
+### Example 5
 
+```powershell
 Invoke-SqlInstanceStatisticsMaintenance -ServerInstance . -Database AdventureWorks -StatisticsScanType Percent -StatisticsSample 50
+```
 
 Performs table statistics maintenance against database AdventureWorks on local server based on dynamic threshold with 50 percent sampling.
 
-### EXAMPLE 6
+### Example 6
 
+```powershell
 Invoke-SqlInstanceStatisticsMaintenance -ServerInstance . -Database AdventureWorks -StatisticsScanType Rows -StatisticsSample 1000 -RowCountThreshold 1024 -ModificationCountThreshold 100
+```
 
 Performs table statistics maintenance against database AdventureWorks on local server based on static threshold with row sampling of 1000 rows.
 
-### EXAMPLE 7
+### Example 7
 
+```powershell
 Invoke-SqlInstanceStatisticsMaintenance -ServerInstance . -Database AdventureWorks -StatisticsScanType FullScan -Persist
+```
 
 Performs table statistics maintenance against database AdventureWorks on local server to perform full scan and to persist.
 
@@ -282,8 +295,7 @@ HelpMessage: ''
 
 ### -ServerInstance
 
-Specifies the name of a SQL Server instance.
-This server instance becomes the target of the statistics maintenance operation.
+The name of the SQL Server instance to connect to.
 
 ```yaml
 Type: System.String
@@ -310,7 +322,7 @@ HelpMessage: ''
 
 ### -SmoServerObject
 
-Specifies SQL Server Management Object.
+An existing SMO Server object representing the SQL Server instance.
 
 ```yaml
 Type: Microsoft.SqlServer.Management.Smo.Server

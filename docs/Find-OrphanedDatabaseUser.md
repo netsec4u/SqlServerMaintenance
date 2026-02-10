@@ -1,6 +1,6 @@
 ---
 document type: cmdlet
-external help file: SqlServerMaintenance-help.xml
+external help file: SqlServerMaintenance-Help.xml
 HelpUri: ''
 Locale: en-US
 Module Name: SqlServerMaintenance
@@ -48,21 +48,26 @@ Find orphaned database users.
 
 ### Example 1
 
+```powershell
 Find-OrphanedDatabaseUser -ServerInstance MyServer
+```
 
 Finds orphaned database users for databases on MyServer.
 
 ### Example 2
 
+```powershell
 Find-OrphanedDatabaseUser -ServerInstance MyServer -DatabaseName AdventureWorks
+```
 
 Finds orphaned database users on database AdventureWorks.
 
 ### Example 3
 
+```powershell
 $SmoServer = Connect-SmoServer -ServerInstance MyServer
-
 Find-OrphanedDatabaseUser -SmoServerObject $SmoServer -DatabaseName AdventureWorks
+```
 
 Finds orphaned database users on database AdventureWorks.
 
@@ -91,7 +96,7 @@ HelpMessage: ''
 
 ### -ServerInstance
 
-Specifies the name of a SQL Server instance.
+The name of the SQL Server instance to connect to.
 
 ```yaml
 Type: System.String
@@ -112,7 +117,7 @@ HelpMessage: ''
 
 ### -SmoServerObject
 
-Specifies SQL Server Management Object.
+An existing SMO Server object representing the SQL Server instance.
 
 ```yaml
 Type: Microsoft.SqlServer.Management.Smo.Server

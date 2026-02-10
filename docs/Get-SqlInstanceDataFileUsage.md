@@ -1,6 +1,6 @@
 ---
 document type: cmdlet
-external help file: SqlServerMaintenance-help.xml
+external help file: SqlServerMaintenance-Help.xml
 HelpUri: ''
 Locale: en-US
 Module Name: SqlServerMaintenance
@@ -58,23 +58,28 @@ Gets data file usage on all databases or a specified database.
 
 ## EXAMPLES
 
-### EXAMPLE 1
+### Example 1
 
+```powershell
 Get-SqlInstanceDataFileUsage -ServerInstance .
+```
 
 Get data file usage for all databases.
 
-### EXAMPLE 2
+### Example 2
 
+```powershell
 Get-SqlInstanceDataFileUsage -ServerInstance . -DatabaseName AdventureWorks
+```
 
 Get data file usage for AdventureWorks database.
 
-### EXAMPLE 3
+### Example 3
 
+```powershell
 $SmoServer = Connect-SmoServer -ServerInstance MyServer
-
 Get-SqlInstanceDataFileUsage -SmoServerObject $SmoServer -DatabaseName AdventureWorks
+```
 
 Get data file usage for AdventureWorks database using the specified Smo session.
 
@@ -208,7 +213,7 @@ HelpMessage: ''
 
 ### -ServerInstance
 
-Specifies the name of a SQL Server instance.
+The name of the SQL Server instance to connect to.
 
 ```yaml
 Type: System.String
@@ -229,7 +234,7 @@ HelpMessage: ''
 
 ### -SmoServerObject
 
-Specifies SQL Server Management Object.
+An existing SMO Server object representing the SQL Server instance.
 
 ```yaml
 Type: Microsoft.SqlServer.Management.Smo.Server

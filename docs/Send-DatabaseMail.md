@@ -1,6 +1,6 @@
 ---
 document type: cmdlet
-external help file: SqlServerMaintenance-help.xml
+external help file: SqlServerMaintenance-Help.xml
 HelpUri: ''
 Locale: en-US
 Module Name: SqlServerMaintenance
@@ -71,15 +71,18 @@ Send Email using SQL Server Database Mail.
 
 ### Example 1
 
+```powershell
 Send-DatabaseMail -ServerInstance MyServer -MailTo 'john@contoso.com' -Subject 'Test message' -Body 'This is a test message.'
+```
 
 Sends email to john@contoso.com from MyServer.
 
 ### Example 2
 
+```powershell
 $SqlConnection = Connect-SqlServerInstance -ServerInstance . -DatabaseName master
-
 Send-DatabaseMail -SqlConnection $SqlConnection -MailTo 'john@contoso.com' -Subject 'Test message' -Body 'This is a test message.'
+```
 
 Sends email to john@contoso.com from MyServer using the specified SQL Server connection.
 
@@ -324,7 +327,7 @@ HelpMessage: ''
 
 ### -ServerInstance
 
-Specifies the name of a SQL Server instance.
+The name of the SQL Server instance to connect to.
 
 ```yaml
 Type: System.String
@@ -345,7 +348,7 @@ HelpMessage: ''
 
 ### -SqlConnection
 
-Specifies SQL connection object.
+An open SQL Client Connection object.
 
 ```yaml
 Type: Microsoft.Data.SqlClient.SqlConnection

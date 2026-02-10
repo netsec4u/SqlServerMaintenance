@@ -1,6 +1,6 @@
 ---
 document type: cmdlet
-external help file: SqlServerMaintenance-help.xml
+external help file: SqlServerMaintenance-Help.xml
 HelpUri: ''
 Locale: en-US
 Module Name: SqlServerMaintenance
@@ -48,23 +48,28 @@ Evaluates log file auto growth rate to alert when rate is less than 12.5% of log
 
 ## EXAMPLES
 
-### EXAMPLE 1
+### Example 1
 
+```powershell
 Get-SqlInstanceLogFileGrowthRate -ServerInstance .
+```
 
 Get log file growth rate for all databases on SQL instance.
 
-### EXAMPLE 2
+### Example 2
 
+```powershell
 Get-SqlInstanceLogFileGrowthRate -ServerInstance . -DatabaseName AdventureWorks
+```
 
 Get log file growth rate for AdventureWorks database.
 
-### EXAMPLE 3
+### Example 3
 
+```powershell
 $SmoServer = Connect-SmoServer -ServerInstance MyServer
-
 Get-SqlInstanceLogFileGrowthRate -SmoServerObject $SmoServer -DatabaseName AdventureWorks
+```
 
 Get log file growth rate for AdventureWorks database using the specified Smo session.
 
@@ -114,7 +119,7 @@ HelpMessage: ''
 
 ### -ServerInstance
 
-Specifies the name of a SQL Server instance.
+The name of the SQL Server instance to connect to.
 
 ```yaml
 Type: System.String
@@ -135,7 +140,7 @@ HelpMessage: ''
 
 ### -SmoServerObject
 
-Specifies SQL Server Management Object.
+An existing SMO Server object representing the SQL Server instance.
 
 ```yaml
 Type: Microsoft.SqlServer.Management.Smo.Server

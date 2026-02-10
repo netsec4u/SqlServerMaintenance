@@ -1,6 +1,6 @@
 ---
 document type: cmdlet
-external help file: SqlServerMaintenance-help.xml
+external help file: SqlServerMaintenance-Help.xml
 HelpUri: ''
 Locale: en-US
 Module Name: SqlServerMaintenance
@@ -95,41 +95,52 @@ Verify database backups through iterating through SQL instance and database fold
 
 ## EXAMPLES
 
-### EXAMPLE 1
+### Example 1
 
+```powershell
 Invoke-SqlBackupVerification -TestBackupSqlInstance . -BackupPath C:\MSSQLServer\Backup
+```
 
 Test all SQL backups within specified folder.
 
-### EXAMPLE 2
+### Example 2
 
+```powershell
 $SqlConnection = Connect-SqlServerInstance -ServerInstance . -DatabaseName master
-
 Invoke-SqlBackupVerification -SqlConnection $SqlConnection -BackupPath C:\MSSQLServer\Backup
+```
 
 Test all SQL backups within specified folder using the specified Sql connection.
 
-### EXAMPLE 3
+### Example 3
 
+```powershell
 Invoke-SqlBackupVerification -TestBackupSqlInstance . -SqlInstanceBackupPath C:\MSSQLServer\Backup
+```
 
 Loops though all database folders to test backups.
 
-### EXAMPLE 4
+### Example 4
 
+```powershell
 Invoke-SqlBackupVerification -TestBackupSqlInstance . -BackupPath C:\MSSQLServer\Backup -ServerInstance MySQLServer
+```
 
 Loops though specified server instance folder and database folders to test backups.
 
-### EXAMPLE 5
+### Example 5
 
+```powershell
 Invoke-SqlBackupVerification -TestBackupSqlInstance . -BackupPath C:\MSSQLServer\Backup -ServerInstance MySQLServer -DatabaseName AdventureWorks
+```
 
 Test all SQL backups for specified database folder within the instance folder.
 
-### EXAMPLE 6
+### Example 6
 
+```powershell
 Invoke-SqlBackupVerification -TestBackupSqlInstance . -SqlInstanceBackupPath C:\MSSQLServer\Backup -DatabaseName AdventureWorks
+```
 
 Test all SQL backups within specified database folder.
 
@@ -216,8 +227,7 @@ HelpMessage: ''
 
 ### -ServerInstance
 
-Specifies the name of a SQL Server instance.
-This server instance becomes the target of the backup operation.
+The name of the SQL Server instance to connect to.
 
 ```yaml
 Type: System.String
@@ -244,7 +254,7 @@ HelpMessage: ''
 
 ### -SqlConnection
 
-Specifies SQL connection object.
+An open SQL Client Connection object.
 
 ```yaml
 Type: Microsoft.Data.SqlClient.SqlConnection

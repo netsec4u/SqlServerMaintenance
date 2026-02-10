@@ -1,6 +1,6 @@
 ---
 document type: cmdlet
-external help file: SqlServerMaintenance-help.xml
+external help file: SqlServerMaintenance-Help.xml
 HelpUri: ''
 Locale: en-US
 Module Name: SqlServerMaintenance
@@ -113,45 +113,59 @@ Set module configuration.
 
 ## EXAMPLES
 
-### EXAMPLE 1
+### Example 1
 
+```powershell
 Set-SqlServerMaintenanceConfiguration -SettingName SmtpSettings -SmtpServer mail.domain.com -SmtpPort 587 -UseTls:$false
+```
 
 Sets SMTP settings for module configuration.
 
-### EXAMPLE 2
+### Example 2
 
+```powershell
 Set-SqlServerMaintenanceConfiguration -SettingName SmtpSettings -PickupDirectoryPath C:\ProgramData\PowerShell\SqlServerMaintenance\Email\
+```
 
 Sets SMTP settings for module configuration.
 
-### EXAMPLE 3
+### Example 3
 
+```powershell
 Set-SqlServerMaintenanceConfiguration -SettingName EmailNotification -SenderAddress server@domain.com -RecipientAddress @('DBA Team<dbateam@domain.com>')
+```
 
 Sets sender and recipient settings for module configuration.
 
-### EXAMPLE 4
+### Example 4
 
+```powershell
 Set-SqlServerMaintenanceConfiguration -SettingName AdminDatabase -DatabaseName Admin
+```
 
 Sets admin database name for module configuration.
 
-### EXAMPLE 5
+### Example 5
 
+```powershell
 Set-SqlServerMaintenanceConfiguration -SettingName Statistics -StatisticName Backup -RetentionInDays 45
+```
 
 Sets backup statistics retention period for module configuration.
 
-### EXAMPLE 6
+### Example 6
 
+```powershell
 Set-SqlServerMaintenanceConfiguration -SettingName Tests -TestName Backup -RetentionInDays 45
+```
 
 Sets backup test retention period for module configuration.
 
-### EXAMPLE 7
+### Example 7
 
+```powershell
 Set-SqlServerMaintenanceConfiguration -SettingName SqlAgentAlerts -RetentionInDays 45
+```
 
 Sets SQL Agent Alert retention period for module configuration.
 

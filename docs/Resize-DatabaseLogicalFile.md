@@ -1,6 +1,6 @@
 ---
 document type: cmdlet
-external help file: SqlServerMaintenance-help.xml
+external help file: SqlServerMaintenance-Help.xml
 HelpUri: ''
 Locale: en-US
 Module Name: SqlServerMaintenance
@@ -76,31 +76,37 @@ Resize database data file to specified size.
 
 ## EXAMPLES
 
-### EXAMPLE 1
+### Example 1
 
+```powershell
 Resize-DatabaseLogicalFile -ServerInstance . -DatabaseName AdventureWorks -FileGroupName PRIMARY -LogicalFileSize 1024
+```
 
 Resize files within file group PRIMARY to 1024MB.
 
-### EXAMPLE 2
+### Example 2
 
+```powershell
 $SmoServer = Connect-SmoServer -ServerInstance MyServer
-
 Resize-DatabaseLogicalFile -SmoServerObject $SmoServer -DatabaseName AdventureWorks -FileGroupName PRIMARY -LogicalFileSize 1024
+```
 
 Resize files within file group PRIMARY to 1024MB using the specified Smo session.
 
-### EXAMPLE 3
+### Example 3
 
+```powershell
 Resize-DatabaseLogicalFile -ServerInstance . -DatabaseName AdventureWorks -LogicalFileName PRIMARY -LogicalFileSize 1024
+```
 
 Resize logical file PRIMARY to 1024MB.
 
-### EXAMPLE 4
+### Example 4
 
+```powershell
 $SmoServer = Connect-SmoServer -ServerInstance MyServer
-
 Resize-DatabaseLogicalFile -SmoServerObject $SmoServer -DatabaseName AdventureWorks -LogicalFileName PRIMARY -LogicalFileSize 1024
+```
 
 Resize logical file PRIMARY to 1024MB using the specified Smo session.
 
@@ -204,7 +210,7 @@ HelpMessage: ''
 
 ### -ServerInstance
 
-Specifies the name of a SQL Server instance.
+The name of the SQL Server instance to connect to.
 
 ```yaml
 Type: System.String
@@ -252,7 +258,7 @@ HelpMessage: ''
 
 ### -SmoServerObject
 
-Specifies SQL Server Management Object.
+An existing SMO Server object representing the SQL Server instance.
 
 ```yaml
 Type: Microsoft.SqlServer.Management.Smo.Server

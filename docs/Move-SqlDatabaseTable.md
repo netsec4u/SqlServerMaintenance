@@ -1,6 +1,6 @@
 ---
 document type: cmdlet
-external help file: SqlServerMaintenance-help.xml
+external help file: SqlServerMaintenance-Help.xml
 HelpUri: ''
 Locale: en-US
 Module Name: SqlServerMaintenance
@@ -116,57 +116,69 @@ Move database tables and indexes to a specified filegroup.
 
 ### Example 1
 
+```powershell
 Move-SqlDatabaseTable -ServerInstance MySQLInstance -DatabaseName AdventureWorks -FileGroupName NewFilegroup
+```
 
 Moves all tables and indexes to the NewFilegroup filegroup.
 
 ### Example 2
 
+```powershell
 Move-SqlDatabaseTable -ServerInstance MySQLInstance -DatabaseName AdventureWorks -FileGroupName NewFilegroup -SchemaName dbo
+```
 
 Moves all tables and indexes within the dbo schema to the NewFilegroup filegroup.
 
 ### Example 3
 
+```powershell
 Move-SqlDatabaseTable -ServerInstance MySQLInstance -DatabaseName AdventureWorks -FileGroupName NewFilegroup -SchemaName dbo -TableName Users
+```
 
 Moves the table dbo.Users and all indexes on this table to the NewFilegroup filegroup.
 
 ### Example 4
 
+```powershell
 Move-SqlDatabaseTable -ServerInstance MySQLInstance -DatabaseName AdventureWorks -FileGroupName NewFilegroup -SchemaName dbo -TableName Users -IndexName IX_Username
+```
 
 Moves the index IX_Username index on the dbo.Users table to the NewFilegroup filegroup.
 
 ### Example 5
 
+```powershell
 $SmoServer = Connect-SmoServer -ServerInstance MyServer
-
 Move-SqlDatabaseTable -SmoServerObject $SmoServer -DatabaseName AdventureWorks -FileGroupName NewFilegroup
+```
 
 Moves all tables and indexes to the NewFilegroup filegroup using SmoServer object.
 
 ### Example 6
 
+```powershell
 $SmoServer = Connect-SmoServer -ServerInstance MyServer
-
 Move-SqlDatabaseTable -SmoServerObject $SmoServer -DatabaseName AdventureWorks -FileGroupName NewFilegroup -SchemaName dbo
+```
 
 Moves all tables and indexes within the dbo schema to the NewFilegroup filegroup using SmoServer object.
 
 ### Example 7
 
+```powershell
 $SmoServer = Connect-SmoServer -ServerInstance MyServer
-
 Move-SqlDatabaseTable -SmoServerObject $SmoServer -DatabaseName AdventureWorks -FileGroupName NewFilegroup -SchemaName dbo -TableName Users
+```
 
 Moves the table dbo.Users and all indexes on this table to the NewFilegroup filegroup using SmoServer object.
 
 ### Example 8
 
+```powershell
 $SmoServer = Connect-SmoServer -ServerInstance MyServer
-
 Move-SqlDatabaseTable -SmoServerObject $SmoServer -DatabaseName AdventureWorks -FileGroupName NewFilegroup -SchemaName dbo -TableName Users -IndexName IX_Username
+```
 
 Moves the index IX_Username index on the dbo.Users table to the NewFilegroup filegroup using SmoServer object.
 
@@ -316,7 +328,7 @@ HelpMessage: ''
 
 ### -ServerInstance
 
-Specifies the name of a SQL Server instance.
+The name of the SQL Server instance to connect to.
 
 ```yaml
 Type: System.String
@@ -349,7 +361,7 @@ HelpMessage: ''
 
 ### -SmoServerObject
 
-Specifies SQL Server Management Object.
+An existing SMO Server object representing the SQL Server instance.
 
 ```yaml
 Type: Microsoft.SqlServer.Management.Smo.Server

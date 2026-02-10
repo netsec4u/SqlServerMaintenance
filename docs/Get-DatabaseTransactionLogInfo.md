@@ -1,6 +1,6 @@
 ---
 document type: cmdlet
-external help file: SqlServerMaintenance-help.xml
+external help file: SqlServerMaintenance-Help.xml
 HelpUri: ''
 Locale: en-US
 Module Name: SqlServerMaintenance
@@ -46,17 +46,20 @@ Get database transaction log information.
 
 ## EXAMPLES
 
-### EXAMPLE 1
+### Example 1
 
+```powershell
 Get-DatabaseTransactionLogInfo -ServerInstance . -DatabaseName AdventureWorks
+```
 
 Get transaction log information from database AdventureWorks.
 
-### EXAMPLE 2
+### Example 2
 
+```powershell
 $SqlConnection = Connect-SqlServerInstance -ServerInstance . -DatabaseName master
-
 Get-DatabaseTransactionLogInfo -SqlConnection $SqlConnection -DatabaseName AdventureWorks
+```
 
 Get transaction log information from database AdventureWorks.
 
@@ -85,7 +88,7 @@ HelpMessage: ''
 
 ### -ServerInstance
 
-Specifies the name of a SQL Server instance.
+The name of the SQL Server instance to connect to.
 
 ```yaml
 Type: System.String
@@ -106,7 +109,7 @@ HelpMessage: ''
 
 ### -SqlConnection
 
-Specifies SQL connection object.
+An open SQL Client Connection object.
 
 ```yaml
 Type: Microsoft.Data.SqlClient.SqlConnection

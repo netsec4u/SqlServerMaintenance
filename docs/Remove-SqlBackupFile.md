@@ -1,6 +1,6 @@
 ---
 document type: cmdlet
-external help file: SqlServerMaintenance-help.xml
+external help file: SqlServerMaintenance-Help.xml
 HelpUri: ''
 Locale: en-US
 Module Name: SqlServerMaintenance
@@ -40,9 +40,11 @@ Removes SQL backup file older than retention period while retaining at least one
 
 ## EXAMPLES
 
-### EXAMPLE 1
+### Example 1
 
+```powershell
 Remove-SqlBackupFile -BackupPath C:\SqlBackups -RetainDays 30
+```
 
 Removes SQL backup files from C:\SqlBackups older than 30 days.
 
