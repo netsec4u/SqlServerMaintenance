@@ -34,6 +34,22 @@ Set-SqlServerMaintenanceConfiguration
 	-SmtpServer <String>
 	-SmtpPort <Int32>
 	[-UseTLS]
+  [-SmtpAuthenticationMethod <String>]
+	[-WhatIf]
+	[-Confirm]
+	[<CommonParameters>]
+```
+
+### Network-Credential
+```
+Set-SqlServerMaintenanceConfiguration
+	-SettingName SmtpSettings
+	-SmtpServer <String>
+	-SmtpPort <Int32>
+	[-UseTLS]
+  -SmtpAuthenticationMethod <String>
+  -SmtpCredential <PSCredential>
+  -Thumbprint <String>
 	[-WhatIf]
 	[-Confirm]
 	[<CommonParameters>]
@@ -124,7 +140,7 @@ Sets SMTP settings for module configuration.
 ### Example 2
 
 ```powershell
-Set-SqlServerMaintenanceConfiguration -SettingName SmtpSettings -PickupDirectoryPath C:\ProgramData\PowerShell\SqlServerMaintenance\Email\
+Set-SqlServerMaintenanceConfiguration -SettingName SmtpSettings -SmtpServer mail.domain.com -SmtpPort 587 -UseTls -SmtpAuthenticationMethod Basic -SmtpCredential (Get-Credential) -Thumbprint  0123456789abcdef0123456789abcdef01234567
 ```
 
 Sets SMTP settings for module configuration.
@@ -132,12 +148,20 @@ Sets SMTP settings for module configuration.
 ### Example 3
 
 ```powershell
+Set-SqlServerMaintenanceConfiguration -SettingName SmtpSettings -PickupDirectoryPath C:\ProgramData\PowerShell\SqlServerMaintenance\Email\
+```
+
+Sets SMTP settings for module configuration.
+
+### Example 4
+
+```powershell
 Set-SqlServerMaintenanceConfiguration -SettingName EmailNotification -SenderAddress server@domain.com -RecipientAddress @('DBA Team<dbateam@domain.com>')
 ```
 
 Sets sender and recipient settings for module configuration.
 
-### Example 4
+### Example 5
 
 ```powershell
 Set-SqlServerMaintenanceConfiguration -SettingName AdminDatabase -DatabaseName Admin
@@ -145,7 +169,7 @@ Set-SqlServerMaintenanceConfiguration -SettingName AdminDatabase -DatabaseName A
 
 Sets admin database name for module configuration.
 
-### Example 5
+### Example 6
 
 ```powershell
 Set-SqlServerMaintenanceConfiguration -SettingName Statistics -StatisticName Backup -RetentionInDays 45
@@ -153,7 +177,7 @@ Set-SqlServerMaintenanceConfiguration -SettingName Statistics -StatisticName Bac
 
 Sets backup statistics retention period for module configuration.
 
-### Example 6
+### Example 7
 
 ```powershell
 Set-SqlServerMaintenanceConfiguration -SettingName Tests -TestName Backup -RetentionInDays 45
@@ -161,7 +185,7 @@ Set-SqlServerMaintenanceConfiguration -SettingName Tests -TestName Backup -Reten
 
 Sets backup test retention period for module configuration.
 
-### Example 7
+### Example 8
 
 ```powershell
 Set-SqlServerMaintenanceConfiguration -SettingName SqlAgentAlerts -RetentionInDays 45
@@ -336,6 +360,54 @@ AcceptedValues: []
 HelpMessage: ''
 ```
 
+### -SmtpAuthenticationMethod
+Specifies the authentication method to use when authenticating with the smtp server.
+Dynamic parameter available when SettingName is SMTPSettings.
+
+```yaml
+Type: System.String
+DefaultValue: None
+SupportsWildcards: false
+Aliases: []
+ParameterSets:
+- Name: Network
+  Position: Named
+  IsRequired: false
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
+- Name: Network-Credential
+  Position: Named
+  IsRequired: true
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
+DontShow: false
+AcceptedValues: []
+HelpMessage: ''
+```
+
+### -SmtpCredential
+Specifies the credential to use when authenticating with the smtp server.
+Dynamic parameter available when SettingName is SMTPSettings.
+
+```yaml
+Type: System.Management.Automation.PSCredential
+DefaultValue: None
+SupportsWildcards: false
+Aliases: []
+ParameterSets:
+- Name: Network-Credential
+  Position: Named
+  IsRequired: true
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
+DontShow: false
+AcceptedValues: []
+HelpMessage: ''
+```
+
 ### -SmtpPort
 
 Specifies smtp port number.
@@ -348,6 +420,12 @@ SupportsWildcards: false
 Aliases: []
 ParameterSets:
 - Name: Network
+  Position: Named
+  IsRequired: true
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
+- Name: Network-Credential
   Position: Named
   IsRequired: true
   ValueFromPipeline: false
@@ -370,6 +448,12 @@ SupportsWildcards: false
 Aliases: []
 ParameterSets:
 - Name: Network
+  Position: Named
+  IsRequired: true
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
+- Name: Network-Credential
   Position: Named
   IsRequired: true
   ValueFromPipeline: false
@@ -424,6 +508,27 @@ AcceptedValues: []
 HelpMessage: ''
 ```
 
+### -Thumbprint
+Specifies the thumbprint of the certificate to use when authenticating with the smtp server.
+Dynamic parameter available when SettingName is SMTPSettings and SmtpAuthenticationMethod is Basic.
+
+```yaml
+Type: System.String
+DefaultValue: None
+SupportsWildcards: false
+Aliases: []
+ParameterSets:
+- Name: Network-Credential
+  Position: Named
+  IsRequired: true
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
+DontShow: false
+AcceptedValues: []
+HelpMessage: ''
+```
+
 ### -UseTLS
 
 Specifies smtp to be sent over TLS.
@@ -436,6 +541,12 @@ SupportsWildcards: false
 Aliases: []
 ParameterSets:
 - Name: Network
+  Position: Named
+  IsRequired: false
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
+- Name: Network-Credential
   Position: Named
   IsRequired: false
   ValueFromPipeline: false

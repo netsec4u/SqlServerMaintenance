@@ -10135,6 +10135,14 @@ The cmdlet is not run.</maml:para>
           <command:parameterValue required="true" variableLength="true">SqlServerMaintenanceSetting</command:parameterValue>
         </command:parameter>
         <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+          <maml:name>SmtpAuthenticationMethod</maml:name>
+          <maml:description>
+            <maml:para>Specifies the authentication method to use when authenticating with the smtp server.
+Dynamic parameter available when SettingName is SMTPSettings.</maml:para>
+          </maml:description>
+          <command:parameterValue required="true" variableLength="true">System.String</command:parameterValue>
+        </command:parameter>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>SmtpPort</maml:name>
           <maml:description>
             <maml:para>Specifies smtp port number.
@@ -10147,6 +10155,80 @@ Dynamic parameter available when SettingName is SMTPSettings.</maml:para>
           <maml:description>
             <maml:para>Specifies the hostname of the smtp server.
 Dynamic parameter available when SettingName is SMTPSettings.</maml:para>
+          </maml:description>
+          <command:parameterValue required="true" variableLength="true">System.String</command:parameterValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+          <maml:name>UseTLS</maml:name>
+          <maml:description>
+            <maml:para>Specifies smtp to be sent over TLS.
+Dynamic parameter available when SettingName is SMTPSettings.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+          <maml:name>WhatIf</maml:name>
+          <maml:description>
+            <maml:para>Shows what would happen if the cmdlet runs.
+The cmdlet is not run.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
+        </command:parameter>
+      </command:syntaxItem>
+      <command:syntaxItem>
+        <maml:name>Set-SqlServerMaintenanceConfiguration
+	-SettingName</maml:name>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+          <maml:name>Confirm</maml:name>
+          <maml:description>
+            <maml:para>Prompts you for confirmation before running the cmdlet.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
+        </command:parameter>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+          <maml:name>SettingName</maml:name>
+          <maml:description>
+            <maml:para>Specifies setting to set configuration.</maml:para>
+          </maml:description>
+          <command:parameterValue required="true" variableLength="true">SqlServerMaintenanceSetting</command:parameterValue>
+        </command:parameter>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+          <maml:name>SmtpAuthenticationMethod</maml:name>
+          <maml:description>
+            <maml:para>Specifies the authentication method to use when authenticating with the smtp server.
+Dynamic parameter available when SettingName is SMTPSettings.</maml:para>
+          </maml:description>
+          <command:parameterValue required="true" variableLength="true">System.String</command:parameterValue>
+        </command:parameter>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+          <maml:name>SmtpCredential</maml:name>
+          <maml:description>
+            <maml:para>Specifies the credential to use when authenticating with the smtp server.
+Dynamic parameter available when SettingName is SMTPSettings.</maml:para>
+          </maml:description>
+          <command:parameterValue required="true" variableLength="true">System.Management.Automation.PSCredential</command:parameterValue>
+        </command:parameter>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+          <maml:name>SmtpPort</maml:name>
+          <maml:description>
+            <maml:para>Specifies smtp port number.
+Dynamic parameter available when SettingName is SMTPSettings.</maml:para>
+          </maml:description>
+          <command:parameterValue required="true" variableLength="true">System.Int32</command:parameterValue>
+        </command:parameter>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+          <maml:name>SmtpServer</maml:name>
+          <maml:description>
+            <maml:para>Specifies the hostname of the smtp server.
+Dynamic parameter available when SettingName is SMTPSettings.</maml:para>
+          </maml:description>
+          <command:parameterValue required="true" variableLength="true">System.String</command:parameterValue>
+        </command:parameter>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+          <maml:name>Thumbprint</maml:name>
+          <maml:description>
+            <maml:para>Specifies the thumbprint of the certificate to use when authenticating with the smtp server.
+Dynamic parameter available when SettingName is SMTPSettings and SmtpAuthenticationMethod is Basic.</maml:para>
           </maml:description>
           <command:parameterValue required="true" variableLength="true">System.String</command:parameterValue>
         </command:parameter>
@@ -10452,6 +10534,22 @@ Dynamic parameter available when SettingName is EmailNotification.</maml:para>
         <command:parameterValue required="true" variableLength="true">SqlServerMaintenanceSetting</command:parameterValue>
       </command:parameter>
       <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>SmtpAuthenticationMethod</maml:name>
+        <maml:description>
+          <maml:para>Specifies the authentication method to use when authenticating with the smtp server.
+Dynamic parameter available when SettingName is SMTPSettings.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.String</command:parameterValue>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>SmtpCredential</maml:name>
+        <maml:description>
+          <maml:para>Specifies the credential to use when authenticating with the smtp server.
+Dynamic parameter available when SettingName is SMTPSettings.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.Management.Automation.PSCredential</command:parameterValue>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
         <maml:name>SmtpPort</maml:name>
         <maml:description>
           <maml:para>Specifies smtp port number.
@@ -10480,6 +10578,14 @@ Dynamic parameter available when SettingName is Statistics.</maml:para>
         <maml:description>
           <maml:para>Specifies the name of test to configure.
 Dynamic parameter available when SettingName is Tests.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.String</command:parameterValue>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>Thumbprint</maml:name>
+        <maml:description>
+          <maml:para>Specifies the thumbprint of the certificate to use when authenticating with the smtp server.
+Dynamic parameter available when SettingName is SMTPSettings and SmtpAuthenticationMethod is Basic.</maml:para>
         </maml:description>
         <command:parameterValue required="true" variableLength="true">System.String</command:parameterValue>
       </command:parameter>
@@ -10530,7 +10636,7 @@ The cmdlet is not run.</maml:para>
         <maml:title>--------- Example 2 ---------</maml:title>
         <maml:introduction>
         </maml:introduction>
-        <dev:code>Set-SqlServerMaintenanceConfiguration -SettingName SmtpSettings -PickupDirectoryPath C:\ProgramData\PowerShell\SqlServerMaintenance\Email\</dev:code>
+        <dev:code>Set-SqlServerMaintenanceConfiguration -SettingName SmtpSettings -SmtpServer mail.domain.com -SmtpPort 587 -UseTls -SmtpAuthenticationMethod Basic -SmtpCredential (Get-Credential) -Thumbprint  0123456789abcdef0123456789abcdef01234567</dev:code>
         <dev:remarks>
           <maml:para>Sets SMTP settings for module configuration.</maml:para>
         </dev:remarks>
@@ -10539,13 +10645,22 @@ The cmdlet is not run.</maml:para>
         <maml:title>--------- Example 3 ---------</maml:title>
         <maml:introduction>
         </maml:introduction>
+        <dev:code>Set-SqlServerMaintenanceConfiguration -SettingName SmtpSettings -PickupDirectoryPath C:\ProgramData\PowerShell\SqlServerMaintenance\Email\</dev:code>
+        <dev:remarks>
+          <maml:para>Sets SMTP settings for module configuration.</maml:para>
+        </dev:remarks>
+      </command:example>
+      <command:example>
+        <maml:title>--------- Example 4 ---------</maml:title>
+        <maml:introduction>
+        </maml:introduction>
         <dev:code>Set-SqlServerMaintenanceConfiguration -SettingName EmailNotification -SenderAddress server@domain.com -RecipientAddress @('DBA Team&lt;dbateam@domain.com&gt;')</dev:code>
         <dev:remarks>
           <maml:para>Sets sender and recipient settings for module configuration.</maml:para>
         </dev:remarks>
       </command:example>
       <command:example>
-        <maml:title>--------- Example 4 ---------</maml:title>
+        <maml:title>--------- Example 5 ---------</maml:title>
         <maml:introduction>
         </maml:introduction>
         <dev:code>Set-SqlServerMaintenanceConfiguration -SettingName AdminDatabase -DatabaseName Admin</dev:code>
@@ -10554,7 +10669,7 @@ The cmdlet is not run.</maml:para>
         </dev:remarks>
       </command:example>
       <command:example>
-        <maml:title>--------- Example 5 ---------</maml:title>
+        <maml:title>--------- Example 6 ---------</maml:title>
         <maml:introduction>
         </maml:introduction>
         <dev:code>Set-SqlServerMaintenanceConfiguration -SettingName Statistics -StatisticName Backup -RetentionInDays 45</dev:code>
@@ -10563,7 +10678,7 @@ The cmdlet is not run.</maml:para>
         </dev:remarks>
       </command:example>
       <command:example>
-        <maml:title>--------- Example 6 ---------</maml:title>
+        <maml:title>--------- Example 7 ---------</maml:title>
         <maml:introduction>
         </maml:introduction>
         <dev:code>Set-SqlServerMaintenanceConfiguration -SettingName Tests -TestName Backup -RetentionInDays 45</dev:code>
@@ -10572,7 +10687,7 @@ The cmdlet is not run.</maml:para>
         </dev:remarks>
       </command:example>
       <command:example>
-        <maml:title>--------- Example 7 ---------</maml:title>
+        <maml:title>--------- Example 8 ---------</maml:title>
         <maml:introduction>
         </maml:introduction>
         <dev:code>Set-SqlServerMaintenanceConfiguration -SettingName SqlAgentAlerts -RetentionInDays 45</dev:code>

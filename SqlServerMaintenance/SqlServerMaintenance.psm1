@@ -10,125 +10,7 @@ Set-StrictMode -Version Latest
 
 #Region Global Configuration
 try {
-	if ($PSVersionTable.PSEdition -eq 'Core') {
-		if ($PSVersionTable.Platform -eq 'Win32NT') {
-			$AllUsersProfile = $Env:ALLUSERSPROFILE
-			$DomainName = $Env:USERDNSDOMAIN
-		} else {
-			$AllUsersProfile = '/etc'
-			$DomainName = [Environment]::UserDomainName
-		}
-	} else {
-		$AllUsersProfile = $Env:ALLUSERSPROFILE
-		$DomainName = $Env:USERDNSDOMAIN
-	}
 
-	$ModuleName = ($PSCommandPath -as [System.IO.FileInfo]).BaseName
-
-	$ConfigurationPath = Join-Path -Path $(Join-Path -Path $AllUsersProfile -ChildPath 'PowerShell') -ChildPath $ModuleName
-	$EmailPath = Join-Path -Path $ConfigurationPath -ChildPath 'Email'
-
-	$Script:ConfigurationFile = Join-Path -Path $ConfigurationPath -ChildPath "$ModuleName.config"
-
-	if (-not (Test-Path -LiteralPath $ConfigurationPath)) {
-		[void][System.IO.Directory]::CreateDirectory($ConfigurationPath)
-	}
-
-	if (-not (Test-Path -LiteralPath $EmailPath)) {
-		[void][System.IO.Directory]::CreateDirectory($EmailPath)
-	}
-
-	if (-not (Test-Path -Path $Script:ConfigurationFile)) {
-		$PSManifestFile = $PSCommandPath -replace '.psm1$', '.psd1'
-
-		$PrivateData = (Import-PowerShellDataFile -LiteralPath $PSManifestFile).PrivateData
-		[xml]$DefaultConfiguration = $PrivateData.DefaultConfiguration
-
-		$DefaultConfiguration.Config.SMTPSettings.PickupDirectoryPath = [string]$EmailPath
-		$DefaultConfiguration.Config.EmailNotification.SenderAddress = [string]::Format('{0}_MSSQLSERVER<{0}_MSSQLSERVER@{1}>', [Environment]::MachineName, $DomainName)
-
-		$DefaultConfiguration.Save($Script:ConfigurationFile)
-	}
-
-	[xml]$Script:PSMConfig = Get-Content $Script:ConfigurationFile -Raw
-
-	if (-not $PSBoundParameters.ContainsKey('Mode')) {
-		if ([Environment]::UserInteractive) {
-			$Mode = 'Interactive'
-		} else {
-			$Mode = 'NonInteractive'
-		}
-	}
-
-	if ($Mode -eq 'Interactive') {
-		$Script:OutputMethod = 'ConsoleHost'
-	} else {
-		$Script:OutputMethod = 'Email'
-
-		$Script:TemplatePath = Join-Path -Path $PSScriptRoot -ChildPath $Script:PSMConfig.Config.EMailTemplates.TemplatePath -Resolve
-
-		$Script:BaseMailMessageParameters = @{
-			'MailFrom' = $Script:PSMConfig.Config.EmailNotification.SenderAddress
-			'MailTo' = [string]::Join(',', $($Script:PSMConfig.Config.EmailNotification.Recipients.Recipient))
-			'BodyAsHtml' = $true
-		}
-
-		switch ($Script:PSMConfig.Config.SMTPSettings.SmtpDeliveryMethod) {
-			'Network' {
-				$Script:BaseMailMessageParameters.Add('SmtpDeliveryMethod', 'Network')
-				$Script:BaseMailMessageParameters.Add('SmtpServer', $Script:PSMConfig.Config.SMTPSettings.SmtpServer)
-				$Script:BaseMailMessageParameters.Add('SmtpPort', $Script:PSMConfig.Config.SMTPSettings.SmtpPort)
-				$Script:BaseMailMessageParameters.Add('UseTls', [System.Convert]::ToBoolean($Script:PSMConfig.Config.SMTPSettings.UseTls))
-			}
-			'SpecifiedPickupDirectory' {
-				if (Test-Path -Path $Script:PSMConfig.Config.SMTPSettings.PickupDirectoryPath -PathType Container) {
-					$Script:BaseMailMessageParameters.Add('SmtpDeliveryMethod', 'SpecifiedPickupDirectory')
-					$Script:BaseMailMessageParameters.Add('PickupDirectoryPath', $Script:PSMConfig.Config.SMTPSettings.PickupDirectoryPath)
-				} else {
-					throw [System.Management.Automation.ErrorRecord]::New(
-						[Exception]::New('Pickup directory not found.'),
-						'1',
-						[System.Management.Automation.ErrorCategory]::ObjectNotFound,
-						$Script:PSMConfig.Config.SMTPSettings.PickupDirectoryPath
-					)
-				}
-			}
-			Default {
-				throw [System.Management.Automation.ErrorRecord]::New(
-					[Exception]::New('Unknown SMTP delivery method.'),
-					'1',
-					[System.Management.Automation.ErrorCategory]::InvalidType,
-					$Script:PSMConfig.Config.SMTPSettings.SmtpDeliveryMethod
-				)
-			}
-		}
-
-		if ($PSVersionTable.PSEdition -eq 'Core') {
-			$BinPath = Join-Path -Path $PSScriptRoot -ChildPath 'Bin\OxyPlot\2.2.0\Net8.0' -Resolve
-		} else {
-			$BinPath = Join-Path -Path $PSScriptRoot -ChildPath 'Bin\OxyPlot\2.2.0\Net462' -Resolve
-		}
-
-		$OxyPlotAssemblies = @(
-			'OxyPlot.dll'
-			'OxyPlot.Wpf.dll'
-		)
-
-		foreach ($Assembly in $OxyPlotAssemblies) {
-			$AssemblyPath = Join-Path -Path $BinPath -ChildPath $Assembly -Resolve
-
-			if (Test-Path -LiteralPath $AssemblyPath) {
-				[void][System.Reflection.Assembly]::LoadFrom($AssemblyPath)
-			} else {
-				throw [System.Management.Automation.ErrorRecord]::New(
-					[Exception]::New("Required assembly '$Assembly' not found."),
-					'1',
-					[System.Management.Automation.ErrorCategory]::ResourceUnavailable,
-					$AssemblyPath
-				)
-			}
-		}
-	}
 }
 catch {
 	throw $_
@@ -185,23 +67,6 @@ enum SqlServerMaintenanceSetting {
 	Tests
 	SqlAgentAlerts
 }
-
-$EnumString =
-@"
-	public enum DbStatistic
-	{
-		`n$(foreach ($Name in $Script:PSMConfig.SelectNodes("//Config/AdminDatabase/Statistics/*").Get_Name()){"`t$Name`,"})`n
-	}
-
-	public enum DbTest
-	{
-		`n$(foreach ($Name in $Script:PSMConfig.SelectNodes("//Config/AdminDatabase/Tests/*").Get_Name()){"`t$Name`,"})`n
-	}
-"@
-
-Add-Type -TypeDefinition $EnumString
-
-Remove-Variable -Name EnumString
 #EndRegion
 
 #Region Classes
@@ -219,6 +84,12 @@ Class ArgumentCompleterResult {
 		$ParameterValueList = $null
 
 		switch ($ParameterName) {
+			'StatisticsName' {
+				$ParameterValueList = $Script:PSMConfig.SelectNodes("//Config/AdminDatabase/Statistics/*").Get_Name()
+			}
+			'TestName' {
+				$ParameterValueList = $Script:PSMConfig.SelectNodes("//Config/AdminDatabase/Tests/*").Get_Name()
+			}
 			'TimeZoneId' {
 				$SystemTimeZones = [System.TimeZoneInfo]::GetSystemTimeZones()
 
@@ -1126,6 +997,1373 @@ Remove-Variable -Name @('TypeDefinition', 'ReferencedAssemblies', 'TypeParameter
 #EndRegion
 
 
+#Region Supporting Functions
+function Export-SecureString {
+	<#
+	.SYNOPSIS
+	Export a secure string as an encrypted base64 string.
+	.DESCRIPTION
+	Export a secure string as an encrypted base64 string.
+	.PARAMETER Password
+	The secure string to export.
+	.PARAMETER Thumbprint
+	The thumbprint of the X509 certificate to use for encryption. The certificate must be in the local machine's personal certificate store (Cert:\LocalMachine\My).
+	.EXAMPLE
+	$Password = Read-Host -Prompt 'Enter password' -AsSecureString
+	Export-SecureString -Password $Password -Thumbprint '1234567890abcdef1234567890abcdef12345678'
+
+	Exports the secure string in $Password as an encrypted base64 string using the specified certificate's public key for encryption.
+	.NOTES
+	#>
+
+	[System.Diagnostics.DebuggerStepThrough()]
+
+	[CmdletBinding(
+		PositionalBinding = $false,
+		SupportsShouldProcess = $false,
+		ConfirmImpact = 'low'
+	)]
+
+	param (
+		[Parameter(
+			Mandatory = $true,
+			ValueFromPipeline = $false,
+			ValueFromPipelineByPropertyName = $false
+		)]
+		[SecureString]$Password,
+
+		[Parameter(
+			Mandatory = $true,
+			ValueFromPipeline = $false,
+			ValueFromPipelineByPropertyName = $false
+		)]
+		[ValidateNotNullOrEmpty()]
+		[System.String]$Thumbprint
+	)
+
+	begin {
+	}
+
+	process {
+		try {
+			$X509Store = [System.Security.Cryptography.X509Certificates.X509Store]::New([System.Security.Cryptography.X509Certificates.StoreName]::My, [System.Security.Cryptography.X509Certificates.StoreLocation]::LocalMachine)
+
+			$X509Store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadOnly)
+
+			$X509Certificate2Collection = $X509Store.Certificates.Find([System.Security.Cryptography.X509Certificates.X509FindType]::FindByThumbprint, $Thumbprint, $true)
+
+			if ($X509Certificate2Collection.Count -eq 0) {
+				throw [System.Management.Automation.ErrorRecord]::New(
+					[Exception]::New('Unable to find valid certificate.'),
+					'1',
+					[System.Management.Automation.ErrorCategory]::OpenError,
+					$Thumbprint
+				)
+			}
+
+			$X509Certificate2 = $X509Certificate2Collection[0]
+
+			$ByteArray = [System.Text.Encoding]::UTF8.GetBytes([System.Runtime.InteropServices.Marshal]::PtrToStringAuto([System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($Password)))
+
+			$EncryptedByteArray = $X509Certificate2.PublicKey.Key.Encrypt($ByteArray, [System.Security.Cryptography.RSAEncryptionPadding]::OaepSHA512)
+
+			$Base64String = [Convert]::ToBase64String($EncryptedByteArray)
+
+			$Base64String
+		}
+		catch {
+			throw $_
+		}
+		finally {
+			$X509Store.Close()
+			$X509Store.Dispose()
+		}
+	}
+
+	end {
+	}
+}
+
+function Get-DatabaseTransactionLogInfoDataSet {
+	<#
+	.SYNOPSIS
+	Get database transaction log information.
+	.DESCRIPTION
+	Get database transaction log information.
+	.PARAMETER ServerInstance
+	Specifies the name of a SQL Server instance.
+	.PARAMETER SqlConnection
+	Specifies SQL Server connection.
+	.PARAMETER DatabaseName
+	Specifies the name of the database to gather log file information.
+	.EXAMPLE
+	Get-DatabaseTransactionLogInfoDataSet -ServerInstance . -DatabaseName MyDatabase
+
+	Returns transaction log information for MyDatabase on local SQL Server instance.
+	.NOTES
+	#>
+
+	[System.Diagnostics.DebuggerStepThrough()]
+
+	[CmdletBinding(
+		PositionalBinding = $false,
+		SupportsShouldProcess = $false,
+		ConfirmImpact = 'Low',
+		DefaultParameterSetName = 'ServerInstance'
+	)]
+
+	[OutputType([System.Data.DataSet])]
+
+	param (
+		[Parameter(
+			Mandatory = $true,
+			ValueFromPipeline = $false,
+			ValueFromPipelineByPropertyName = $false,
+			ParameterSetName = 'ServerInstance'
+		)]
+		[ValidateLength(1,128)]
+		[string]$ServerInstance,
+
+		[Parameter(
+			Mandatory = $true,
+			ValueFromPipeline = $false,
+			ValueFromPipelineByPropertyName = $false,
+			ParameterSetName = 'SqlConnection'
+		)]
+		[Microsoft.Data.SqlClient.SqlConnection]$SqlConnection,
+
+		[Parameter(
+			Mandatory = $true,
+			ValueFromPipeline = $false,
+			ValueFromPipelineByPropertyName = $false
+		)]
+		[ValidateLength(1,128)]
+		[string]$DatabaseName
+	)
+
+	begin {
+		$Query_VLFs = 'SELECT file_id
+			,	vlf_begin_offset
+			,	vlf_size_mb
+			,	vlf_sequence_number
+			,	vlf_create_lsn
+			,	RunningSize = SUM(vlf_size_mb) OVER (PARTITION BY file_id ORDER BY vlf_begin_offset)
+			FROM sys.dm_db_log_info(DEFAULT)
+			ORDER BY vlf_begin_offset;'
+	}
+
+	process {
+		try {
+			$SqlClientDataSetParameters = @{
+				'SqlCommandText' = $Query_VLFs
+				'OutputAs' = 'Dataset'
+			}
+
+			if ($PSCmdlet.ParameterSetName -eq 'ServerInstance') {
+				$SqlClientDataSetParameters.Add('ServerInstance', $ServerInstance)
+				$SqlClientDataSetParameters.Add('DatabaseName', $DatabaseName)
+			} else {
+				$SqlConnection.ChangeDatabase($DatabaseName)
+
+				$SqlClientDataSetParameters.Add('SqlConnection', $SqlConnection)
+			}
+
+			$VLFDataTable = Get-SqlClientDataSet @SqlClientDataSetParameters
+
+			$VLFDataTable
+		}
+		catch {
+			throw $_
+		}
+	}
+
+	end {
+	}
+}
+
+function Get-SqlBackupFile {
+	<#
+	.SYNOPSIS
+	Gets list of backup files within directory.
+	.DESCRIPTION
+	Gets list of backup files within directory.
+	.PARAMETER Path
+	Specifies the backup path.
+	.PARAMETER BackupType
+	Specifies the type of backup operation to perform.
+	.PARAMETER Exclude
+	Full or differential Backup files to exclude.
+	.EXAMPLE
+	Get-SqlBackupFile -Path C:\SqlBackups
+
+	Returns backup files of types full, diff, and transaction log from C:\SqlBackups.
+	.EXAMPLE
+	Get-SqlBackupFile -Path C:\SqlBackups -BackupType Full
+
+	Returns backup files of types full from C:\SqlBackups.
+	.NOTES
+	#>
+
+	[System.Diagnostics.DebuggerStepThrough()]
+
+	[CmdletBinding(
+		PositionalBinding = $false,
+		SupportsShouldProcess = $false,
+		ConfirmImpact = 'Low'
+	)]
+
+	[OutputType([System.Collections.Generic.List[SqlServerMaintenance.BackupFileInfo]])]
+
+	param (
+		[Parameter(
+			Mandatory = $true,
+			ValueFromPipeline = $false,
+			ValueFromPipelineByPropertyName = $false
+		)]
+		[ValidatePathExists('Container')]
+		[System.IO.DirectoryInfo]$Path,
+
+		[Parameter(
+			Mandatory = $false,
+			ValueFromPipeline = $false,
+			ValueFromPipelineByPropertyName = $false
+		)]
+		[BackupType[]]$BackupType = @('full', 'diff', 'log'),
+
+		[Parameter(
+			Mandatory = $false,
+			ValueFromPipeline = $false,
+			ValueFromPipelineByPropertyName = $false
+		)]
+		[System.IO.FileInfo[]]$Exclude
+	)
+
+	begin {
+		try {
+			if ($PSBoundParameters.ContainsKey('Exclude')) {
+				if ($BackupType -contains 'log') {
+					if ($Exclude.Extension -contains '.trn') {
+						throw [System.Management.Automation.ErrorRecord]::New(
+							[Exception]::New('Log backups cannot have excluded files.'),
+							'1',
+							[System.Management.Automation.ErrorCategory]::InvalidOperation,
+							$Exclude
+						)
+					}
+				}
+			}
+
+			$IncludeFilesList = [System.Collections.Generic.List[string]]::New()
+
+			switch ($BackupType) {
+				'full' {
+					$IncludeFilesList.Add('*.bak')
+				}
+				'diff' {
+					$IncludeFilesList.Add('*.dif')
+				}
+				'log' {
+					$IncludeFilesList.Add('*.trn')
+				}
+			}
+		}
+		catch {
+			throw $_
+		}
+	}
+
+	process {
+		try {
+			$Files = [System.Collections.Generic.List[SqlServerMaintenance.BackupFileInfo]]::New()
+
+			foreach ($Extension in $IncludeFilesList) {
+				$Files.AddRange([SqlServerMaintenance.BackupFileInfo[]][System.IO.Directory]::GetFiles($Path, $Extension))
+			}
+
+			if ($PSBoundParameters.ContainsKey('Exclude')) {
+				[void]$Files.RemoveAll({$args.FullName -in $Exclude})
+				[void]$Files.RemoveAll({$args.Name -in $Exclude.Name})
+			}
+
+			$Files
+		}
+		catch {
+			throw $_
+		}
+	}
+
+	end {
+	}
+}
+
+function Get-SqlServerTimeZone {
+	<#
+	.SYNOPSIS
+	Retrieves time zone for SQL Server instance.
+	.DESCRIPTION
+	Retrieves time zone for SQL Server instance.
+	.PARAMETER ServerInstance
+	SQL Server host name and instance name.
+	.PARAMETER SmoServer
+	SQL Server Management Object.
+	.EXAMPLE
+	Get-SqlServerTimeZone -ServerInstance MySqlServer
+	.EXAMPLE
+	Get-SqlServerTimeZone -SmoServer $SmoServer
+	.NOTES
+	#>
+
+	[System.Diagnostics.DebuggerStepThrough()]
+
+	[CmdletBinding(
+		PositionalBinding = $false,
+		SupportsShouldProcess = $false,
+		ConfirmImpact = 'None',
+		DefaultParameterSetName = 'ServerInstance'
+	)]
+
+	[OutputType([System.TimeZoneInfo])]
+
+	param (
+		[Parameter(
+			Mandatory = $true,
+			ValueFromPipeline = $false,
+			ValueFromPipelineByPropertyName = $false,
+			ParameterSetName = 'ServerInstance'
+		)]
+		[ValidateLength(1, 128)]
+		[string]$ServerInstance,
+
+		[Parameter(
+			Mandatory = $true,
+			ValueFromPipeline = $false,
+			ValueFromPipelineByPropertyName = $false,
+			ParameterSetName = 'SmoServerObject'
+		)]
+		[Microsoft.SqlServer.Management.Smo.Server]$SmoServerObject
+	)
+
+	begin {
+		try {
+			$ServerInstanceParameterSets = @('ServerInstance')
+
+			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
+				$SmoServerParameters = @{
+					'ServerInstance' = $ServerInstance
+					'DatabaseName' = 'master'
+				}
+
+				$SmoServer = Connect-SmoServer @SmoServerParameters
+			} else {
+				$SmoServer = $SmoServerObject
+			}
+		}
+		catch {
+			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
+				if (Test-Path -Path Variable:\SmoServer) {
+					if ($SmoServer -is [Microsoft.SqlServer.Management.Smo.Server]) {
+						Disconnect-SmoServer -SmoServerObject $SmoServer
+					}
+				}
+			}
+
+			throw $_
+		}
+
+		$SqlQuery = "DECLARE @TZName nvarchar(128);
+			EXEC master.dbo.xp_regread 'HKEY_LOCAL_MACHINE', 'SYSTEM\CurrentControlSet\Control\TimeZoneInformation', 'TimeZoneKeyName', @TZName OUT;
+			SELECT TimeZoneName = @TZName;"
+	}
+
+	process {
+		try {
+			$Results = Get-SqlClientDataSet -SqlConnection $SmoServer.ConnectionContext.SqlConnectionObject -SqlCommandText $SqlQuery -OutputAs 'DataRow'
+
+			$TimeZoneName = $Results.TimeZoneName
+
+			[System.TimeZoneInfo]::FindSystemTimeZoneById($TimeZoneName)
+		}
+		catch {
+			throw $_
+		}
+		finally {
+			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
+				Disconnect-SmoServer -SmoServerObject $SmoServer
+			}
+		}
+	}
+
+	end {
+	}
+}
+
+function Get-SqlToolsPath {
+	<#
+	.SYNOPSIS
+	Return path to SQL Tools.
+	.DESCRIPTION
+	Return path to SQL Tools.
+	.PARAMETER Session
+	Specifies PS Session.
+	.EXAMPLE
+	Get-SqlToolsPath -Session $Session
+
+	Return path to SQL Tools.
+	.NOTES
+	#>
+
+	[System.Diagnostics.DebuggerStepThrough()]
+
+	[CmdletBinding(
+		PositionalBinding = $false,
+		SupportsShouldProcess = $false,
+		ConfirmImpact = 'Low'
+	)]
+
+	[OutputType([System.String])]
+
+	param (
+		[Parameter(
+			Mandatory = $false,
+			ValueFromPipeline = $false,
+			ValueFromPipelineByPropertyName = $false
+		)]
+		[System.Management.Automation.RunSpaces.PSSession]$Session
+	)
+
+	begin {
+		$HKLMPath = 'HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\*\Tools\ClientSetup'
+	}
+
+	process {
+		try {
+			$CommandParameters = @{
+				'ScriptBlock' = {
+						param($Path)
+						Get-ItemProperty -Path $Path -Name Path -ErrorAction SilentlyContinue | Sort-Object -Property Path | Select-Object -Last 1
+					}
+				'ArgumentList' = $HKLMPath
+			}
+
+			If ($PSBoundParameters.ContainsKey('Session')) {
+				$CommandParameters.Add('Session', $Session)
+			}
+
+			$CommandOutput = Invoke-Command @CommandParameters
+
+			if ($null -eq $CommandOutput) {
+				throw [System.Management.Automation.ErrorRecord]::New(
+					[Exception]::New('Bin path not found.'),
+					'1',
+					[System.Management.Automation.ErrorCategory]::ObjectNotFound,
+					$HKLMPath
+				)
+			} else {
+				[System.IO.DirectoryInfo]$BinPath = $CommandOutput.Path
+			}
+
+			$BinPath.ToString()
+		}
+		catch {
+			throw $_
+		}
+	}
+
+	end {
+	}
+}
+
+function Get-TimeInTimeZone {
+	<#
+	.SYNOPSIS
+	Returns DateTimeOffset from UTC date time.
+	.DESCRIPTION
+	Returns DateTimeOffset from UTC date time.
+	.PARAMETER UTCDateTime
+	Universal Coordinated Time (UTC).
+	.PARAMETER TimeZone
+	TimeZoneInfo Object.
+	.PARAMETER TimeZoneId
+	Time zone id string.
+	.EXAMPLE
+	Get-TimeInTimeZone -UTCDateTime '8/26/2021 9:43:23 PM' -TimeZone $TimeZone
+	.EXAMPLE
+	Get-TimeInTimeZone -UTCDateTime '8/26/2021 9:43:23 PM' -TimeZoneId 'Eastern Standard Time'
+	.NOTES
+	#>
+
+	[System.Diagnostics.DebuggerStepThrough()]
+
+	[CmdletBinding(
+		PositionalBinding = $false,
+		SupportsShouldProcess = $false,
+		ConfirmImpact = 'None',
+		DefaultParameterSetName = 'TimeZoneId'
+	)]
+
+	[OutputType([System.DateTimeOffset])]
+
+	param (
+		[Parameter(
+			Mandatory = $true,
+			ValueFromPipeline = $false,
+			ValueFromPipelineByPropertyName = $false
+		)]
+		[System.DateTime]$UTCDateTime,
+
+		[Parameter(
+			Mandatory = $true,
+			ValueFromPipeline = $false,
+			ValueFromPipelineByPropertyName = $false,
+			ParameterSetName = 'TimeZone'
+		)]
+		[System.TimeZoneInfo]$TimeZone,
+
+		[Parameter(
+			Mandatory = $true,
+			ValueFromPipeline = $false,
+			ValueFromPipelineByPropertyName = $false,
+			ParameterSetName = 'TimeZoneId'
+		)]
+		[ArgumentCompleter({ [ArgumentCompleterResult]::GetArgumentCompleterResult($Args) })]
+		[string]$TimeZoneId
+	)
+
+	 begin {
+	 }
+
+	 process {
+		try {
+			if ($PSCmdlet.ParameterSetName -eq 'TimeZoneId') {
+				[System.TimeZoneInfo]$TimeZone = [System.TimeZoneInfo]::FindSystemTimeZoneById($TimeZoneId)
+			}
+
+			$LocalTime = [System.TimeZoneInfo]::ConvertTimeFromUtc($UTCDateTime, $TimeZone)
+
+			$DateTimeOffset = [DateTimeOffset]::New($LocalTime, $TimeZone.GetUtcOffset($LocalTime))
+
+			if ($TimeZone.IsAmbiguousTime($DateTimeOffset)) {
+				Write-Warning 'Ambiguous time'
+			}
+
+			$DateTimeOffset
+		}
+		catch {
+			throw $_
+		}
+	}
+
+	 end {
+	 }
+}
+
+function Import-SecureString {
+	<#
+	.SYNOPSIS
+	Import a secure string from an encrypted base64 string.
+	.DESCRIPTION
+	Import a secure string from an encrypted base64 string.
+	.PARAMETER EncryptedBase64String
+	The encrypted base64 string to import.
+	.PARAMETER Thumbprint
+	The thumbprint of the X509 certificate to use for decryption. The certificate must be in the local machine's personal certificate store (Cert:\LocalMachine\My).
+	.EXAMPLE
+	$EncryptedBase64String = 'Base64StringHere'
+	Import-SecureString -EncryptedBase64String $EncryptedBase64String -Thumbprint '1234567890abcdef1234567890abcdef12345678'
+
+	Imports the encrypted base64 string in $EncryptedBase64String as a secure string using the specified certificate's private key for decryption.
+	.NOTES
+	#>
+
+	[System.Diagnostics.DebuggerStepThrough()]
+
+	[CmdletBinding(
+		PositionalBinding = $false,
+		SupportsShouldProcess = $false,
+		ConfirmImpact = 'low'
+	)]
+
+	[OutputType([SecureString])]
+
+	param(
+		[Parameter(
+			Mandatory = $true,
+			ValueFromPipeline = $false,
+			ValueFromPipelineByPropertyName = $false
+		)]
+		[ValidateNotNullOrEmpty()]
+		[System.String]$EncryptedBase64String,
+
+		[Parameter(
+			Mandatory = $true,
+			ValueFromPipeline = $false,
+			ValueFromPipelineByPropertyName = $false
+		)]
+		[ValidateNotNullOrEmpty()]
+		[System.String]$Thumbprint
+	)
+
+	begin {
+	}
+
+	process {
+		try {
+			$X509Store = [System.Security.Cryptography.X509Certificates.X509Store]::New([System.Security.Cryptography.X509Certificates.StoreName]::My, [System.Security.Cryptography.X509Certificates.StoreLocation]::LocalMachine)
+
+			$X509Store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadOnly)
+
+			$X509Certificate2Collection = $X509Store.Certificates.Find([System.Security.Cryptography.X509Certificates.X509FindType]::FindByThumbprint, $Thumbprint, $true)
+
+			if ($X509Certificate2Collection.Count -eq 0) {
+				throw [System.Management.Automation.ErrorRecord]::New(
+					[Exception]::New('Unable to find valid certificate.'),
+					'1',
+					[System.Management.Automation.ErrorCategory]::OpenError,
+					$Thumbprint
+				)
+			}
+
+			$X509Certificate2 = $X509Certificate2Collection[0]
+
+			if ($null -eq $X509Certificate2.PrivateKey) {
+				throw [System.Management.Automation.ErrorRecord]::New(
+					[Exception]::New('Cannot open private key.  Ensure the certificate has an associated private key and that the current user context has permission to access the private key.'),
+					'1',
+					[System.Management.Automation.ErrorCategory]::OpenError,
+					$Thumbprint
+				)
+			}
+
+			$EncryptedByteArray = [Convert]::FromBase64String($EncryptedBase64String)
+
+			$SecureString = [SecureString]::New()
+
+			foreach ($Character in [System.Text.Encoding]::UTF8.GetString($X509Certificate2.PrivateKey.Decrypt($EncryptedByteArray, [System.Security.Cryptography.RSAEncryptionPadding]::OaepSHA512)).ToCharArray()) {
+				$SecureString.AppendChar($Character)
+			}
+
+			$SecureString
+		}
+		catch {
+			throw $_
+		}
+		finally {
+			$X509Store.Close()
+			$X509Store.Dispose()
+		}
+	}
+
+	end {
+	}
+}
+
+function Initialize-ModuleConfiguration {
+	<#
+	.SYNOPSIS
+	Initializes the module configuration.
+	.DESCRIPTION
+	Initializes the module configuration. If the configuration file does not exist, a new configuration file will be created with default values.
+	.PARAMETER Mode
+	Specifies the mode in which the module will be used. Valid values are 'Interactive' and 'NonInteractive'. If not specified, the mode will be determined based on the user interactivity of the current environment.
+	.EXAMPLE
+	Initialize-ModuleConfiguration -Mode Interactive
+	.NOTES
+	#>
+
+	[System.Diagnostics.DebuggerStepThrough()]
+
+	[CmdletBinding(
+		PositionalBinding = $false,
+		SupportsShouldProcess = $false,
+		ConfirmImpact = 'Low'
+	)]
+
+	[OutputType([System.Void])]
+
+	param (
+		[Parameter(
+			Mandatory = $false,
+			ValueFromPipeline = $false,
+			ValueFromPipelineByPropertyName = $false
+		)]
+		[ValidateSet('Interactive', 'NonInteractive')]
+		[string]$Mode
+	)
+
+	begin {
+		try {
+			if (-not $PSBoundParameters.ContainsKey('Mode')) {
+				if ([Environment]::UserInteractive) {
+					$Mode = 'Interactive'
+				} else {
+					$Mode = 'NonInteractive'
+				}
+			}
+
+			$Script:Mode = $Mode
+		}
+		catch {
+			throw $_
+		}
+	}
+
+	process {
+		try {
+			if ($PSVersionTable.PSEdition -eq 'Core') {
+				if ($PSVersionTable.Platform -eq 'Win32NT') {
+					$AllUsersProfile = $Env:ALLUSERSPROFILE
+					$DomainName = $Env:USERDNSDOMAIN
+				} else {
+					$AllUsersProfile = '/etc'
+					$DomainName = [Environment]::UserDomainName
+				}
+			} else {
+				$AllUsersProfile = $Env:ALLUSERSPROFILE
+				$DomainName = $Env:USERDNSDOMAIN
+			}
+
+			$ModuleName = ($PSCommandPath -as [System.IO.FileInfo]).BaseName
+
+			$ConfigurationPath = Join-Path -Path $(Join-Path -Path $AllUsersProfile -ChildPath 'PowerShell') -ChildPath $ModuleName
+			$EmailPath = Join-Path -Path $ConfigurationPath -ChildPath 'Email'
+
+			$Script:ConfigurationFile = Join-Path -Path $ConfigurationPath -ChildPath "$ModuleName.config"
+
+			if (-not (Test-Path -LiteralPath $ConfigurationPath)) {
+				[void][System.IO.Directory]::CreateDirectory($ConfigurationPath)
+			}
+
+			if (-not (Test-Path -LiteralPath $EmailPath)) {
+				[void][System.IO.Directory]::CreateDirectory($EmailPath)
+			}
+
+			$PSManifestFile = $PSCommandPath -replace '.psm1$', '.psd1'
+
+			$PrivateData = (Import-PowerShellDataFile -LiteralPath $PSManifestFile).PrivateData
+			[xml]$DefaultConfiguration = $PrivateData.DefaultConfiguration
+
+			if (-not (Test-Path -Path $Script:ConfigurationFile)) {
+				$DefaultConfiguration.Config.SMTPSettings.PickupDirectoryPath = [string]$EmailPath
+				$DefaultConfiguration.Config.EmailNotification.SenderAddress = [string]::Format('{0}_MSSQLSERVER<{0}_MSSQLSERVER@{1}>', [Environment]::MachineName, $DomainName)
+
+				$DefaultConfiguration.Save($Script:ConfigurationFile)
+			}
+
+			[xml]$Script:PSMConfig = Get-Content $Script:ConfigurationFile -Raw
+
+			if ($null -eq $Script:PSMConfig.SelectSingleNode('//Config/Version')) {
+				$NewElement = $Script:PSMConfig.CreateElement('Version')
+				$NewElement.InnerText = '1.0.0'
+
+				[void]$Script:PSMConfig.Config.InsertBefore($NewElement, $Script:PSMConfig.Config.SmtpSettings)
+			}
+
+			if ([version]$Script:PSMConfig.Config.Version -lt [version]$DefaultConfiguration.Config.Version) {
+				Update-PSMConfiguration -DefaultConfig $DefaultConfiguration
+			} elseif ([version]$Script:PSMConfig.Config.Version -gt [version]$DefaultConfiguration.Config.Version) {
+				throw [System.Management.Automation.ErrorRecord]::New(
+					[Exception]::New('Configuration file version is newer than module version. Please update the module.'),
+					'1',
+					[System.Management.Automation.ErrorCategory]::InvalidData,
+					$Script:ConfigurationFile
+				)
+			}
+
+			if ($Mode -eq 'Interactive') {
+				$Script:OutputMethod = 'ConsoleHost'
+			} else {
+				$Script:OutputMethod = 'Email'
+
+				$Script:TemplatePath = Join-Path -Path $PSScriptRoot -ChildPath $Script:PSMConfig.Config.EMailTemplates.TemplatePath -Resolve
+
+				$Script:BaseMailMessageParameters = @{
+					'MailFrom' = $Script:PSMConfig.Config.EmailNotification.SenderAddress
+					'MailTo' = [string]::Join(',', $($Script:PSMConfig.Config.EmailNotification.Recipients.Recipient))
+					'BodyAsHtml' = $true
+				}
+
+				switch ($Script:PSMConfig.Config.SMTPSettings.SmtpDeliveryMethod) {
+					'Network' {
+						$Script:BaseMailMessageParameters.Add('SmtpDeliveryMethod', 'Network')
+						$Script:BaseMailMessageParameters.Add('SmtpServer', $Script:PSMConfig.Config.SMTPSettings.Network.SmtpServer)
+						$Script:BaseMailMessageParameters.Add('SmtpPort', $Script:PSMConfig.Config.SMTPSettings.Network.SmtpPort)
+						$Script:BaseMailMessageParameters.Add('UseTls', [System.Convert]::ToBoolean($Script:PSMConfig.Config.SMTPSettings.Network.UseTls))
+
+						switch ($Script:PSMConfig.Config.SMTPSettings.Network.SmtpAuthentication.Method) {
+							'Anonymous' {
+								# Do nothing.
+							}
+							'Basic' {
+								$SecureString = Import-SecureString -EncryptedBase64String $Script:PSMConfig.Config.SMTPSettings.Network.SmtpAuthentication.SmtpPassword.EncryptedBase64String -Thumbprint $Script:PSMConfig.Config.SMTPSettings.Network.SmtpAuthentication.SmtpPassword.Thumbprint
+								$Credential = [System.Management.Automation.PSCredential]::New($Script:PSMConfig.Config.SMTPSettings.Network.SmtpAuthentication.SmtpUsername, $SecureString)
+
+								$Script:BaseMailMessageParameters.Add('Credential', $Credential)
+							}
+							Default {
+								throw [System.Management.Automation.ErrorRecord]::New(
+									[Exception]::New('Unknown SMTP authentication method.'),
+									'1',
+									[System.Management.Automation.ErrorCategory]::InvalidType,
+									$Script:PSMConfig.Config.SMTPSettings.Network.SmtpAuthentication.Method
+								)
+							}
+						}
+					}
+					'SpecifiedPickupDirectory' {
+						if (Test-Path -Path $Script:PSMConfig.Config.SMTPSettings.PickupDirectory.Path -PathType Container) {
+							$Script:BaseMailMessageParameters.Add('SmtpDeliveryMethod', 'SpecifiedPickupDirectory')
+							$Script:BaseMailMessageParameters.Add('PickupDirectoryPath', $Script:PSMConfig.Config.SMTPSettings.PickupDirectory.Path)
+						} else {
+							throw [System.Management.Automation.ErrorRecord]::New(
+								[Exception]::New('Pickup directory not found.'),
+								'1',
+								[System.Management.Automation.ErrorCategory]::ObjectNotFound,
+								$Script:PSMConfig.Config.SMTPSettings.PickupDirectory.Path
+							)
+						}
+					}
+					Default {
+						throw [System.Management.Automation.ErrorRecord]::New(
+							[Exception]::New('Unknown SMTP delivery method.'),
+							'1',
+							[System.Management.Automation.ErrorCategory]::InvalidType,
+							$Script:PSMConfig.Config.SMTPSettings.SmtpDeliveryMethod
+						)
+					}
+				}
+
+				if ($PSVersionTable.PSEdition -eq 'Core') {
+					$BinPath = Join-Path -Path $PSScriptRoot -ChildPath 'Bin\OxyPlot\2.2.0\Net8.0' -Resolve
+				} else {
+					$BinPath = Join-Path -Path $PSScriptRoot -ChildPath 'Bin\OxyPlot\2.2.0\Net462' -Resolve
+				}
+
+				$OxyPlotAssemblies = @(
+					'OxyPlot.dll'
+					'OxyPlot.Wpf.dll'
+				)
+
+				foreach ($Assembly in $OxyPlotAssemblies) {
+					$AssemblyPath = Join-Path -Path $BinPath -ChildPath $Assembly -Resolve
+
+					if (Test-Path -LiteralPath $AssemblyPath) {
+						[void][System.Reflection.Assembly]::LoadFrom($AssemblyPath)
+					} else {
+						throw [System.Management.Automation.ErrorRecord]::New(
+							[Exception]::New("Required assembly '$Assembly' not found."),
+							'1',
+							[System.Management.Automation.ErrorCategory]::ResourceUnavailable,
+							$AssemblyPath
+						)
+					}
+				}
+			}
+		}
+		catch {
+			throw $_
+		}
+	}
+
+	end {
+	}
+}
+
+function Invoke-ReplaceInvalidCharacter {
+	<#
+	.SYNOPSIS
+	Replace special characters.
+	.DESCRIPTION
+	Replace special characters with another character.
+	.PARAMETER InputString
+	String to replace special characters.
+	.EXAMPLE
+	Invoke-ReplaceInvalidCharacter -InputString 'Some String'
+	.NOTES
+	#>
+
+	[System.Diagnostics.DebuggerStepThrough()]
+
+	[CmdletBinding(
+		PositionalBinding = $false,
+		SupportsShouldProcess = $false,
+		ConfirmImpact = 'None'
+	)]
+
+	[OutputType([System.String])]
+
+	param(
+		[Parameter(
+			Mandatory = $true,
+			ValueFromPipeline = $false,
+			ValueFromPipelineByPropertyName = $false
+		)]
+		[ValidateNotNullOrEmpty()]
+		[string]$InputString
+	)
+
+	begin {
+		$InvalidCharacters = [string]::Join('', [System.IO.Path]::GetInvalidFileNameChars())
+
+		$RegExString = [string]::Format('[{0}]|^\.$', [Regex]::Escape($InvalidCharacters))
+	}
+
+	process {
+		$OutputString = $InputString
+
+		$OutputString = $OutputString -replace $RegExString, '_'
+		$OutputString = $OutputString -replace '^\.\.', '__'
+
+		$OutputString
+	}
+
+	end {
+	}
+}
+
+function Invoke-RetryScriptBlock {
+	<#
+	.SYNOPSIS
+	Execute a script block.
+	.DESCRIPTION
+	Attempt to execute a script block up to the maximum retry attempts.
+	.PARAMETER ScriptBlock
+	Specifies the commands to run.
+	.PARAMETER Arguments
+	Supplies the values of local variables in the command.  Enter the values in a comma-separated list.
+	.PARAMETER MaxRetry
+	Specifies the maximum number of attempts to perform.
+	.EXAMPLE
+	Invoke-RetryScriptBlock -ScriptBlock @{Write-Host 'Hello World'}
+	.EXAMPLE
+	Invoke-RetryScriptBlock -ScriptBlock @{param($MyVar) Write-Host "Hello $MyVar"} -Arguments 'World'
+	.NOTES
+	Exponential Back-off Max == (2^n)-1
+	#>
+
+	[System.Diagnostics.DebuggerStepThrough()]
+
+	[CmdletBinding(
+		PositionalBinding = $false,
+		SupportsShouldProcess = $false,
+		ConfirmImpact = 'Low'
+	)]
+
+	#[OutputType([PSObject])]
+
+	Param(
+		[Parameter(
+			Mandatory = $true,
+			ValueFromPipeline = $false,
+			ValueFromPipelineByPropertyName = $false
+		)]
+		[scriptblock]$ScriptBlock,
+
+		[Parameter(
+			Mandatory = $false,
+			ValueFromPipeline = $false,
+			ValueFromPipelineByPropertyName = $false
+		)]
+		[array]$Arguments,
+
+		[Parameter(
+			Mandatory = $false,
+			ValueFromPipeline = $false,
+			ValueFromPipelineByPropertyName = $false
+		)]
+		[ValidateRange(1, 10)]
+		[int]$MaxRetry = 3
+	)
+
+	begin {
+		$Attempt = 1
+	}
+
+	process {
+		do {
+			try
+			{
+				$ScriptBlock.Invoke($Arguments)
+
+				break
+			}
+			catch {
+				$RetryDelay = ([math]::Pow(2, $Attempt) - 1) * 100
+
+				Write-Verbose ([string]::Format('Error: {0}', $_.Exception.Message))
+				Write-Verbose ([string]::Format('Attempt {0} of {1} failed.  Waiting {2} milliseconds before next attempt.', $Attempt, $MaxRetry, $RetryDelay))
+
+				if ($Attempt -lt $MaxRetry) {
+					Start-Sleep -Milliseconds $RetryDelay
+				}
+				else {
+					throw $_
+				}
+			}
+
+			$Attempt++
+		} while ($Attempt -le $MaxRetry)
+	}
+
+	end {
+	}
+}
+
+function Join-Path2 {
+	<#
+	.SYNOPSIS
+	Combines a path and a child path into a single path.
+	.DESCRIPTION
+	Combines a path and a child path into a single path.
+	.PARAMETER Path
+	Specifies the main path to which the child-path is appended.
+	.PARAMETER ChildPath
+	Specifies the elements to append to the value of the 'Path' parameter.
+	.PARAMETER AdditionalChildPath
+	Specifies additional elements to append to the value of the Path parameter.
+	.PARAMETER Resolve
+	Indicates that this function should attempt to resolve the joined path.
+	.EXAMPLE
+	Join-Path2 -Path 'C:\path\' -ChildPath '\ChildPath'
+	.NOTES
+	#>
+
+	[System.Diagnostics.DebuggerStepThrough()]
+
+	[CmdletBinding(
+		PositionalBinding = $true,
+		SupportsShouldProcess = $false,
+		ConfirmImpact = 'Low'
+	)]
+
+	[OutputType([string])]
+
+	param (
+		[Parameter(
+			Mandatory = $true,
+			ValueFromPipeline = $false,
+			ValueFromPipelineByPropertyName = $false
+		)]
+		[string]$Path,
+
+		[Parameter(
+			Mandatory = $true,
+			ValueFromPipeline = $false,
+			ValueFromPipelineByPropertyName = $false
+		)]
+		[string]$ChildPath,
+
+		[Parameter(
+			Mandatory = $false,
+			ValueFromPipeline = $false,
+			ValueFromPipelineByPropertyName = $false
+		)]
+		[string[]]$AdditionalChildPath,
+
+		[Parameter(
+			Mandatory = $false,
+			ValueFromPipeline = $false,
+			ValueFromPipelineByPropertyName = $false
+		)]
+		[switch]$Resolve
+	)
+
+	begin {
+	}
+
+	process {
+		try {
+			$PathList = [Collections.Generic.List[string]]$Path
+
+			$PathList.Add($ChildPath)
+
+			if ($PSBoundParameters.ContainsKey('AdditionalChildPath')) {
+				foreach ($item in $AdditionalChildPath) {
+					$PathList.Add($item)
+				}
+			}
+
+			[string]$OutputPath = [System.IO.Path]::GetFullPath([System.IO.Path]::Combine($PathList))
+
+			if ($Resolve) {
+				if (-not (Test-path -LiteralPath $OutputPath)) {
+					throw [System.Management.Automation.ErrorRecord]::new(
+						[System.IO.FileNotFoundException]::New('File not found.'),
+						'1',
+						[System.Management.Automation.ErrorCategory]::ObjectNotFound,
+						$OutputPath
+					)
+				}
+			}
+
+			$OutputPath
+		}
+		catch {
+			throw $_
+		}
+	}
+
+	end{
+	}
+}
+
+function Remove-BackupTestDatabase {
+	<#
+	.SYNOPSIS
+	Remove backup test database.
+	.DESCRIPTION
+	Remove backup test database.
+	.PARAMETER TestBackupSqlInstance
+	Specifies the name of a SQL Server instance to perform backup tests.
+	.PARAMETER DatabaseName
+	Specifies the name of the database(s) to remove.
+	.PARAMETER SmoServerObject
+	SQL Server Management Object.
+	.EXAMPLE
+	Remove-BackupTestDatabase -TestBackupSqlInstance MySQLInstance
+	.EXAMPLE
+	Remove-BackupTestDatabase -TestBackupSqlInstance MySQLInstance -DatabaseName TestRecovery_6d7a29ab-5bf5-4d14-97bd-30ffaaa77854
+	.EXAMPLE
+	Remove-BackupTestDatabase -SmoServerObject $SmoServerObject
+	.NOTES
+	#>
+
+	[System.Diagnostics.DebuggerStepThrough()]
+
+	[CmdletBinding(
+		PositionalBinding = $false,
+		SupportsShouldProcess = $true,
+		ConfirmImpact = 'High',
+		DefaultParameterSetName = 'ServerInstance'
+	)]
+
+	[OutputType([System.Void])]
+
+	param (
+		[Parameter(
+			Mandatory = $true,
+			ValueFromPipeline = $false,
+			ValueFromPipelineByPropertyName = $false,
+			ParameterSetName = 'ServerInstance'
+		)]
+		[ValidateLength(1,128)]
+		[string]$TestBackupSqlInstance,
+
+		[Parameter(
+			Mandatory = $true,
+			ValueFromPipeline = $false,
+			ValueFromPipelineByPropertyName = $false,
+			ParameterSetName = 'SmoServer'
+		)]
+		[Microsoft.SqlServer.Management.Smo.Server]$SmoServerObject,
+
+		[Parameter(
+			Mandatory = $false,
+			ValueFromPipeline = $false,
+			ValueFromPipelineByPropertyName = $false
+		)]
+		[ValidateLength(1,128)]
+		[string]$DatabaseName
+	)
+
+	begin {
+		try {
+			$RegExString = '^TestRecovery_+([0-9A-Fa-f]{8}[-]?[0-9A-Fa-f]{4}[-]?[0-9A-Fa-f]{4}[-]?[0-9A-Fa-f]{4}[-]?[0-9A-Fa-f]{12})$'
+			$ServerInstanceParameterSets = @('ServerInstance')
+			$SmoServerParameterSets = @('SmoServer')
+
+			if ($PSBoundParameters.ContainsKey('DatabaseName')) {
+				if ($DatabaseName -notmatch $RegExString) {
+					throw [System.Management.Automation.ErrorRecord]::New(
+						[Exception]::New('Database is not a test recovery database.'),
+						'1',
+						[System.Management.Automation.ErrorCategory]::InvalidArgument,
+						$DatabaseName
+					)
+				}
+			}
+
+			if ($PSCmdlet.ParameterSetName -in $SmoServerParameterSets) {
+				$CurrentDatabase = $SmoServerObject.ConnectionContext.CurrentDatabase
+			}
+
+			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
+				$SmoServerObject = Connect-SmoServer -ServerInstance $TestBackupSqlInstance
+			}
+		}
+		catch {
+			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
+				if (Test-Path -Path Variable:\SmoServerObject) {
+					if ($SmoServerObject -is [Microsoft.SqlServer.Management.Smo.Server]) {
+						Disconnect-SmoServer -SmoServerObject $SmoServerObject
+					}
+				}
+			}
+
+			throw $_
+		}
+	}
+
+	process {
+		try {
+			$SqlClientDataSetParameters = @{
+				'SqlConnection' = $SmoServerObject.ConnectionContext.SqlConnectionObject
+				'SqlCommandText' = 'SELECT sqlserver_start_time AS StartTime FROM sys.dm_os_sys_info;'
+				'OutputAs' = 'DataRow'
+			}
+
+			$Results = Get-SqlClientDataSet @SqlClientDataSetParameters
+
+			[datetime]$StartTime = $Results.StartTime
+
+			$Databases = $SmoServerObject.Databases.where({$_.Name -match $RegExString -and $_.Status -eq 'Restoring'})
+
+			if ($PSBoundParameters.ContainsKey('DatabaseName')) {
+				if ($Databases -contains $DatabaseName) {
+					$Databases = $Databases.where({$_.Name -eq $DatabaseName})
+				} else {
+					throw [System.Management.Automation.ErrorRecord]::New(
+						[Exception]::New('Database not found.'),
+						'1',
+						[System.Management.Automation.ErrorCategory]::ObjectNotFound,
+						$DatabaseName
+					)
+				}
+			}
+
+			foreach ($Database in $Databases) {
+				try {
+					Write-Verbose "Checking Database $($Database.Name)"
+
+					if ($Database.CreateDate -lt $StartTime -or $Database.CreateDate -lt $(Get-Date).AddHours(-12)) {
+						if ($PSCmdlet.ShouldProcess($Database.Name, 'Drop Database')) {
+							$Database.Drop()
+						}
+					} else {
+						Write-Verbose "Database $($Database.Name) will not removed."
+					}
+				}
+				catch {
+					throw $_
+				}
+			}
+		}
+		catch {
+			throw $_
+		}
+		finally {
+			if ($PSCmdlet.ParameterSetName -in $SmoServerParameterSets) {
+				$SmoServerObject.ConnectionContext.SqlConnectionObject.ChangeDatabase($CurrentDatabase)
+			}
+
+			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
+				Disconnect-SmoServer -SmoServerObject $SmoServerObject
+			}
+		}
+	}
+
+	end {
+	}
+}
+
+function Update-PSMConfiguration {
+	<#
+	.SYNOPSIS
+	Update module configuration file to the latest version.
+	.DESCRIPTION
+	Update module configuration file to the latest version.
+	.PARAMETER DefaultConfig
+	Default configuration XML document.
+	.EXAMPLE
+	$DefaultConfig = [xml](Get-Content -Raw -LiteralPath 'DefaultConfig.xml')
+	Update-PSMConfiguration -DefaultConfig $DefaultConfig
+
+	Updates the module configuration file to the latest version using the provided default configuration XML document.
+	.NOTES
+	#>
+
+	[System.Diagnostics.DebuggerStepThrough()]
+
+	[CmdletBinding(
+		PositionalBinding = $false,
+		SupportsShouldProcess = $false,
+		ConfirmImpact = 'Medium'
+	)]
+
+	[OutputType([System.Void])]
+
+	param (
+		[Parameter(
+			Mandatory = $true,
+			ValueFromPipeline = $false,
+			ValueFromPipelineByPropertyName = $false
+		)]
+		[xml]$DefaultConfig
+	)
+
+	begin {
+		$KnownVersions = @(
+			[version]'1.0.0'
+			[version]'2.0.0'
+		)
+
+		if ([version]$Script:PSMConfig.Config.Version -notin $KnownVersions) {
+			throw [System.Management.Automation.ErrorRecord]::New(
+				[Exception]::New('Unknown default configuration version.'),
+				'1',
+				[System.Management.Automation.ErrorCategory]::InvalidData,
+				[version]$Script:PSMConfig.Config.Version
+			)
+		}
+	}
+
+	process {
+		try {
+			if ([version]$Script:PSMConfig.Config.Version -eq [version]'1.0.0') {
+				$Script:PSMConfig.Config.Version = '2.0.0'
+
+				$SmtpSettingsNode = $DefaultConfiguration.Config.SmtpSettings
+
+				$SmtpSettingsNode.SmtpDeliveryMethod = $Script:PSMConfig.Config.SMTPSettings.SmtpDeliveryMethod
+				$SmtpSettingsNode.PickupDirectory.Path = $Script:PSMConfig.Config.SMTPSettings.PickupDirectoryPath
+				$SmtpSettingsNode.Network.SmtpServer = $Script:PSMConfig.Config.SMTPSettings.SmtpServer
+				$SmtpSettingsNode.Network.SmtpPort = $Script:PSMConfig.Config.SMTPSettings.SmtpPort
+				$SmtpSettingsNode.Network.UseTls = $Script:PSMConfig.Config.SMTPSettings.UseTls
+				$SmtpSettingsNode.Network.SmtpAuthentication.Method = 'Anonymous'
+
+				$OldSmtpSettingsNode = $Script:PSMConfig.SelectSingleNode('//Config/SmtpSettings')
+
+				$NewSmtpSettingsNode = $Script:PSMConfig.ImportNode($SmtpSettingsNode, $true)
+
+				[void]$Script:PSMConfig.Config.ReplaceChild($NewSmtpSettingsNode, $OldSmtpSettingsNode)
+			}
+
+			$XmlWriterSettings = [System.Xml.XmlWriterSettings]::new()
+
+			$XmlWriterSettings.Indent = $true
+			$XmlWriterSettings.IndentChars = "`t"
+			$XmlWriterSettings.OmitXmlDeclaration = $true
+
+			$XmlWriter = [System.Xml.XmlWriter]::Create($Script:ConfigurationFile, $XmlWriterSettings)
+
+			$Script:PSMConfig.Save($XmlWriter)
+		}
+		catch {
+			throw $_
+		}
+		finally {
+			if (Test-Path -Path Variable:\XmlWriter) {
+				$XmlWriter.Flush()
+				$XmlWriter.Close()
+			}
+		}
+	}
+
+	end {
+	}
+}
+#EndRegion
+
+
 function Add-LogShippedDatabase {
 	<#
 	.EXTERNALHELP
@@ -1956,6 +3194,12 @@ function Find-OrphanedDatabasePhysicalFile {
 		finally {
 			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
 				Disconnect-SmoServer -SmoServerObject $SmoServer
+			}
+
+			if (Test-Path -Path Variable:\PSSession) {
+				if ($PSSession -is [System.Management.Automation.Runspaces.PSSession]) {
+					Remove-PSSession -Session $PSSession
+				}
 			}
 		}
 	}
@@ -3375,101 +4619,6 @@ function Get-DatabaseTransactionLogInfo {
 	}
 }
 
-function Get-DatabaseTransactionLogInfoDataSet {
-	<#
-	.SYNOPSIS
-	Get database transaction log information.
-	.DESCRIPTION
-	Get database transaction log information.
-	.PARAMETER ServerInstance
-	Specifies the name of a SQL Server instance.
-	.PARAMETER SqlConnection
-	Specifies SQL Server connection.
-	.PARAMETER DatabaseName
-	Specifies the name of the database to gather log file information.
-	.EXAMPLE
-	Get-DatabaseTransactionLogInfoDataSet -ServerInstance . -DatabaseName MyDatabase
-	.NOTES
-	#>
-
-	[System.Diagnostics.DebuggerStepThrough()]
-
-	[CmdletBinding(
-		PositionalBinding = $false,
-		SupportsShouldProcess = $false,
-		ConfirmImpact = 'Low',
-		DefaultParameterSetName = 'ServerInstance'
-	)]
-
-	[OutputType([System.Data.DataSet])]
-
-	param (
-		[Parameter(
-			Mandatory = $true,
-			ValueFromPipeline = $false,
-			ValueFromPipelineByPropertyName = $false,
-			ParameterSetName = 'ServerInstance'
-		)]
-		[ValidateLength(1,128)]
-		[string]$ServerInstance,
-
-		[Parameter(
-			Mandatory = $true,
-			ValueFromPipeline = $false,
-			ValueFromPipelineByPropertyName = $false,
-			ParameterSetName = 'SqlConnection'
-		)]
-		[Microsoft.Data.SqlClient.SqlConnection]$SqlConnection,
-
-		[Parameter(
-			Mandatory = $true,
-			ValueFromPipeline = $false,
-			ValueFromPipelineByPropertyName = $false
-		)]
-		[ValidateLength(1,128)]
-		[string]$DatabaseName
-	)
-
-	begin {
-		$Query_VLFs = 'SELECT file_id
-			,	vlf_begin_offset
-			,	vlf_size_mb
-			,	vlf_sequence_number
-			,	vlf_create_lsn
-			,	RunningSize = SUM(vlf_size_mb) OVER (PARTITION BY file_id ORDER BY vlf_begin_offset)
-			FROM sys.dm_db_log_info(DEFAULT)
-			ORDER BY vlf_begin_offset;'
-	}
-
-	process {
-		try {
-			$SqlClientDataSetParameters = @{
-				'SqlCommandText' = $Query_VLFs
-				'OutputAs' = 'Dataset'
-			}
-
-			if ($PSCmdlet.ParameterSetName -eq 'ServerInstance') {
-				$SqlClientDataSetParameters.Add('ServerInstance', $ServerInstance)
-				$SqlClientDataSetParameters.Add('DatabaseName', $DatabaseName)
-			} else {
-				$SqlConnection.ChangeDatabase($DatabaseName)
-
-				$SqlClientDataSetParameters.Add('SqlConnection', $SqlConnection)
-			}
-
-			$VLFDataTable = Get-SqlClientDataSet @SqlClientDataSetParameters
-
-			$VLFDataTable
-		}
-		catch {
-			throw $_
-		}
-	}
-
-	end {
-	}
-}
-
 function Get-LSPrimaryDatabase {
 	<#
 	.EXTERNALHELP
@@ -3734,121 +4883,6 @@ function Get-LSSecondaryDatabase {
 
 				$Output
 			}
-		}
-		catch {
-			throw $_
-		}
-	}
-
-	end {
-	}
-}
-
-function Get-SqlBackupFile {
-	<#
-	.SYNOPSIS
-	Gets list of backup files within directory.
-	.DESCRIPTION
-	Gets list of backup files within directory.
-	.PARAMETER Path
-	Specifies the backup path.
-	.PARAMETER BackupType
-	Specifies the type of backup operation to perform.
-	.PARAMETER Exclude
-	Full or differential Backup files to exclude.
-	.EXAMPLE
-	Get-SqlBackupFile -Path C:\SqlBackups
-
-	Returns backup files of types full, diff, and transaction log from C:\SqlBackups.
-	.EXAMPLE
-	Get-SqlBackupFile -Path C:\SqlBackups -BackupType Full
-
-	Returns backup files of types full from C:\SqlBackups.
-	.NOTES
-	#>
-
-	[System.Diagnostics.DebuggerStepThrough()]
-
-	[CmdletBinding(
-		PositionalBinding = $false,
-		SupportsShouldProcess = $false,
-		ConfirmImpact = 'Low'
-	)]
-
-	[OutputType([System.Collections.Generic.List[SqlServerMaintenance.BackupFileInfo]])]
-
-	param (
-		[Parameter(
-			Mandatory = $true,
-			ValueFromPipeline = $false,
-			ValueFromPipelineByPropertyName = $false
-		)]
-		[ValidatePathExists('Container')]
-		[System.IO.DirectoryInfo]$Path,
-
-		[Parameter(
-			Mandatory = $false,
-			ValueFromPipeline = $false,
-			ValueFromPipelineByPropertyName = $false
-		)]
-		[BackupType[]]$BackupType = @('full', 'diff', 'log'),
-
-		[Parameter(
-			Mandatory = $false,
-			ValueFromPipeline = $false,
-			ValueFromPipelineByPropertyName = $false
-		)]
-		[System.IO.FileInfo[]]$Exclude
-	)
-
-	begin {
-		try {
-			if ($PSBoundParameters.ContainsKey('Exclude')) {
-				if ($BackupType -contains 'log') {
-					if ($Exclude.Extension -contains '.trn') {
-						throw [System.Management.Automation.ErrorRecord]::New(
-							[Exception]::New('Log backups cannot have excluded files.'),
-							'1',
-							[System.Management.Automation.ErrorCategory]::InvalidOperation,
-							$Exclude
-						)
-					}
-				}
-			}
-
-			$IncludeFilesList = [System.Collections.Generic.List[string]]::New()
-
-			switch ($BackupType) {
-				'full' {
-					$IncludeFilesList.Add('*.bak')
-				}
-				'diff' {
-					$IncludeFilesList.Add('*.dif')
-				}
-				'log' {
-					$IncludeFilesList.Add('*.trn')
-				}
-			}
-		}
-		catch {
-			throw $_
-		}
-	}
-
-	process {
-		try {
-			$Files = [System.Collections.Generic.List[SqlServerMaintenance.BackupFileInfo]]::New()
-
-			foreach ($Extension in $IncludeFilesList) {
-				$Files.AddRange([SqlServerMaintenance.BackupFileInfo[]][System.IO.Directory]::GetFiles($Path, $Extension))
-			}
-
-			if ($PSBoundParameters.ContainsKey('Exclude')) {
-				[void]$Files.RemoveAll({$args.FullName -in $Exclude})
-				[void]$Files.RemoveAll({$args.Name -in $Exclude.Name})
-			}
-
-			$Files
 		}
 		catch {
 			throw $_
@@ -5483,15 +6517,29 @@ function Get-SqlServerMaintenanceConfiguration {
 		try {
 			switch ($SettingName) {
 				'SMTPSettings' {
-					if ($PSCmdlet.ParameterSetName -eq 'Network') {
-						[PSCustomObject][ordered]@{
-							'SmtpServer' = $Script:PSMConfig.Config.SMTPSettings.SmtpServer
-							'SmtpPort' = $Script:PSMConfig.Config.SMTPSettings.SmtpPort
-							'UseTls' = $Script:PSMConfig.Config.SMTPSettings.UseTls
+					if ($Script:PSMConfig.Config.SmtpSettings.SmtpDeliveryMethod -eq 'Network') {
+						$Output = [PSCustomObject][ordered]@{
+							'SmtpDeliveryMethod' = $Script:PSMConfig.Config.SMTPSettings.SmtpDeliveryMethod
+							'SmtpServer' = $Script:PSMConfig.Config.SMTPSettings.Network.SmtpServer
+							'SmtpPort' = $Script:PSMConfig.Config.SMTPSettings.Network.SmtpPort
+							'UseTls' = $Script:PSMConfig.Config.SMTPSettings.Network.UseTls
+							'SmtpAuthenticationMethod' = $Script:PSMConfig.Config.SMTPSettings.Network.SmtpAuthentication.Method
+							SmtpUsername = $null
+							EncryptedBase64String = $null
+							Thumbprint = $null
 						}
+
+						if ($Script:PSMConfig.Config.SMTPSettings.Network.SmtpAuthentication.Method -eq 'Basic') {
+							$Output.SmtpUsername = $Script:PSMConfig.Config.SMTPSettings.Network.SmtpAuthentication.SmtpUsername
+							$Output.EncryptedBase64String = $Script:PSMConfig.Config.SMTPSettings.Network.SmtpAuthentication.SmtpPassword.EncryptedBase64String
+							$Output.Thumbprint = $Script:PSMConfig.Config.SMTPSettings.Network.SmtpAuthentication.SmtpPassword.Thumbprint
+						}
+
+						$Output
 					} else {
 						[PSCustomObject][ordered]@{
-							'PickupDirectoryPath' = $Script:PSMConfig.Config.SMTPSettings.PickupDirectoryPath
+							'SmtpDeliveryMethod' = $Script:PSMConfig.Config.SMTPSettings.SmtpDeliveryMethod
+							'PickupDirectoryPath' = $Script:PSMConfig.Config.SMTPSettings.PickupDirectory.Path
 						}
 					}
 				}
@@ -5550,267 +6598,6 @@ function Get-SqlServerMaintenanceConfiguration {
 
 	end {
 	}
-}
-
-function Get-SqlServerTimeZone {
-	<#
-	.SYNOPSIS
-	Retrieves time zone for SQL Server instance.
-	.DESCRIPTION
-	Retrieves time zone for SQL Server instance.
-	.PARAMETER ServerInstance
-	SQL Server host name and instance name.
-	.PARAMETER SmoServer
-	SQL Server Management Object.
-	.EXAMPLE
-	Get-SqlServerTimeZone -ServerInstance MySqlServer
-	.EXAMPLE
-	Get-SqlServerTimeZone -SmoServer $SmoServer
-	.NOTES
-	#>
-
-	[System.Diagnostics.DebuggerStepThrough()]
-
-	[CmdletBinding(
-		PositionalBinding = $false,
-		SupportsShouldProcess = $false,
-		ConfirmImpact = 'None',
-		DefaultParameterSetName = 'ServerInstance'
-	)]
-
-	[OutputType([System.TimeZoneInfo])]
-
-	param (
-		[Parameter(
-			Mandatory = $true,
-			ValueFromPipeline = $false,
-			ValueFromPipelineByPropertyName = $false,
-			ParameterSetName = 'ServerInstance'
-		)]
-		[ValidateLength(1, 128)]
-		[string]$ServerInstance,
-
-		[Parameter(
-			Mandatory = $true,
-			ValueFromPipeline = $false,
-			ValueFromPipelineByPropertyName = $false,
-			ParameterSetName = 'SmoServerObject'
-		)]
-		[Microsoft.SqlServer.Management.Smo.Server]$SmoServerObject
-	)
-
-	begin {
-		try {
-			$ServerInstanceParameterSets = @('ServerInstance')
-
-			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
-				$SmoServerParameters = @{
-					'ServerInstance' = $ServerInstance
-					'DatabaseName' = 'master'
-				}
-
-				$SmoServer = Connect-SmoServer @SmoServerParameters
-			} else {
-				$SmoServer = $SmoServerObject
-			}
-		}
-		catch {
-			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
-				if (Test-Path -Path Variable:\SmoServer) {
-					if ($SmoServer -is [Microsoft.SqlServer.Management.Smo.Server]) {
-						Disconnect-SmoServer -SmoServerObject $SmoServer
-					}
-				}
-			}
-
-			throw $_
-		}
-
-		$SqlQuery = "DECLARE @TZName nvarchar(128);
-			EXEC master.dbo.xp_regread 'HKEY_LOCAL_MACHINE', 'SYSTEM\CurrentControlSet\Control\TimeZoneInformation', 'TimeZoneKeyName', @TZName OUT;
-			SELECT TimeZoneName = @TZName;"
-	}
-
-	process {
-		try {
-			$Results = Get-SqlClientDataSet -SqlConnection $SmoServer.ConnectionContext.SqlConnectionObject -SqlCommandText $SqlQuery -OutputAs 'DataRow'
-
-			$TimeZoneName = $Results.TimeZoneName
-
-			[System.TimeZoneInfo]::FindSystemTimeZoneById($TimeZoneName)
-		}
-		catch {
-			throw $_
-		}
-		finally {
-			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
-				Disconnect-SmoServer -SmoServerObject $SmoServer
-			}
-		}
-	}
-
-	end {
-	}
-}
-
-function Get-SqlToolsPath {
-	<#
-	.SYNOPSIS
-	Return path to SQL Tools.
-	.DESCRIPTION
-	Return path to SQL Tools.
-	.PARAMETER Session
-	Specifies PS Session.
-	.EXAMPLE
-	Get-SqlToolsPath -Session $Session
-
-	Return path to SQL Tools.
-	.NOTES
-	#>
-
-	[System.Diagnostics.DebuggerStepThrough()]
-
-	[CmdletBinding(
-		PositionalBinding = $false,
-		SupportsShouldProcess = $false,
-		ConfirmImpact = 'Low'
-	)]
-
-	[OutputType([System.String])]
-
-	param (
-		[Parameter(
-			Mandatory = $false,
-			ValueFromPipeline = $false,
-			ValueFromPipelineByPropertyName = $false
-		)]
-		[System.Management.Automation.RunSpaces.PSSession]$Session
-	)
-
-	begin {
-		$HKLMPath = 'HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\*\Tools\ClientSetup'
-	}
-
-	process {
-		try {
-			$CommandParameters = @{
-				'ScriptBlock' = {
-						param($Path)
-						Get-ItemProperty -Path $Path -Name Path -ErrorAction SilentlyContinue | Sort-Object -Property Path | Select-Object -Last 1
-					}
-				'ArgumentList' = $HKLMPath
-			}
-
-			If ($PSBoundParameters.ContainsKey('Session')) {
-				$CommandParameters.Add('Session', $Session)
-			}
-
-			$CommandOutput = Invoke-Command @CommandParameters
-
-			if ($null -eq $CommandOutput) {
-				throw [System.Management.Automation.ErrorRecord]::New(
-					[Exception]::New('Bin path not found.'),
-					'1',
-					[System.Management.Automation.ErrorCategory]::ObjectNotFound,
-					$HKLMPath
-				)
-			} else {
-				[System.IO.DirectoryInfo]$BinPath = $CommandOutput.Path
-			}
-
-			$BinPath.ToString()
-		}
-		catch {
-			throw $_
-		}
-	}
-
-	end {
-	}
-}
-
-function Get-TimeInTimeZone {
-	<#
-	.SYNOPSIS
-	Returns DateTimeOffset from UTC date time.
-	.DESCRIPTION
-	Returns DateTimeOffset from UTC date time.
-	.PARAMETER UTCDateTime
-	Universal Coordinated Time (UTC).
-	.PARAMETER TimeZone
-	TimeZoneInfo Object.
-	.PARAMETER TimeZoneId
-	Time zone id string.
-	.EXAMPLE
-	Get-TimeInTimeZone -UTCDateTime '8/26/2021 9:43:23 PM' -TimeZone $TimeZone
-	.EXAMPLE
-	Get-TimeInTimeZone -UTCDateTime '8/26/2021 9:43:23 PM' -TimeZoneId 'Eastern Standard Time'
-	.NOTES
-	#>
-
-	[System.Diagnostics.DebuggerStepThrough()]
-
-	[CmdletBinding(
-		PositionalBinding = $false,
-		SupportsShouldProcess = $false,
-		ConfirmImpact = 'None',
-		DefaultParameterSetName = 'TimeZoneId'
-	)]
-
-	[OutputType([System.DateTimeOffset])]
-
-	param (
-		[Parameter(
-			Mandatory = $true,
-			ValueFromPipeline = $false,
-			ValueFromPipelineByPropertyName = $false
-		)]
-		[System.DateTime]$UTCDateTime,
-
-		[Parameter(
-			Mandatory = $true,
-			ValueFromPipeline = $false,
-			ValueFromPipelineByPropertyName = $false,
-			ParameterSetName = 'TimeZone'
-		)]
-		[System.TimeZoneInfo]$TimeZone,
-
-		[Parameter(
-			Mandatory = $true,
-			ValueFromPipeline = $false,
-			ValueFromPipelineByPropertyName = $false,
-			ParameterSetName = 'TimeZoneId'
-		)]
-		[ArgumentCompleter({ [ArgumentCompleterResult]::GetArgumentCompleterResult($Args) })]
-		[string]$TimeZoneId
-	)
-
-	 begin {
-	 }
-
-	 process {
-		try {
-			if ($PSCmdlet.ParameterSetName -eq 'TimeZoneId') {
-				[System.TimeZoneInfo]$TimeZone = [System.TimeZoneInfo]::FindSystemTimeZoneById($TimeZoneId)
-			}
-
-			$LocalTime = [System.TimeZoneInfo]::ConvertTimeFromUtc($UTCDateTime, $TimeZone)
-
-			$DateTimeOffset = [DateTimeOffset]::New($LocalTime, $TimeZone.GetUtcOffset($LocalTime))
-
-			if ($TimeZone.IsAmbiguousTime($DateTimeOffset)) {
-				Write-Warning 'Ambiguous time'
-			}
-
-			$DateTimeOffset
-		}
-		catch {
-			throw $_
-		}
-	}
-
-	 end {
-	 }
 }
 
 function Initialize-SqlServerMaintenanceDatabase {
@@ -6907,146 +7694,6 @@ function Invoke-LogShipping {
 				}
 			}
 		}
-	}
-
-	end {
-	}
-}
-
-function Invoke-ReplaceInvalidCharacter {
-	<#
-	.SYNOPSIS
-	Replace special characters.
-	.DESCRIPTION
-	Replace special characters with another character.
-	.PARAMETER InputString
-	String to replace special characters.
-	.EXAMPLE
-	Invoke-ReplaceInvalidCharacter -InputString 'Some String'
-	.NOTES
-	#>
-
-	[System.Diagnostics.DebuggerStepThrough()]
-
-	[CmdletBinding(
-		PositionalBinding = $false,
-		SupportsShouldProcess = $false,
-		ConfirmImpact = 'None'
-	)]
-
-	[OutputType([System.String])]
-
-	param(
-		[Parameter(
-			Mandatory = $true,
-			ValueFromPipeline = $false,
-			ValueFromPipelineByPropertyName = $false
-		)]
-		[ValidateNotNullOrEmpty()]
-		[string]$InputString
-	)
-
-	begin {
-		$InvalidCharacters = [string]::Join('', [System.IO.Path]::GetInvalidFileNameChars())
-
-		$RegExString = [string]::Format('[{0}]|^\.$', [Regex]::Escape($InvalidCharacters))
-	}
-
-	process {
-		$OutputString = $InputString
-
-		$OutputString = $OutputString -replace $RegExString, '_'
-		$OutputString = $OutputString -replace '^\.\.', '__'
-
-		$OutputString
-	}
-
-	end {
-	}
-}
-
-function Invoke-RetryScriptBlock {
-	<#
-	.SYNOPSIS
-	Execute a script block.
-	.DESCRIPTION
-	Attempt to execute a script block up to the maximum retry attempts.
-	.PARAMETER ScriptBlock
-	Specifies the commands to run.
-	.PARAMETER Arguments
-	Supplies the values of local variables in the command.  Enter the values in a comma-separated list.
-	.PARAMETER MaxRetry
-	Specifies the maximum number of attempts to perform.
-	.EXAMPLE
-	Invoke-RetryScriptBlock -ScriptBlock @{Write-Host 'Hello World'}
-	.EXAMPLE
-	Invoke-RetryScriptBlock -ScriptBlock @{param($MyVar) Write-Host "Hello $MyVar"} -Arguments 'World'
-	.NOTES
-	Exponential Back-off Max == (2^n)-1
-	#>
-
-	[System.Diagnostics.DebuggerStepThrough()]
-
-	[CmdletBinding(
-		PositionalBinding = $false,
-		SupportsShouldProcess = $false,
-		ConfirmImpact = 'Low'
-	)]
-
-	#[OutputType([PSObject])]
-
-	Param(
-		[Parameter(
-			Mandatory = $true,
-			ValueFromPipeline = $false,
-			ValueFromPipelineByPropertyName = $false
-		)]
-		[scriptblock]$ScriptBlock,
-
-		[Parameter(
-			Mandatory = $false,
-			ValueFromPipeline = $false,
-			ValueFromPipelineByPropertyName = $false
-		)]
-		[array]$Arguments,
-
-		[Parameter(
-			Mandatory = $false,
-			ValueFromPipeline = $false,
-			ValueFromPipelineByPropertyName = $false
-		)]
-		[ValidateRange(1, 10)]
-		[int]$MaxRetry = 3
-	)
-
-	begin {
-		$Attempt = 1
-	}
-
-	process {
-		do {
-			try
-			{
-				$ScriptBlock.Invoke($Arguments)
-
-				break
-			}
-			catch {
-				$RetryDelay = ([math]::Pow(2, $Attempt) - 1) * 100
-
-				Write-Verbose ([string]::Format('Error: {0}', $_.Exception.Message))
-				Write-Verbose ([string]::Format('Attempt {0} of {1} failed.  Waiting {2} milliseconds before next attempt.', $Attempt, $MaxRetry, $RetryDelay))
-
-				if ($Attempt -lt $MaxRetry) {
-					Start-Sleep -Milliseconds $RetryDelay
-				}
-				else {
-					throw $_
-				}
-			}
-
-			$Attempt++
-		} while ($Attempt -le $MaxRetry)
 	}
 
 	end {
@@ -11170,104 +11817,6 @@ function Invoke-SqlInstanceStatisticsMaintenance {
 	}
 }
 
-function Join-Path2 {
-	<#
-	.SYNOPSIS
-	Combines a path and a child path into a single path.
-	.DESCRIPTION
-	Combines a path and a child path into a single path.
-	.PARAMETER Path
-	Specifies the main path to which the child-path is appended.
-	.PARAMETER ChildPath
-	Specifies the elements to append to the value of the 'Path' parameter.
-	.PARAMETER AdditionalChildPath
-	Specifies additional elements to append to the value of the Path parameter.
-	.PARAMETER Resolve
-	Indicates that this function should attempt to resolve the joined path.
-	.EXAMPLE
-	Join-Path2 -Path 'C:\path\' -ChildPath '\ChildPath'
-	.NOTES
-	#>
-
-	[System.Diagnostics.DebuggerStepThrough()]
-
-	[CmdletBinding(
-		PositionalBinding = $true,
-		SupportsShouldProcess = $false,
-		ConfirmImpact = 'Low'
-	)]
-
-	[OutputType([string])]
-
-	param (
-		[Parameter(
-			Mandatory = $true,
-			ValueFromPipeline = $false,
-			ValueFromPipelineByPropertyName = $false
-		)]
-		[string]$Path,
-
-		[Parameter(
-			Mandatory = $true,
-			ValueFromPipeline = $false,
-			ValueFromPipelineByPropertyName = $false
-		)]
-		[string]$ChildPath,
-
-		[Parameter(
-			Mandatory = $false,
-			ValueFromPipeline = $false,
-			ValueFromPipelineByPropertyName = $false
-		)]
-		[string[]]$AdditionalChildPath,
-
-		[Parameter(
-			Mandatory = $false,
-			ValueFromPipeline = $false,
-			ValueFromPipelineByPropertyName = $false
-		)]
-		[switch]$Resolve
-	)
-
-	begin {
-	}
-
-	process {
-		try {
-			$PathList = [Collections.Generic.List[string]]$Path
-
-			$PathList.Add($ChildPath)
-
-			if ($PSBoundParameters.ContainsKey('AdditionalChildPath')) {
-				foreach ($item in $AdditionalChildPath) {
-					$PathList.Add($item)
-				}
-			}
-
-			[string]$OutputPath = [System.IO.Path]::GetFullPath([System.IO.Path]::Combine($PathList))
-
-			if ($Resolve) {
-				if (-not (Test-path -LiteralPath $OutputPath)) {
-					throw [System.Management.Automation.ErrorRecord]::new(
-						[System.IO.FileNotFoundException]::New('File not found.'),
-						'1',
-						[System.Management.Automation.ErrorCategory]::ObjectNotFound,
-						$OutputPath
-					)
-				}
-			}
-
-			$OutputPath
-		}
-		catch {
-			throw $_
-		}
-	}
-
-	end{
-	}
-}
-
 function Move-SqlBackupFile {
 	<#
 	.EXTERNALHELP
@@ -11973,165 +12522,6 @@ function Read-SqlAgentAlert {
 	}
 }
 
-function Remove-BackupTestDatabase {
-	<#
-	.SYNOPSIS
-	Remove backup test database.
-	.DESCRIPTION
-	Remove backup test database.
-	.PARAMETER TestBackupSqlInstance
-	Specifies the name of a SQL Server instance to perform backup tests.
-	.PARAMETER DatabaseName
-	Specifies the name of the database(s) to remove.
-	.PARAMETER SmoServerObject
-	SQL Server Management Object.
-	.EXAMPLE
-	Remove-BackupTestDatabase -TestBackupSqlInstance MySQLInstance
-	.EXAMPLE
-	Remove-BackupTestDatabase -TestBackupSqlInstance MySQLInstance -DatabaseName TestRecovery_6d7a29ab-5bf5-4d14-97bd-30ffaaa77854
-	.EXAMPLE
-	Remove-BackupTestDatabase -SmoServerObject $SmoServerObject
-	.NOTES
-	#>
-
-	[System.Diagnostics.DebuggerStepThrough()]
-
-	[CmdletBinding(
-		PositionalBinding = $false,
-		SupportsShouldProcess = $true,
-		ConfirmImpact = 'High',
-		DefaultParameterSetName = 'ServerInstance'
-	)]
-
-	[OutputType([System.Void])]
-
-	param (
-		[Parameter(
-			Mandatory = $true,
-			ValueFromPipeline = $false,
-			ValueFromPipelineByPropertyName = $false,
-			ParameterSetName = 'ServerInstance'
-		)]
-		[ValidateLength(1,128)]
-		[string]$TestBackupSqlInstance,
-
-		[Parameter(
-			Mandatory = $true,
-			ValueFromPipeline = $false,
-			ValueFromPipelineByPropertyName = $false,
-			ParameterSetName = 'SmoServer'
-		)]
-		[Microsoft.SqlServer.Management.Smo.Server]$SmoServerObject,
-
-		[Parameter(
-			Mandatory = $false,
-			ValueFromPipeline = $false,
-			ValueFromPipelineByPropertyName = $false
-		)]
-		[ValidateLength(1,128)]
-		[string]$DatabaseName
-	)
-
-	begin {
-		try {
-			$RegExString = '^TestRecovery_+([0-9A-Fa-f]{8}[-]?[0-9A-Fa-f]{4}[-]?[0-9A-Fa-f]{4}[-]?[0-9A-Fa-f]{4}[-]?[0-9A-Fa-f]{12})$'
-			$ServerInstanceParameterSets = @('ServerInstance')
-			$SmoServerParameterSets = @('SmoServer')
-
-			if ($PSBoundParameters.ContainsKey('DatabaseName')) {
-				if ($DatabaseName -notmatch $RegExString) {
-					throw [System.Management.Automation.ErrorRecord]::New(
-						[Exception]::New('Database is not a test recovery database.'),
-						'1',
-						[System.Management.Automation.ErrorCategory]::InvalidArgument,
-						$DatabaseName
-					)
-				}
-			}
-
-			if ($PSCmdlet.ParameterSetName -in $SmoServerParameterSets) {
-				$CurrentDatabase = $SmoServerObject.ConnectionContext.CurrentDatabase
-			}
-
-			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
-				$SmoServerObject = Connect-SmoServer -ServerInstance $TestBackupSqlInstance
-			}
-		}
-		catch {
-			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
-				if (Test-Path -Path Variable:\SmoServerObject) {
-					if ($SmoServerObject -is [Microsoft.SqlServer.Management.Smo.Server]) {
-						Disconnect-SmoServer -SmoServerObject $SmoServerObject
-					}
-				}
-			}
-
-			throw $_
-		}
-	}
-
-	process {
-		try {
-			$SqlClientDataSetParameters = @{
-				'SqlConnection' = $SmoServerObject.ConnectionContext.SqlConnectionObject
-				'SqlCommandText' = 'SELECT sqlserver_start_time AS StartTime FROM sys.dm_os_sys_info;'
-				'OutputAs' = 'DataRow'
-			}
-
-			$Results = Get-SqlClientDataSet @SqlClientDataSetParameters
-
-			[datetime]$StartTime = $Results.StartTime
-
-			$Databases = $SmoServerObject.Databases.where({$_.Name -match $RegExString -and $_.Status -eq 'Restoring'})
-
-			if ($PSBoundParameters.ContainsKey('DatabaseName')) {
-				if ($Databases -contains $DatabaseName) {
-					$Databases = $Databases.where({$_.Name -eq $DatabaseName})
-				} else {
-					throw [System.Management.Automation.ErrorRecord]::New(
-						[Exception]::New('Database not found.'),
-						'1',
-						[System.Management.Automation.ErrorCategory]::ObjectNotFound,
-						$DatabaseName
-					)
-				}
-			}
-
-			foreach ($Database in $Databases) {
-				try {
-					Write-Verbose "Checking Database $($Database.Name)"
-
-					if ($Database.CreateDate -lt $StartTime -or $Database.CreateDate -lt $(Get-Date).AddHours(-12)) {
-						if ($PSCmdlet.ShouldProcess($Database.Name, 'Drop Database')) {
-							$Database.Drop()
-						}
-					} else {
-						Write-Verbose "Database $($Database.Name) will not removed."
-					}
-				}
-				catch {
-					throw $_
-				}
-			}
-		}
-		catch {
-			throw $_
-		}
-		finally {
-			if ($PSCmdlet.ParameterSetName -in $SmoServerParameterSets) {
-				$SmoServerObject.ConnectionContext.SqlConnectionObject.ChangeDatabase($CurrentDatabase)
-			}
-
-			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
-				Disconnect-SmoServer -SmoServerObject $SmoServerObject
-			}
-		}
-	}
-
-	end {
-	}
-}
-
 function Remove-DbStatistic {
 	<#
 	.EXTERNALHELP
@@ -12191,7 +12581,8 @@ function Remove-DbStatistic {
 			ValueFromPipelineByPropertyName = $false,
 			ParameterSetName = 'NamedStatistic-SqlConnection'
 		)]
-		[DbStatistic]$StatisticsName,
+		[ArgumentCompleter({ [ArgumentCompleterResult]::GetArgumentCompleterResult($Args) })]
+		[string]$StatisticsName,
 
 		[Parameter(
 			Mandatory = $false,
@@ -12440,7 +12831,8 @@ function Remove-DbTest {
 			ValueFromPipelineByPropertyName = $false,
 			ParameterSetName = 'NamedTest-SqlConnection'
 		)]
-		[DbTest]$TestName,
+		[ArgumentCompleter({ [ArgumentCompleterResult]::GetArgumentCompleterResult($Args) })]
+		[string]$TestName,
 
 		[Parameter(
 			Mandatory = $false,
@@ -15264,17 +15656,27 @@ function Set-SqlServerMaintenanceConfiguration {
 
 		switch ($SettingName) {
 			'SmtpSettings' {
+				# SmtpDeliveryMethod
+
 				#Region SmtpServer
 				$ParameterName = 'SmtpServer'
+
+				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
 
 				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
 				$ParameterAttribute.Mandatory = $true
 				$ParameterAttribute.ParameterSetName = 'Network'
 
-				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
+				$AttributeCollection.Add($ParameterAttribute)
+
+				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
+				$ParameterAttribute.Mandatory = $true
+				$ParameterAttribute.ParameterSetName = 'Network-Credential'
+
 				$AttributeCollection.Add($ParameterAttribute)
 
 				$ValidateNotNullOrEmptyAttribute = [System.Management.Automation.ValidateNotNullOrEmptyAttribute]::New()
+
 				$AttributeCollection.Add($ValidateNotNullOrEmptyAttribute)
 
 				$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string], $AttributeCollection)
@@ -15285,14 +15687,22 @@ function Set-SqlServerMaintenanceConfiguration {
 				#Region SmtpPort
 				$ParameterName = 'SmtpPort'
 
+				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
+
 				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
 				$ParameterAttribute.Mandatory = $true
 				$ParameterAttribute.ParameterSetName = 'Network'
 
-				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
+				$AttributeCollection.Add($ParameterAttribute)
+
+				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
+				$ParameterAttribute.Mandatory = $true
+				$ParameterAttribute.ParameterSetName = 'Network-Credential'
+
 				$AttributeCollection.Add($ParameterAttribute)
 
 				$ValidateRangeAttribute = [System.Management.Automation.ValidateRangeAttribute]::New(1, 65535)
+
 				$AttributeCollection.Add($ValidateRangeAttribute)
 
 				$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [int], $AttributeCollection)
@@ -15303,10 +15713,17 @@ function Set-SqlServerMaintenanceConfiguration {
 				#Region UseTls
 				$ParameterName = 'UseTls'
 
+				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
+
 				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
 				$ParameterAttribute.ParameterSetName = 'Network'
 
-				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
+				$AttributeCollection.Add($ParameterAttribute)
+
+				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
+				$ParameterAttribute.Mandatory = $true
+				$ParameterAttribute.ParameterSetName = 'Network-Credential'
+
 				$AttributeCollection.Add($ParameterAttribute)
 
 				$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [switch], $AttributeCollection)
@@ -15314,17 +15731,79 @@ function Set-SqlServerMaintenanceConfiguration {
 				$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
 				#EndRegion
 
+				#Region SmtpAuthenticationMethod
+				$ParameterName = 'SmtpAuthenticationMethod'
+
+				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
+
+				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
+				$ParameterAttribute.Mandatory = $false
+				$ParameterAttribute.ParameterSetName = 'Network'
+
+				$AttributeCollection.Add($ParameterAttribute)
+
+				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
+				$ParameterAttribute.Mandatory = $true
+				$ParameterAttribute.ParameterSetName = 'Network-Credential'
+
+				$AttributeCollection.Add($ParameterAttribute)
+
+				$ValidateSetAttribute = [System.Management.Automation.ValidateSetAttribute]::new('Annonymous', 'Basic')
+
+				$AttributeCollection.Add($ValidateSetAttribute)
+
+				$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string], $AttributeCollection)
+
+				$RuntimeDefinedParameter.Value = 'Annonymous'
+
+				$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
+				#EndRegion
+
+				#Region SmtpCredential
+				$ParameterName = 'SmtpCredential'
+
+				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
+
+				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
+				$ParameterAttribute.Mandatory = $true
+				$ParameterAttribute.ParameterSetName = 'Network-Credential'
+
+				$AttributeCollection.Add($ParameterAttribute)
+
+				$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [pscredential], $AttributeCollection)
+
+				$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
+				#EndRegion
+
+				#Region Thumbprint
+				$ParameterName = 'Thumbprint'
+
+				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
+
+				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
+				$ParameterAttribute.Mandatory = $true
+				$ParameterAttribute.ParameterSetName = 'Network-Credential'
+
+				$AttributeCollection.Add($ParameterAttribute)
+
+				$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string], $AttributeCollection)
+
+				$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
+				#EndRegion
+
 				#Region PickupDirectoryPath
 				$ParameterName = 'PickupDirectoryPath'
+
+				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
 
 				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
 				$ParameterAttribute.Mandatory = $true
 				$ParameterAttribute.ParameterSetName = 'SpecifiedPickupDirectory'
 
-				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
 				$AttributeCollection.Add($ParameterAttribute)
 
 				$ValidateScriptAttribute = [System.Management.Automation.ValidateScriptAttribute]::New({Test-Path -LiteralPath $_ -PathType Container})
+
 				$AttributeCollection.Add($ValidateScriptAttribute)
 
 				$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string], $AttributeCollection)
@@ -15337,13 +15816,15 @@ function Set-SqlServerMaintenanceConfiguration {
 				#Region SenderAddress
 				$ParameterName = 'SenderAddress'
 
+				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
+
 				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
 				$ParameterAttribute.ParameterSetName = 'EmailNotification'
 
-				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
 				$AttributeCollection.Add($ParameterAttribute)
 
 				$ValidateNotNullOrEmptyAttribute = [System.Management.Automation.ValidateNotNullOrEmptyAttribute]::New()
+
 				$AttributeCollection.Add($ValidateNotNullOrEmptyAttribute)
 
 				$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string], $AttributeCollection)
@@ -15354,13 +15835,15 @@ function Set-SqlServerMaintenanceConfiguration {
 				#Region RecipientAddress
 				$ParameterName = 'RecipientAddress'
 
+				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
+
 				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
 				$ParameterAttribute.ParameterSetName = 'EmailNotification'
 
-				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
 				$AttributeCollection.Add($ParameterAttribute)
 
 				$ValidateRangeAttribute = [System.Management.Automation.ValidateCountAttribute]::New(1, 10)
+
 				$AttributeCollection.Add($ValidateRangeAttribute)
 
 				$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string[]], $AttributeCollection)
@@ -15373,14 +15856,16 @@ function Set-SqlServerMaintenanceConfiguration {
 				#Region DatabaseName
 				$ParameterName = 'DatabaseName'
 
+				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
+
 				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
 				$ParameterAttribute.Mandatory = $true
 				$ParameterAttribute.ParameterSetName = 'AdminDatabase'
 
-				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
 				$AttributeCollection.Add($ParameterAttribute)
 
 				$ValidateLengthAttribute = [System.Management.Automation.ValidateLengthAttribute]::New(1, 128)
+
 				$AttributeCollection.Add($ValidateLengthAttribute)
 
 				$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string], $AttributeCollection)
@@ -15392,14 +15877,15 @@ function Set-SqlServerMaintenanceConfiguration {
 				#Region StatisticName
 				$ParameterName = 'StatisticName'
 
+				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
+
 				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
 				$ParameterAttribute.Mandatory = $true
 				$ParameterAttribute.ParameterSetName = 'Statistics'
 
-				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
 				$AttributeCollection.Add($ParameterAttribute)
 
-				$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [DbStatistic], $AttributeCollection)
+				$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string], $AttributeCollection)
 
 				$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
 				#EndRegion
@@ -15407,11 +15893,12 @@ function Set-SqlServerMaintenanceConfiguration {
 				#Region SchemaName
 				$ParameterName = 'SchemaName'
 
+				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
+
 				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
 				$ParameterAttribute.Mandatory = $false
 				$ParameterAttribute.ParameterSetName = 'Statistics'
 
-				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
 				$AttributeCollection.Add($ParameterAttribute)
 
 				$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string], $AttributeCollection)
@@ -15422,11 +15909,12 @@ function Set-SqlServerMaintenanceConfiguration {
 				#Region TableName
 				$ParameterName = 'TableName'
 
+				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
+
 				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
 				$ParameterAttribute.Mandatory = $false
 				$ParameterAttribute.ParameterSetName = 'Statistics'
 
-				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
 				$AttributeCollection.Add($ParameterAttribute)
 
 				$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string], $AttributeCollection)
@@ -15437,14 +15925,16 @@ function Set-SqlServerMaintenanceConfiguration {
 				#Region RetentionInDays
 				$ParameterName = 'RetentionInDays'
 
+				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
+
 				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
 				$ParameterAttribute.Mandatory = $false
 				$ParameterAttribute.ParameterSetName = 'Statistics'
 
-				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
 				$AttributeCollection.Add($ParameterAttribute)
 
 				$ValidateRangeAttribute = [System.Management.Automation.ValidateRangeAttribute]::New([System.Management.Automation.ValidateRangeKind]::Positive)
+
 				$AttributeCollection.Add($ValidateRangeAttribute)
 
 				$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [int], $AttributeCollection)
@@ -15456,14 +15946,15 @@ function Set-SqlServerMaintenanceConfiguration {
 				#Region TestName
 				$ParameterName = 'TestName'
 
+				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
+
 				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
 				$ParameterAttribute.Mandatory = $true
 				$ParameterAttribute.ParameterSetName = 'Tests'
 
-				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
 				$AttributeCollection.Add($ParameterAttribute)
 
-				$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [DbTest], $AttributeCollection)
+				$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string], $AttributeCollection)
 
 				$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
 				#EndRegion
@@ -15471,11 +15962,12 @@ function Set-SqlServerMaintenanceConfiguration {
 				#Region SchemaName
 				$ParameterName = 'SchemaName'
 
+				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
+
 				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
 				$ParameterAttribute.Mandatory = $false
 				$ParameterAttribute.ParameterSetName = 'Tests'
 
-				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
 				$AttributeCollection.Add($ParameterAttribute)
 
 				$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string], $AttributeCollection)
@@ -15486,11 +15978,12 @@ function Set-SqlServerMaintenanceConfiguration {
 				#Region TableName
 				$ParameterName = 'TableName'
 
+				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
+
 				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
 				$ParameterAttribute.Mandatory = $false
 				$ParameterAttribute.ParameterSetName = 'Tests'
 
-				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
 				$AttributeCollection.Add($ParameterAttribute)
 
 				$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string], $AttributeCollection)
@@ -15501,14 +15994,16 @@ function Set-SqlServerMaintenanceConfiguration {
 				#Region RetentionInDays
 				$ParameterName = 'RetentionInDays'
 
+				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
+
 				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
 				$ParameterAttribute.Mandatory = $false
 				$ParameterAttribute.ParameterSetName = 'Tests'
 
-				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
 				$AttributeCollection.Add($ParameterAttribute)
 
 				$ValidateRangeAttribute = [System.Management.Automation.ValidateRangeAttribute]::New([System.Management.Automation.ValidateRangeKind]::Positive)
+
 				$AttributeCollection.Add($ValidateRangeAttribute)
 
 				$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [int], $AttributeCollection)
@@ -15520,11 +16015,12 @@ function Set-SqlServerMaintenanceConfiguration {
 				#Region SchemaName
 				$ParameterName = 'SchemaName'
 
+				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
+
 				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
 				$ParameterAttribute.Mandatory = $true
 				$ParameterAttribute.ParameterSetName = 'SqlAgentAlerts'
 
-				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
 				$AttributeCollection.Add($ParameterAttribute)
 
 				$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string], $AttributeCollection)
@@ -15535,11 +16031,12 @@ function Set-SqlServerMaintenanceConfiguration {
 				#Region TableName
 				$ParameterName = 'TableName'
 
+				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
+
 				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
 				$ParameterAttribute.Mandatory = $true
 				$ParameterAttribute.ParameterSetName = 'SqlAgentAlerts'
 
-				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
 				$AttributeCollection.Add($ParameterAttribute)
 
 				$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string], $AttributeCollection)
@@ -15550,14 +16047,16 @@ function Set-SqlServerMaintenanceConfiguration {
 				#Region RetentionInDays
 				$ParameterName = 'RetentionInDays'
 
+				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
+
 				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
 				$ParameterAttribute.Mandatory = $true
 				$ParameterAttribute.ParameterSetName = 'SqlAgentAlerts'
 
-				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
 				$AttributeCollection.Add($ParameterAttribute)
 
 				$ValidateRangeAttribute = [System.Management.Automation.ValidateRangeAttribute]::New([System.Management.Automation.ValidateRangeKind]::Positive)
+
 				$AttributeCollection.Add($ValidateRangeAttribute)
 
 				$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [int], $AttributeCollection)
@@ -15579,25 +16078,51 @@ function Set-SqlServerMaintenanceConfiguration {
 	}
 
 	begin {
+		try {
+			$NetworkParameterSetNames = @('Network', 'Network-Credential')
+
+			if ($PSBoundParameters['SmtpAuthenticationMethod'] -eq 'Annonymous' -and $PSCmdlet.ParameterSetName -eq 'Network-Credential') {
+				throw [System.Management.Automation.ErrorRecord]::New(
+					[Exception]::New('SmtpAuthenticationMethod cannot be Annonymous when using SmtpCredential and Thumbprint parameters.'),
+					'3',
+					[System.Management.Automation.ErrorCategory]::InvalidArgument,
+					$PSBoundParameters['SmtpAuthenticationMethod']
+				)
+			}
+		}
+		catch {
+			throw $_
+		}
 	}
 
 	process {
 		try {
 			switch ($SettingName) {
 				'SMTPSettings' {
-					$Script:PSMConfig.Config.SMTPSettings.SmtpDeliveryMethod = $PSCmdlet.ParameterSetName
+					if ($PSCmdlet.ParameterSetName -in $NetworkParameterSetNames) {
+						$Script:PSMConfig.Config.SMTPSettings.SmtpDeliveryMethod = 'Network'
 
-					if ($PSCmdlet.ParameterSetName -eq 'Network') {
-						$Script:PSMConfig.Config.SMTPSettings.SmtpServer = $PSBoundParameters['SmtpServer']
-						$Script:PSMConfig.Config.SMTPSettings.SmtpPort = $PSBoundParameters['SmtpPort'].ToString()
+						$Script:PSMConfig.Config.SMTPSettings.Network.SmtpServer = $PSBoundParameters['SmtpServer']
+						$Script:PSMConfig.Config.SMTPSettings.Network.SmtpPort = $PSBoundParameters['SmtpPort'].ToString()
 
 						if ($PSBoundParameters['UseTls']) {
-							$Script:PSMConfig.Config.SMTPSettings.UseTls = 'True'
+							$Script:PSMConfig.Config.SMTPSettings.Network.UseTls = 'True'
 						} else {
-							$Script:PSMConfig.Config.SMTPSettings.UseTls = 'False'
+							$Script:PSMConfig.Config.SMTPSettings.Network.UseTls = 'False'
+						}
+
+						if ($PSBoundParameters['SmtpAuthenticationMethod'] -eq 'Basic') {
+							$Script:PSMConfig.Config.SMTPSettings.Network.SmtpAuthentication.Method = 'Basic'
+
+							$Script:PSMConfig.Config.SMTPSettings.Network.SmtpAuthentication.SmtpUsername = $PSBoundParameters['SmtpCredential'].UserName
+							$Script:PSMConfig.Config.SMTPSettings.Network.SmtpAuthentication.SmtpPassword.EncryptedBase64String = Export-SecureString -Password $PSBoundParameters['SmtpCredential'].Password -Thumbprint $PSBoundParameters['Thumbprint']
+							$Script:PSMConfig.Config.SMTPSettings.Network.SmtpAuthentication.SmtpPassword.Thumbprint = $PSBoundParameters['Thumbprint']
+						} else {
+							$Script:PSMConfig.Config.SMTPSettings.Network.SmtpAuthentication.Method = 'Annonymous'
 						}
 					} else {
-						$Script:PSMConfig.Config.SMTPSettings.PickupDirectoryPath = $PSBoundParameters['PickupDirectoryPath']
+						$Script:PSMConfig.Config.SMTPSettings.SmtpDeliveryMethod = $PSCmdlet.ParameterSetName
+						$Script:PSMConfig.Config.SMTPSettings.PickupDirectory.Path = $PSBoundParameters['PickupDirectoryPath']
 					}
 				}
 				'EmailNotification' {
@@ -15900,6 +16425,17 @@ function Switch-SqlInstanceTDECertificate {
 
 	end {
 	}
+}
+
+
+if ($PSBoundParameters.ContainsKey('Mode')) {
+	if ([string]::IsNullOrWhiteSpace($Mode)) {
+		Initialize-ModuleConfiguration
+	} else {
+		Initialize-ModuleConfiguration -Mode $Mode
+	}
+} else {
+	Initialize-ModuleConfiguration
 }
 
 
