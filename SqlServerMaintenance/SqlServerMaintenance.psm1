@@ -8,15 +8,6 @@ param(
 
 Set-StrictMode -Version Latest
 
-#Region Global Configuration
-try {
-
-}
-catch {
-	throw $_
-}
-#EndRegion
-
 #Region Enumerations
 enum BackupType {
 	full
@@ -9220,12 +9211,6 @@ function Invoke-SqlInstanceBackup {
 					}
 
 					switch ($SmoServer.VersionMajor) {
-						{$PSItem -ge 11} {
-							#2012
-						}
-						{$PSItem -ge 12} {
-							#2014
-						}
 						{$PSItem -ge 13} {
 							$Database.ExecuteNonQuery('EXEC sp_flush_log;')
 
@@ -9243,6 +9228,9 @@ function Invoke-SqlInstanceBackup {
 						}
 						{$PSItem -ge 16} {
 							#2022
+						}
+						{$PSItem -ge 17} {
+							#2025
 						}
 						Default {
 							Write-Error 'Unrecognized SQL Server version.'
@@ -9652,7 +9640,7 @@ function Invoke-SqlInstanceCheckDb {
 					}
 				}
 				finally {
-					if (Test-Path -Path variable:\DataSet) {
+					if (Test-Path -Path Variable:\DataSet) {
 						$DataSet.Dispose()
 					}
 				}
@@ -11669,7 +11657,11 @@ function Invoke-SqlInstanceStatisticsMaintenance {
 						}
 
 						try {
-							if ($Row.ModificationCount -IsNot [DBNull]) {
+							if ($Row.ModificationCount -is [DBNull]) {
+								if ($PSCmdlet.ShouldProcess($Row.ObjectName, "Execute update statistic $($Row.StatisticsName)")) {
+									$Database.ExecuteNonQuery($SqlNonQuery)
+								}
+							} else {
 								if ($PSCmdlet.ParameterSetName -in $StaticSetArray) {
 									if ($Row.RowCount -ge $RowCountThreshold -and $Row.ModificationCount -ge $ModificationCountThreshold) {
 										if ($PSCmdlet.ShouldProcess($Row.ObjectName, "Execute update statistic $($Row.StatisticsName)")) {
@@ -12496,19 +12488,19 @@ function Read-SqlAgentAlert {
 			}
 		}
 		finally {
-			if (Test-Path -Path variable:\DataView) {
+			if (Test-Path -Path Variable:\DataView) {
 				$DataView.Dispose()
 			}
 
-			if (Test-Path -Path variable:\DataSet) {
+			if (Test-Path -Path Variable:\DataSet) {
 				$DataSet.Dispose()
 			}
 
-			if (Test-Path -Path variable:\SqlDataAdapter) {
+			if (Test-Path -Path Variable:\SqlDataAdapter) {
 				$SqlDataAdapter.Dispose()
 			}
 
-			if (Test-Path -Path variable:\SqlCommandBuilder) {
+			if (Test-Path -Path Variable:\SqlCommandBuilder) {
 				$SqlCommandBuilder.Dispose()
 			}
 
@@ -15105,7 +15097,7 @@ function Save-SqlInstanceDatabaseStatistic {
 			}
 		}
 		finally {
-			if (Test-Path -Path variable:\DataTable) {
+			if (Test-Path -Path Variable:\DataTable) {
 				$DataTable.Dispose()
 			}
 
@@ -15342,7 +15334,7 @@ function Save-SqlInstanceQueryStoreOption {
 			}
 		}
 		finally {
-			if (Test-Path -Path variable:\DataTable) {
+			if (Test-Path -Path Variable:\DataTable) {
 				$DataTable.Dispose()
 			}
 

@@ -7,7 +7,7 @@ describe 'Module-level tests' {
 	}
 
 	it 'the module has an associated manifest' {
-		Test-Path "$PSScriptRoot\SQLServerMaintenance.psd1" | should Be $true
+		Test-Path -Path "$PSScriptRoot\SQLServerMaintenance.psd1" | should Be $true
 	}
 
 	it 'passes all default PSScriptAnalyzer rules' {
