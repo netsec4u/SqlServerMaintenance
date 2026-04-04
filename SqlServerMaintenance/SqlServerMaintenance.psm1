@@ -1015,6 +1015,8 @@ function Export-SecureString {
 		ConfirmImpact = 'low'
 	)]
 
+	[OutputType([System.String])]
+
 	param (
 		[Parameter(
 			Mandatory = $true,
@@ -1300,7 +1302,7 @@ function Get-SqlServerTimeZone {
 	.EXAMPLE
 	Get-SqlServerTimeZone -ServerInstance MySqlServer
 	.EXAMPLE
-	Get-SqlServerTimeZone -SmoServer $SmoServer
+	Get-SqlServerTimeZone -SmoServerObject $SmoServerObject
 	.NOTES
 	#>
 
@@ -1344,16 +1346,14 @@ function Get-SqlServerTimeZone {
 					'DatabaseName' = 'master'
 				}
 
-				$SmoServer = Connect-SmoServer @SmoServerParameters
-			} else {
-				$SmoServer = $SmoServerObject
+				$SmoServerObject = Connect-SmoServer @SmoServerParameters
 			}
 		}
 		catch {
 			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
-				if (Test-Path -Path Variable:\SmoServer) {
-					if ($SmoServer -is [Microsoft.SqlServer.Management.Smo.Server]) {
-						Disconnect-SmoServer -SmoServerObject $SmoServer
+				if (Test-Path -Path Variable:\SmoServerObject) {
+					if ($SmoServerObject -is [Microsoft.SqlServer.Management.Smo.Server]) {
+						Disconnect-SmoServer -SmoServerObject $SmoServerObject
 					}
 				}
 			}
@@ -1368,7 +1368,7 @@ function Get-SqlServerTimeZone {
 
 	process {
 		try {
-			$Results = Get-SqlClientDataSet -SqlConnection $SmoServer.ConnectionContext.SqlConnectionObject -SqlCommandText $SqlQuery -OutputAs 'DataRow'
+			$Results = Get-SqlClientDataSet -SqlConnection $SmoServerObject.ConnectionContext.SqlConnectionObject -SqlCommandText $SqlQuery -OutputAs 'DataRow'
 
 			$TimeZoneName = $Results.TimeZoneName
 
@@ -1379,7 +1379,7 @@ function Get-SqlServerTimeZone {
 		}
 		finally {
 			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
-				Disconnect-SmoServer -SmoServerObject $SmoServer
+				Disconnect-SmoServer -SmoServerObject $SmoServerObject
 			}
 		}
 	}
@@ -1734,7 +1734,7 @@ function Initialize-ModuleConfiguration {
 			[xml]$DefaultConfiguration = $PrivateData.DefaultConfiguration
 
 			if (-not (Test-Path -Path $Script:ConfigurationFile)) {
-				$DefaultConfiguration.Config.SMTPSettings.PickupDirectoryPath = [string]$EmailPath
+				$DefaultConfiguration.Config.SMTPSettings.PickupDirectory.Path = [string]$EmailPath
 				$DefaultConfiguration.Config.EmailNotification.SenderAddress = [string]::Format('{0}_MSSQLSERVER<{0}_MSSQLSERVER@{1}>', [Environment]::MachineName, $DomainName)
 
 				$DefaultConfiguration.Save($Script:ConfigurationFile)
@@ -1750,7 +1750,7 @@ function Initialize-ModuleConfiguration {
 			}
 
 			if ([version]$Script:PSMConfig.Config.Version -lt [version]$DefaultConfiguration.Config.Version) {
-				Update-PSMConfiguration -DefaultConfig $DefaultConfiguration
+				Update-PSMConfiguration -DefaultConfiguration $DefaultConfiguration
 			} elseif ([version]$Script:PSMConfig.Config.Version -gt [version]$DefaultConfiguration.Config.Version) {
 				throw [System.Management.Automation.ErrorRecord]::New(
 					[Exception]::New('Configuration file version is newer than module version. Please update the module.'),
@@ -2262,7 +2262,7 @@ function Update-PSMConfiguration {
 	Update module configuration file to the latest version.
 	.DESCRIPTION
 	Update module configuration file to the latest version.
-	.PARAMETER DefaultConfig
+	.PARAMETER DefaultConfiguration
 	Default configuration XML document.
 	.EXAMPLE
 	$DefaultConfig = [xml](Get-Content -Raw -LiteralPath 'DefaultConfig.xml')
@@ -2276,7 +2276,7 @@ function Update-PSMConfiguration {
 
 	[CmdletBinding(
 		PositionalBinding = $false,
-		SupportsShouldProcess = $false,
+		SupportsShouldProcess = $true,
 		ConfirmImpact = 'Medium'
 	)]
 
@@ -2288,7 +2288,7 @@ function Update-PSMConfiguration {
 			ValueFromPipeline = $false,
 			ValueFromPipelineByPropertyName = $false
 		)]
-		[xml]$DefaultConfig
+		[xml]$DefaultConfiguration
 	)
 
 	begin {
@@ -2336,7 +2336,9 @@ function Update-PSMConfiguration {
 
 			$XmlWriter = [System.Xml.XmlWriter]::Create($Script:ConfigurationFile, $XmlWriterSettings)
 
-			$Script:PSMConfig.Save($XmlWriter)
+			if ($PSCmdlet.ShouldProcess($Script:ConfigurationFile, 'Update configuration file.')) {
+				$Script:PSMConfig.Save($XmlWriter)
+			}
 		}
 		catch {
 			throw $_
@@ -2509,9 +2511,9 @@ function Add-LogShippedDatabase {
 		}
 		catch {
 			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
-				if (Test-Path -Path Variable:\PrimaryServerInstance) {
-					if ($PrimaryServerInstance -is [Microsoft.SqlServer.Management.Smo.Server]) {
-						Disconnect-SmoServer -SmoServerObject $PrimaryServerInstance
+				if (Test-Path -Path Variable:\PrimarySmoServer) {
+					if ($PrimarySmoServer -is [Microsoft.SqlServer.Management.Smo.Server]) {
+						Disconnect-SmoServer -SmoServerObject $PrimarySmoServer
 					}
 				}
 
@@ -2983,18 +2985,16 @@ function Checkpoint-SqlDatabaseSnapshot {
 					'DatabaseName' = 'master'
 				}
 
-				$SmoServer = Connect-SmoServer @SmoServerParameters
-			} else {
-				$SmoServer = $SmoServerObject
+				$SmoServerObject = Connect-SmoServer @SmoServerParameters
 			}
 
-			$DatabaseObject = Get-SmoDatabaseObject -SmoServerObject $SmoServer -DatabaseName $DatabaseName
+			$DatabaseObject = Get-SmoDatabaseObject -SmoServerObject $SmoServerObject -DatabaseName $DatabaseName
 		}
 		catch {
 			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
-				if (Test-Path -Path Variable:\SmoServer) {
-					if ($SmoServer -is [Microsoft.SqlServer.Management.Smo.Server]) {
-						Disconnect-SmoServer -SmoServerObject $SmoServer
+				if (Test-Path -Path Variable:\SmoServerObject) {
+					if ($SmoServerObject -is [Microsoft.SqlServer.Management.Smo.Server]) {
+						Disconnect-SmoServer -SmoServerObject $SmoServerObject
 					}
 				}
 			}
@@ -3023,11 +3023,11 @@ function Checkpoint-SqlDatabaseSnapshot {
 			$SnapshotDDL = [string]::Format($DDLFormatString, $DatabaseSnapshotName, [string]::Join("`n,`t", $LogicalFileList), $DatabaseName)
 
 			if ($PSCmdlet.ShouldProcess($DatabaseSnapshotName, 'Create Database Snapshot')) {
-				[void]$(Invoke-SqlClientNonQuery -SqlConnection $SmoServer.ConnectionContext.SqlConnectionObject -SqlCommandText $SnapshotDDL -CommandTimeout 0)
+				[void]$(Invoke-SqlClientNonQuery -SqlConnection $SmoServerObject.ConnectionContext.SqlConnectionObject -SqlCommandText $SnapshotDDL -CommandTimeout 0)
 
-				$SmoServer.Databases.Refresh()
+				$SmoServerObject.Databases.Refresh()
 
-				Get-SqlDatabaseSnapshot -SmoServerObject $SmoServer -DatabaseSnapshotName $DatabaseSnapshotName
+				Get-SqlDatabaseSnapshot -SmoServerObject $SmoServerObject -DatabaseSnapshotName $DatabaseSnapshotName
 			}
 		}
 		catch {
@@ -3035,7 +3035,7 @@ function Checkpoint-SqlDatabaseSnapshot {
 		}
 		finally {
 			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
-				Disconnect-SmoServer -SmoServerObject $SmoServer
+				Disconnect-SmoServer -SmoServerObject $SmoServerObject
 			}
 		}
 	}
@@ -3090,16 +3090,14 @@ function Find-OrphanedDatabasePhysicalFile {
 					'DatabaseName' = 'master'
 				}
 
-				$SmoServer = Connect-SmoServer @SmoServerParameters
-			} else {
-				$SmoServer = $SmoServerObject
+				$SmoServerObject = Connect-SmoServer @SmoServerParameters
 			}
 		}
 		catch {
 			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
-				if (Test-Path -Path Variable:\SmoServer) {
-					if ($SmoServer -is [Microsoft.SqlServer.Management.Smo.Server]) {
-						Disconnect-SmoServer -SmoServerObject $SmoServer
+				if (Test-Path -Path Variable:\SmoServerObject) {
+					if ($SmoServerObject -is [Microsoft.SqlServer.Management.Smo.Server]) {
+						Disconnect-SmoServer -SmoServerObject $SmoServerObject
 					}
 				}
 			}
@@ -3118,9 +3116,9 @@ function Find-OrphanedDatabasePhysicalFile {
 
 	process {
 		try {
-			$Databases = $SmoServer.Databases.where({$_.Status -eq 'Normal'})
+			$Databases = $SmoServerObject.Databases.where({$_.Status -eq 'Normal'})
 
-			if ($SmoServer.Databases.where({$_.Status -ne 'Normal'}).Count -gt 0) {
+			if ($SmoServerObject.Databases.where({$_.Status -ne 'Normal'}).Count -gt 0) {
 				Write-Warning 'Offline databases exists.  Results will include files from offline databases.'
 			}
 
@@ -3130,10 +3128,10 @@ function Find-OrphanedDatabasePhysicalFile {
 			$SqlFileList.AddRange([string[]]$Databases.LogFiles.FileName)
 
 			$Paths = @(
-				$SmoServer.DefaultFile
-				$SmoServer.DefaultLog
-				$SmoServer.MasterDBLogPath
-				$SmoServer.MasterDBPath
+				$SmoServerObject.DefaultFile
+				$SmoServerObject.DefaultLog
+				$SmoServerObject.MasterDBLogPath
+				$SmoServerObject.MasterDBPath
 			)
 
 			$PathList = [System.Collections.Generic.List[string]]::New()
@@ -3144,14 +3142,14 @@ function Find-OrphanedDatabasePhysicalFile {
 				}
 			}
 
-			foreach ($Path in $SmoServer.Databases.PrimaryFilePath) {
+			foreach ($Path in $SmoServerObject.Databases.PrimaryFilePath) {
 				if (-not $PathList.Contains($Path.Trim('\'))) {
 					$PathList.Add($Path.Trim('\'))
 				}
 			}
 
-			if ($SmoServer.NetName -ne [System.Net.Dns]::GetHostName()) {
-				$PSSession = New-PSSession -ComputerName $SmoServer.Information.FullyQualifiedNetName
+			if ($SmoServerObject.NetName -ne [System.Net.Dns]::GetHostName()) {
+				$PSSession = New-PSSession -ComputerName $SmoServerObject.Information.FullyQualifiedNetName
 			}
 
 			$PhysicalFileList = [System.Collections.Generic.List[string]]::New()
@@ -3162,7 +3160,7 @@ function Find-OrphanedDatabasePhysicalFile {
 					ArgumentList = @($Path)
 				}
 
-				if ($SmoServer.NetName -ne [System.Net.Dns]::GetHostName()) {
+				if ($SmoServerObject.NetName -ne [System.Net.Dns]::GetHostName()) {
 					$CommandParameters.Add('Session', $PSSession)
 				}
 
@@ -3184,7 +3182,7 @@ function Find-OrphanedDatabasePhysicalFile {
 		}
 		finally {
 			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
-				Disconnect-SmoServer -SmoServerObject $SmoServer
+				Disconnect-SmoServer -SmoServerObject $SmoServerObject
 			}
 
 			if (Test-Path -Path Variable:\PSSession) {
@@ -3253,16 +3251,14 @@ function Find-OrphanedDatabaseUser {
 					'DatabaseName' = 'master'
 				}
 
-				$SmoServer = Connect-SmoServer @SmoServerParameters
-			} else {
-				$SmoServer = $SmoServerObject
+				$SmoServerObject = Connect-SmoServer @SmoServerParameters
 			}
 		}
 		catch {
 			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
-				if (Test-Path -Path Variable:\SmoServer) {
-					if ($SmoServer -is [Microsoft.SqlServer.Management.Smo.Server]) {
-						Disconnect-SmoServer -SmoServerObject $SmoServer
+				if (Test-Path -Path Variable:\SmoServerObject) {
+					if ($SmoServerObject -is [Microsoft.SqlServer.Management.Smo.Server]) {
+						Disconnect-SmoServer -SmoServerObject $SmoServerObject
 					}
 				}
 			}
@@ -3274,11 +3270,11 @@ function Find-OrphanedDatabaseUser {
 	process {
 		try {
 			if (-not $PSBoundParameters.ContainsKey('DatabaseName')) {
-				$DatabaseName = $SmoServer.Databases.Name
+				$DatabaseName = $SmoServerObject.Databases.Name
 			}
 
 			foreach ($Database in $DatabaseName) {
-				$DatabaseObject = Get-SmoDatabaseObject -SmoServerObject $SmoServer -DatabaseName $Database
+				$DatabaseObject = Get-SmoDatabaseObject -SmoServerObject $SmoServerObject -DatabaseName $Database
 
 				if ($DatabaseObject.Status -ne 'Normal') {
 					Write-Error "Database $Database is not online."
@@ -3294,7 +3290,7 @@ function Find-OrphanedDatabaseUser {
 					$OrphanedDatabaseUser.AuthenticationType = $DatabaseUser.AuthenticationType
 					$OrphanedDatabaseUser.LoginType = $DatabaseUser.LoginType
 
-					$Login = $SmoServer.Logins.where({[System.BitConverter]::ToString($_.Sid).Replace("-", "") -eq $OrphanedDatabaseUser.SidString})
+					$Login = $SmoServerObject.Logins.where({[System.BitConverter]::ToString($_.Sid).Replace("-", "") -eq $OrphanedDatabaseUser.SidString})
 
 					if ($Login.Count -eq 0) {
 						$OrphanedDatabaseUser
@@ -3313,7 +3309,7 @@ function Find-OrphanedDatabaseUser {
 		}
 		finally {
 			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
-				Disconnect-SmoServer -SmoServerObject $SmoServer
+				Disconnect-SmoServer -SmoServerObject $SmoServerObject
 			}
 		}
 	}
@@ -3384,18 +3380,16 @@ function Get-AvailabilityGroupDatabaseReplicaStatus {
 					'DatabaseName' = 'master'
 				}
 
-				$SmoServer = Connect-SmoServer @SmoServerParameters
-			} else {
-				$SmoServer = $SmoServerObject
+				$SmoServerObject = Connect-SmoServer @SmoServerParameters
 			}
 
-			$SmoServer.Refresh()
+			$SmoServerObject.Refresh()
 		}
 		catch {
 			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
-				if (Test-Path -Path Variable:\SmoServer) {
-					if ($SmoServer -is [Microsoft.SqlServer.Management.Smo.Server]) {
-						Disconnect-SmoServer -SmoServerObject $SmoServer
+				if (Test-Path -Path Variable:\SmoServerObject) {
+					if ($SmoServerObject -is [Microsoft.SqlServer.Management.Smo.Server]) {
+						Disconnect-SmoServer -SmoServerObject $SmoServerObject
 					}
 				}
 			}
@@ -3407,7 +3401,7 @@ function Get-AvailabilityGroupDatabaseReplicaStatus {
 	process {
 		try {
 			$AvailabilityGroupParameters = @{
-				'SmoServerObject' = $SmoServer
+				'SmoServerObject' = $SmoServerObject
 			}
 
 			if ($PSBoundParameters.ContainsKey('AvailabilityGroupName')) {
@@ -3429,8 +3423,8 @@ function Get-AvailabilityGroupDatabaseReplicaStatus {
 		}
 		finally {
 			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
-				if (Test-Path -Path Variable:\SmoServer) {
-					Disconnect-SmoServer -SmoServerObject $SmoServer
+				if (Test-Path -Path Variable:\SmoServerObject) {
+					Disconnect-SmoServer -SmoServerObject $SmoServerObject
 				}
 			}
 		}
@@ -4946,18 +4940,16 @@ function Get-SqlDatabaseSnapshot {
 					'DatabaseName' = 'master'
 				}
 
-				$SmoServer = Connect-SmoServer @SmoServerParameters
-			} else {
-				$SmoServer = $SmoServerObject
+				$SmoServerObject = Connect-SmoServer @SmoServerParameters
 			}
 
-			$SmoServer.Databases.Refresh()
+			$SmoServerObject.Databases.Refresh()
 		}
 		catch {
 			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
-				if (Test-Path -Path Variable:\SmoServer) {
-					if ($SmoServer -is [Microsoft.SqlServer.Management.Smo.Server]) {
-						Disconnect-SmoServer -SmoServerObject $SmoServer
+				if (Test-Path -Path Variable:\SmoServerObject) {
+					if ($SmoServerObject -is [Microsoft.SqlServer.Management.Smo.Server]) {
+						Disconnect-SmoServer -SmoServerObject $SmoServerObject
 					}
 				}
 			}
@@ -4980,7 +4972,7 @@ function Get-SqlDatabaseSnapshot {
 				[scriptblock]$FilterBlock = {$_.IsDatabaseSnapshot -eq $true}
 			}
 
-			$Databases = $SmoServer.Databases.Where($FilterBlock)
+			$Databases = $SmoServerObject.Databases.Where($FilterBlock)
 
 			foreach ($Database in $Databases) {
 				[SqlServerMaintenance.DatabaseSnapshot]::New($Database)
@@ -4991,7 +4983,7 @@ function Get-SqlDatabaseSnapshot {
 		}
 		finally {
 			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
-				Disconnect-SmoServer -SmoServerObject $SmoServer
+				Disconnect-SmoServer -SmoServerObject $SmoServerObject
 			}
 		}
 	}
@@ -5122,12 +5114,10 @@ function Get-SqlInstanceDataFileUsage {
 					'DatabaseName' = 'master'
 				}
 
-				$SmoServer = Connect-SmoServer @SmoServerParameters
-			} else {
-				$SmoServer = $SmoServerObject
+				$SmoServerObject = Connect-SmoServer @SmoServerParameters
 			}
 
-			$SmoServer.Databases.Refresh()
+			$SmoServerObject.Databases.Refresh()
 
 			$StatisticsDatabaseName = $Script:PSMConfig.Config.AdminDatabase.DatabaseName
 			$StatisticsSchemaName = $Script:PSMConfig.Config.AdminDatabase.Statistics.Database.SchemaName
@@ -5137,9 +5127,9 @@ function Get-SqlInstanceDataFileUsage {
 			$ErrorRecord = $_
 
 			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
-				if (Test-Path -Path Variable:\SmoServer) {
-					if ($SmoServer -is [Microsoft.SqlServer.Management.Smo.Server]) {
-						Disconnect-SmoServer -SmoServerObject $SmoServer
+				if (Test-Path -Path Variable:\SmoServerObject) {
+					if ($SmoServerObject -is [Microsoft.SqlServer.Management.Smo.Server]) {
+						Disconnect-SmoServer -SmoServerObject $SmoServerObject
 					}
 				}
 			}
@@ -5163,7 +5153,7 @@ function Get-SqlInstanceDataFileUsage {
 						}
 					} else {
 						$SummaryItem = [ordered]@{
-							'SqlInstance' = $SmoServer.Name
+							'SqlInstance' = $SmoServerObject.Name
 						}
 					}
 
@@ -5204,14 +5194,14 @@ function Get-SqlInstanceDataFileUsage {
 	process {
 		try {
 			if ($PSBoundParameters.ContainsKey('DatabaseName')) {
-				$Databases = $SmoServer.Databases.where({$_.Name -in $DatabaseName})
+				$Databases = $SmoServerObject.Databases.where({$_.Name -in $DatabaseName})
 			} else {
-				$Databases = $SmoServer.Databases
+				$Databases = $SmoServerObject.Databases
 			}
 
 			$Databases = $Databases.where({$_.Status -eq 'Normal' -and $_.ReadOnly -eq $false -and $_.IsUpdateable -eq $true -and $_.Name -ne 'tempdb'})
 
-			if ($SmoServer.IsHadrEnabled) {
+			if ($SmoServerObject.IsHadrEnabled) {
 				$Databases = $Databases.where({$_.IsAccessible -eq $true})
 			}
 
@@ -5235,7 +5225,7 @@ function Get-SqlInstanceDataFileUsage {
 
 							$SqlDataFileUsage = [SqlServerMaintenance.SqlDataFileUsage]::New()
 
-							$SqlDataFileUsage.SqlInstance = $SmoServer.Name
+							$SqlDataFileUsage.SqlInstance = $SmoServerObject.Name
 							$SqlDataFileUsage.DatabaseName = $Database.Name
 							$SqlDataFileUsage.FileGroupName = $FileGroup.Name
 							$SqlDataFileUsage.DataFileName = $File.Name
@@ -5252,7 +5242,7 @@ function Get-SqlInstanceDataFileUsage {
 
 							$StatsQuery = [string]::Format($QueryString, $FormatStringArray)
 
-							$DataSet = $SmoServer.Databases[$StatisticsDatabaseName].ExecuteWithResults($StatsQuery)
+							$DataSet = $SmoServerObject.Databases[$StatisticsDatabaseName].ExecuteWithResults($StatsQuery)
 
 							$SampleCount = $DataSet.Tables[0].Rows.Count
 
@@ -5317,7 +5307,7 @@ function Get-SqlInstanceDataFileUsage {
 
 								$SqlDataFileUsage.DailyGrowthRate = $LinearRegression.Slope
 
-								$FileGroupObject = $SmoServer.Databases[$SqlDataFileUsage.DatabaseName].FileGroups[$SqlDataFileUsage.FileGroupName]
+								$FileGroupObject = $SmoServerObject.Databases[$SqlDataFileUsage.DatabaseName].FileGroups[$SqlDataFileUsage.FileGroupName]
 
 								if ($SqlDataFileUsage.DataFileAvailablePercent -lt $FreeSpaceThreshold -and $LinearRegression.rSquared -gt $ReliabilityThreshold -and $FileGroupObject.Files.Count -eq 1) {
 									$DataFileObject = $FileGroupObject.Files[0]
@@ -5507,7 +5497,7 @@ function Get-SqlInstanceDataFileUsage {
 
 											$XsltArgumentList = [System.Xml.Xsl.XsltArgumentList]::New()
 											$XsltArgumentList.Clear()
-											$XsltArgumentList.AddParam('SqlInstance', $null, $SmoServer.Name)
+											$XsltArgumentList.AddParam('SqlInstance', $null, $SmoServerObject.Name)
 											$XsltArgumentList.AddParam('DatabaseName', $null, $SqlDataFileUsage.DatabaseName)
 											$XsltArgumentList.AddParam('EventDate', $null, $(Get-Date).DateTime)
 
@@ -5544,7 +5534,7 @@ function Get-SqlInstanceDataFileUsage {
 									$ErrorXml = ConvertTo-ErrorXML -ErrorObject $ErrorRecord
 
 									$SummaryItem = [ordered]@{
-										'SqlInstance' = $SmoServer.Name
+										'SqlInstance' = $SmoServerObject.Name
 										'DatabaseName' = $Database.Name
 									}
 
@@ -5574,7 +5564,7 @@ function Get-SqlInstanceDataFileUsage {
 					$ErrorXml = ConvertTo-ErrorXML -ErrorObject $ErrorRecord
 
 					$SummaryItem = [ordered]@{
-						'SqlInstance' = $SmoServer.Name
+						'SqlInstance' = $SmoServerObject.Name
 					}
 
 					$EmailBody = Build-MailBody -Xml $ErrorXml -SummaryItem $SummaryItem
@@ -5595,7 +5585,7 @@ function Get-SqlInstanceDataFileUsage {
 			}
 
 			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
-				Disconnect-SmoServer -SmoServerObject $SmoServer
+				Disconnect-SmoServer -SmoServerObject $SmoServerObject
 			}
 		}
 	}
@@ -5666,18 +5656,16 @@ function Get-SqlInstanceLogFileGrowthRate {
 					'DatabaseName' = 'master'
 				}
 
-				$SmoServer = Connect-SmoServer @SmoServerParameters
-			} else {
-				$SmoServer = $SmoServerObject
+				$SmoServerObject = Connect-SmoServer @SmoServerParameters
 			}
 
-			$SmoServer.Databases.Refresh()
+			$SmoServerObject.Databases.Refresh()
 		}
 		catch {
 			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
-				if (Test-Path -Path Variable:\SmoServer) {
-					if ($SmoServer -is [Microsoft.SqlServer.Management.Smo.Server]) {
-						Disconnect-SmoServer -SmoServerObject $SmoServer
+				if (Test-Path -Path Variable:\SmoServerObject) {
+					if ($SmoServerObject -is [Microsoft.SqlServer.Management.Smo.Server]) {
+						Disconnect-SmoServer -SmoServerObject $SmoServerObject
 					}
 				}
 			}
@@ -5703,7 +5691,7 @@ function Get-SqlInstanceLogFileGrowthRate {
 						}
 					} else {
 						$SummaryItem = [ordered]@{
-							'SqlInstance' = $SmoServer.Name
+							'SqlInstance' = $SmoServerObject.Name
 						}
 					}
 
@@ -5739,14 +5727,14 @@ function Get-SqlInstanceLogFileGrowthRate {
 	process {
 		try {
 			if ($PSBoundParameters.ContainsKey('DatabaseName')) {
-				$Databases = $SmoServer.Databases.where({$_.Name -in $DatabaseName})
+				$Databases = $SmoServerObject.Databases.where({$_.Name -in $DatabaseName})
 			} else {
-				$Databases = $SmoServer.Databases
+				$Databases = $SmoServerObject.Databases
 			}
 
 			$Databases = $Databases.where({$_.Status -eq 'Normal' -and $_.ReadOnly -eq $false -and $_.IsUpdateable -eq $true -and $_.Name -ne 'tempdb'})
 
-			if ($SmoServer.IsHadrEnabled) {
+			if ($SmoServerObject.IsHadrEnabled) {
 				$Databases = $Databases.where({$_.IsAccessible -eq $true})
 			}
 
@@ -5787,7 +5775,7 @@ function Get-SqlInstanceLogFileGrowthRate {
 									$XmlDocument = $SqlLogFileGrowth | Select-Object $LogFileProperties | ConvertTo-Xml -NoTypeInformation
 
 									$SummaryItem = [ordered]@{
-										'SqlInstance' = $SmoServer.Name
+										'SqlInstance' = $SmoServerObject.Name
 										'DatabaseName' = $SqlLogFileGrowth.DatabaseName
 									}
 
@@ -5813,7 +5801,7 @@ function Get-SqlInstanceLogFileGrowthRate {
 								$ErrorXml = ConvertTo-ErrorXML -ErrorObject $ErrorRecord
 
 								$SummaryItem = [ordered]@{
-									'SqlInstance' = $SmoServer.Name
+									'SqlInstance' = $SmoServerObject.Name
 									'DatabaseName' = $LogFile.DatabaseName
 									'LogFileName' = $LogFile.Name
 								}
@@ -5843,7 +5831,7 @@ function Get-SqlInstanceLogFileGrowthRate {
 					$ErrorXml = ConvertTo-ErrorXML -ErrorObject $ErrorRecord
 
 					$SummaryItem = [ordered]@{
-						'SqlInstance' = $SmoServer.Name
+						'SqlInstance' = $SmoServerObject.Name
 					}
 
 					$EmailBody = Build-MailBody -Xml $ErrorXml -SummaryItem $SummaryItem
@@ -5859,7 +5847,7 @@ function Get-SqlInstanceLogFileGrowthRate {
 		}
 		finally {
 			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
-				Disconnect-SmoServer -SmoServerObject $SmoServer
+				Disconnect-SmoServer -SmoServerObject $SmoServerObject
 			}
 		}
 	}
@@ -5930,20 +5918,18 @@ function Get-SqlInstanceLogFileVLFCount {
 					'DatabaseName' = 'master'
 				}
 
-				$SmoServer = Connect-SmoServer @SmoServerParameters
-			} else {
-				$SmoServer = $SmoServerObject
+				$SmoServerObject = Connect-SmoServer @SmoServerParameters
 			}
 
-			$SmoServer.Databases.Refresh()
+			$SmoServerObject.Databases.Refresh()
 		}
 		catch {
 			$ErrorRecord = $_
 
 			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
-				if (Test-Path -Path Variable:\SmoServer) {
-					if ($SmoServer -is [Microsoft.SqlServer.Management.Smo.Server]) {
-						Disconnect-SmoServer -SmoServerObject $SmoServer
+				if (Test-Path -Path Variable:\SmoServerObject) {
+					if ($SmoServerObject -is [Microsoft.SqlServer.Management.Smo.Server]) {
+						Disconnect-SmoServer -SmoServerObject $SmoServerObject
 					}
 				}
 			}
@@ -5967,7 +5953,7 @@ function Get-SqlInstanceLogFileVLFCount {
 						}
 					} else {
 						$SummaryItem = [ordered]@{
-							'SqlInstance' = $SmoServer.Name
+							'SqlInstance' = $SmoServerObject.Name
 						}
 					}
 
@@ -6022,7 +6008,7 @@ function Get-SqlInstanceLogFileVLFCount {
 	process {
 		try {
 			$SqlClientDataSetParameters = @{
-				'SqlConnection' = $SmoServer.ConnectionContext.SqlConnectionObject
+				'SqlConnection' = $SmoServerObject.ConnectionContext.SqlConnectionObject
 				'DatabaseName' = 'master'
 				'SqlCommandText' = $Query_VLFCount
 				'OutputAs' = 'DataTable'
@@ -6034,7 +6020,7 @@ function Get-SqlInstanceLogFileVLFCount {
 				try {
 					if ($Row.AdjustedVLFCount -gt $VLFCountThreshold) {
 						$SummaryItem = [ordered]@{
-							'SqlInstance' = $SmoServer.Name
+							'SqlInstance' = $SmoServerObject.Name
 							'DatabaseName' = $Row.DatabaseName
 							'TotalVLFCount' = $Row.TotalVLFCount
 						}
@@ -6070,7 +6056,7 @@ function Get-SqlInstanceLogFileVLFCount {
 							$ErrorXml = ConvertTo-ErrorXML -ErrorObject $ErrorRecord
 
 							$SummaryItem = [ordered]@{
-								'SqlInstance' = $SmoServer.Name
+								'SqlInstance' = $SmoServerObject.Name
 								'DatabaseName' = $Row.DatabaseName
 							}
 
@@ -6098,7 +6084,7 @@ function Get-SqlInstanceLogFileVLFCount {
 					$ErrorXml = ConvertTo-ErrorXML -ErrorObject $ErrorRecord
 
 					$SummaryItem = [ordered]@{
-						'SqlInstance' = $SmoServer.Name
+						'SqlInstance' = $SmoServerObject.Name
 					}
 
 					$EmailBody = Build-MailBody -Xml $ErrorXml -SummaryItem $SummaryItem
@@ -6114,7 +6100,7 @@ function Get-SqlInstanceLogFileVLFCount {
 		}
 		finally {
 			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
-				Disconnect-SmoServer -SmoServerObject $SmoServer
+				Disconnect-SmoServer -SmoServerObject $SmoServerObject
 			}
 		}
 	}
@@ -6185,20 +6171,18 @@ function Get-SqlInstanceQueryStoreUsage {
 					'DatabaseName' = 'master'
 				}
 
-				$SmoServer = Connect-SmoServer @SmoServerParameters
-			} else {
-				$SmoServer = $SmoServerObject
+				$SmoServerObject = Connect-SmoServer @SmoServerParameters
 			}
 
-			$SmoServer.Databases.Refresh()
+			$SmoServerObject.Databases.Refresh()
 		}
 		catch {
 			$ErrorRecord = $_
 
 			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
-				if (Test-Path -Path Variable:\SmoServer) {
-					if ($SmoServer -is [Microsoft.SqlServer.Management.Smo.Server]) {
-						Disconnect-SmoServer -SmoServerObject $SmoServer
+				if (Test-Path -Path Variable:\SmoServerObject) {
+					if ($SmoServerObject -is [Microsoft.SqlServer.Management.Smo.Server]) {
+						Disconnect-SmoServer -SmoServerObject $SmoServerObject
 					}
 				}
 			}
@@ -6222,7 +6206,7 @@ function Get-SqlInstanceQueryStoreUsage {
 						}
 					} else {
 						$SummaryItem = [ordered]@{
-							'SqlInstance' = $SmoServer.Name
+							'SqlInstance' = $SmoServerObject.Name
 						}
 					}
 
@@ -6244,14 +6228,14 @@ function Get-SqlInstanceQueryStoreUsage {
 	process {
 		try {
 			if ($PSBoundParameters.ContainsKey('DatabaseName')) {
-				$Databases = $SmoServer.Databases.where({$_.Name -in $DatabaseName})
+				$Databases = $SmoServerObject.Databases.where({$_.Name -in $DatabaseName})
 			} else {
-				$Databases = $SmoServer.Databases
+				$Databases = $SmoServerObject.Databases
 			}
 
 			$Databases = $Databases.where({$_.Status -eq 'Normal' -and $_.ReadOnly -eq $false -and $_.IsUpdateable -eq $true -and $_.Name -ne 'tempdb'})
 
-			if ($SmoServer.IsHadrEnabled) {
+			if ($SmoServerObject.IsHadrEnabled) {
 				$Databases = $Databases.where({$_.IsAccessible -eq $true})
 			}
 
@@ -6300,7 +6284,7 @@ function Get-SqlInstanceQueryStoreUsage {
 								$XmlDocument = $SqlQueryStore | Select-Object $SqlQueryStoreProperties | ConvertTo-Xml -NoTypeInformation
 
 								$SummaryItem = [ordered]@{
-									'SqlInstance' = $SmoServer.Name
+									'SqlInstance' = $SmoServerObject.Name
 									'DatabaseName' = $Database.Name
 								}
 
@@ -6326,7 +6310,7 @@ function Get-SqlInstanceQueryStoreUsage {
 							$ErrorXml = ConvertTo-ErrorXML -ErrorObject $ErrorRecord
 
 							$SummaryItem = [ordered]@{
-								'SqlInstance' = $SmoServer.Name
+								'SqlInstance' = $SmoServerObject.Name
 								'DatabaseName' = $Database.Name
 							}
 
@@ -6354,7 +6338,7 @@ function Get-SqlInstanceQueryStoreUsage {
 					$ErrorXml = ConvertTo-ErrorXML -ErrorObject $ErrorRecord
 
 					$SummaryItem = [ordered]@{
-						'SqlInstance' = $SmoServer.Name
+						'SqlInstance' = $SmoServerObject.Name
 					}
 
 					$EmailBody = Build-MailBody -Xml $ErrorXml -SummaryItem $SummaryItem
@@ -6370,7 +6354,7 @@ function Get-SqlInstanceQueryStoreUsage {
 		}
 		finally {
 			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
-				Disconnect-SmoServer -SmoServerObject $SmoServer
+				Disconnect-SmoServer -SmoServerObject $SmoServerObject
 			}
 		}
 	}
@@ -6637,20 +6621,18 @@ function Initialize-SqlServerMaintenanceDatabase {
 					'DatabaseName' = 'master'
 				}
 
-				$SmoServer = Connect-SmoServer @SmoServerParameters
-			} else {
-				$SmoServer = $SmoServerObject
+				$SmoServerObject = Connect-SmoServer @SmoServerParameters
 			}
 
 			$AdminDatabase = $Script:PSMConfig.Config.AdminDatabase
 
-			$DatabaseObject = Get-SmoDatabaseObject -SmoServerObject $SmoServer -DatabaseName $AdminDatabase.DatabaseName
+			$DatabaseObject = Get-SmoDatabaseObject -SmoServerObject $SmoServerObject -DatabaseName $AdminDatabase.DatabaseName
 		}
 		catch {
 			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
-				if (Test-Path -Path Variable:\SmoServer) {
-					if ($SmoServer -is [Microsoft.SqlServer.Management.Smo.Server]) {
-						Disconnect-SmoServer -SmoServerObject $SmoServer
+				if (Test-Path -Path Variable:\SmoServerObject) {
+					if ($SmoServerObject -is [Microsoft.SqlServer.Management.Smo.Server]) {
+						Disconnect-SmoServer -SmoServerObject $SmoServerObject
 					}
 				}
 			}
@@ -7046,7 +7028,7 @@ function Initialize-SqlServerMaintenanceDatabase {
 		}
 		finally {
 			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
-				Disconnect-SmoServer -SmoServerObject $SmoServer
+				Disconnect-SmoServer -SmoServerObject $SmoServerObject
 			}
 		}
 	}
@@ -7109,28 +7091,24 @@ function Invoke-CycleFullTextIndexLog {
 					'DatabaseName' = 'master'
 				}
 
-				$SmoServer = Connect-SmoServer @SmoServerParameters
-			} else {
-				$SmoServer = $SmoServerObject
+				$SmoServerObject = Connect-SmoServer @SmoServerParameters
 			}
 
-			if ($SmoServer.IsFullTextInstalled -eq $false) {
+			if ($SmoServerObject.IsFullTextInstalled -eq $false) {
 				Write-Warning 'Full-Text is not installed.'
 
-				Disconnect-SmoServer -SmoServerObject $SmoServer
-
-				Break
+				return
 			}
 
-			$SmoServer.Databases.Refresh()
+			$SmoServerObject.Databases.Refresh()
 		}
 		catch {
 			$ErrorRecord = $_
 
 			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
-				if (Test-Path -Path Variable:\SmoServer) {
-					if ($SmoServer -is [Microsoft.SqlServer.Management.Smo.Server]) {
-						Disconnect-SmoServer -SmoServerObject $SmoServer
+				if (Test-Path -Path Variable:\SmoServerObject) {
+					if ($SmoServerObject -is [Microsoft.SqlServer.Management.Smo.Server]) {
+						Disconnect-SmoServer -SmoServerObject $SmoServerObject
 					}
 				}
 			}
@@ -7154,7 +7132,7 @@ function Invoke-CycleFullTextIndexLog {
 						}
 					} else {
 						$SummaryItem = [ordered]@{
-							'SqlInstance' = $SmoServer.Name
+							'SqlInstance' = $SmoServerObject.Name
 						}
 					}
 
@@ -7187,15 +7165,19 @@ function Invoke-CycleFullTextIndexLog {
 
 	process {
 		try {
+			if ($SmoServerObject.IsFullTextInstalled -eq $false) {
+				return
+			}
+
 			if ($PSBoundParameters.ContainsKey('DatabaseName')) {
-				$Databases = $SmoServer.Databases.where({$_.Name -in $DatabaseName})
+				$Databases = $SmoServerObject.Databases.where({$_.Name -in $DatabaseName})
 			} else {
-				$Databases = $SmoServer.Databases
+				$Databases = $SmoServerObject.Databases
 			}
 
 			$Databases = $Databases.where({ $_.Status -eq 'Normal' -and $_.ReadOnly -eq $false -and $_.IsUpdateable -eq $true -and $_.name -NotIn @('master', 'tempdb', 'model')})
 
-			if ($SmoServer.IsHadrEnabled) {
+			if ($SmoServerObject.IsHadrEnabled) {
 				$Databases = $Databases.where({$_.IsAccessible -eq $true})
 			}
 
@@ -7236,7 +7218,7 @@ function Invoke-CycleFullTextIndexLog {
 									$ErrorXml = ConvertTo-ErrorXML -ErrorObject $ErrorRecord
 
 									$SummaryItem = [ordered]@{
-										'SqlInstance' = $SmoServer.Name
+										'SqlInstance' = $SmoServerObject.Name
 										'DatabaseName' = $Database.Name
 									}
 
@@ -7264,7 +7246,7 @@ function Invoke-CycleFullTextIndexLog {
 							$ErrorXml = ConvertTo-ErrorXML -ErrorObject $ErrorRecord
 
 							$SummaryItem = [ordered]@{
-								'SqlInstance' = $SmoServer.Name
+								'SqlInstance' = $SmoServerObject.Name
 								'DatabaseName' = $Database.Name
 							}
 
@@ -7292,7 +7274,7 @@ function Invoke-CycleFullTextIndexLog {
 					$ErrorXml = ConvertTo-ErrorXML -ErrorObject $ErrorRecord
 
 					$SummaryItem = [ordered]@{
-						'SqlInstance' = $SmoServer.Name
+						'SqlInstance' = $SmoServerObject.Name
 					}
 
 					$EmailBody = Build-MailBody -Xml $ErrorXml -SummaryItem $SummaryItem
@@ -7308,7 +7290,7 @@ function Invoke-CycleFullTextIndexLog {
 		}
 		finally {
 			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
-				Disconnect-SmoServer -SmoServerObject $SmoServer
+				Disconnect-SmoServer -SmoServerObject $SmoServerObject
 			}
 		}
 	}
@@ -7921,7 +7903,7 @@ function Invoke-SqlBackupVerification {
 						}
 					} else {
 						$SummaryItem = [ordered]@{
-							'SqlInstance' = $SmoServer.Name
+							'SqlInstance' = $SmoServerObject.Name
 						}
 					}
 
@@ -7949,6 +7931,8 @@ function Invoke-SqlBackupVerification {
 			ORDER BY t.BackupDateTime DESC;"
 
 		$Query_FailedTests = "SELECT BackupFileName
+			,	BackupType
+			,	BackupDateTime
 			FROM [{0}].[{1}]
 			WHERE BackupFolder = N'{2}'
 				AND BackupType IN ('D', 'F')
@@ -8198,6 +8182,22 @@ function Invoke-SqlBackupVerification {
 											[SqlServerMaintenance.BackupFileInfo[]]$SqlBackupFiles = $SqlBackupFiles.where({$_.Name -NotIn $FailedTests.BackupFileName})
 										}
 
+										if ($FailedTests.where({$_.BackupType -eq 'F'}).Count -gt 0) {
+											$LastFullFailureDateTime = $FailedTests.where({$_.BackupType -eq 'F'}) | Measure-Object -Property BackupDateTime -Maximum
+
+											$NextFullBackup = $SqlBackupFiles.where({$_.BackupType -eq 'Full' -and $_.BackupDate -gt $LastFullFailureDateTime.Maximum}) | Sort-Object -Property BackupDate | Select-Object -First 1
+
+											if ($null -eq $NextFullBackup) {
+												$OrphanedDiffBackups = $SqlBackupFiles.where({$_.BackupType -eq 'Diff' -and $_.BackupDate -gt $LastFullFailureDateTime.Maximum})
+											} else {
+												$OrphanedDiffBackups = $SqlBackupFiles.where({$_.BackupType -eq 'Diff' -and $_.BackupDate -gt $LastFullFailureDateTime.Maximum -and $_.BackupDate -lt $NextFullBackup.BackupDate})
+											}
+
+											if ($OrphanedDiffBackups.Count -gt 0) {
+												[SqlServerMaintenance.BackupFileInfo[]]$SqlBackupFiles = $SqlBackupFiles.where({$_.Name -NotIn $OrphanedDiffBackups.Name})
+											}
+										}
+
 										switch ($LastLogBackupTest.TestStatus) {
 											'F' {
 												#Region Failed Backup
@@ -8378,57 +8378,63 @@ function Invoke-SqlBackupVerification {
 									#EndRegion
 
 									#Region Log Orphaned Backups
+									$OrphanedBackups = [System.Collections.Generic.List[SqlServerMaintenance.BackupFileInfo]]::New()
+
+									if (Test-Path -Path Variable:OrphanedDiffBackups) {
+										$OrphanedBackups.AddRange([SqlServerMaintenance.BackupFileInfo[]]$OrphanedDiffBackups)
+									}
+
 									if ($null -ne $LastLogBackupTest) {
 										if ($LastLogBackupTest.TestStatus -eq 'F') {
-											$OrphanedBackups = $SqlBackupFiles.where({$_.FullName -NotIn $BackupFileInfo.FullName -and $_.BackupDate -gt $LastLogBackupTest.BackupDateTime -and $_.BackupDate -lt $NextBackup.BackupDate})
+											$OrphanedBackups.AddRange([SqlServerMaintenance.BackupFileInfo[]]$SqlBackupFiles.where({$_.FullName -NotIn $BackupFileInfo.FullName -and $_.BackupDate -gt $LastLogBackupTest.BackupDateTime -and $_.BackupDate -lt $NextBackup.BackupDate}))
+										}
+									}
 
-											foreach ($OrphanedBackup in $OrphanedBackups) {
-												$BackupHeaders = Get-SmoBackupHeader -DatabaseBackupPath $OrphanedBackup.FullName -SmoServerObject $SmoServerObject
+									foreach ($OrphanedBackup in $OrphanedBackups) {
+										$BackupHeaders = Get-SmoBackupHeader -DatabaseBackupPath $OrphanedBackup.FullName -SmoServerObject $SmoServerObject
 
-												foreach ($BackupHeader in $BackupHeaders) {
-													$FormatStringArray = @(
-														$TestSchemaName,
-														$TestTableName,
-														[DateTimeOffset]::Now.ToSTring(),
-														$OrphanedBackup.BackupDate,
-														$InstanceFolder.Name,
-														$DatabaseFolder,
-														$OrphanedBackup.Name,
-														$OrphanedBackup.BackupType.SubString(0, 1).ToUpper(),
-														$BackupHeader.Position,
-														$BackupHeader.BindingID.Guid,
-														$BackupHeader.DatabaseName,
-														$BackupHeader.FirstLSN,
-														$BackupHeader.LastLSN,
-														$BackupHeader.CheckpointLSN,
-														$BackupHeader.DatabaseBackupLSN
-													)
+										foreach ($BackupHeader in $BackupHeaders) {
+											$FormatStringArray = @(
+												$TestSchemaName,
+												$TestTableName,
+												[DateTimeOffset]::Now.ToSTring(),
+												$OrphanedBackup.BackupDate,
+												$InstanceFolder.Name,
+												$DatabaseFolder,
+												$OrphanedBackup.Name,
+												$OrphanedBackup.BackupType.SubString(0, 1).ToUpper(),
+												$BackupHeader.Position,
+												$BackupHeader.BindingID.Guid,
+												$BackupHeader.DatabaseName,
+												$BackupHeader.FirstLSN,
+												$BackupHeader.LastLSN,
+												$BackupHeader.CheckpointLSN,
+												$BackupHeader.DatabaseBackupLSN
+											)
 
-													$SqlClientNonQueryParameters = @{
-														'SqlConnection' = $SqlConnection
-														'SqlCommandText' = [string]::Format($Insert_BackupFile, $FormatStringArray)
-													}
-
-													[void](Invoke-SqlClientNonQuery @SqlClientNonQueryParameters)
-
-													$FormatStringArray = @(
-														$TestSchemaName,
-														$TestTableName,
-														$DatabaseFolder,
-														$OrphanedBackup.Name,
-														$BackupHeader.Position,
-														'O',
-														[DateTimeOffset]::Now.ToSTring()
-													)
-
-													$SqlClientNonQueryParameters = @{
-														'SqlConnection' = $SqlConnection
-														'SqlCommandText' = [string]::Format($Update_BackupFile, $FormatStringArray)
-													}
-
-													[void](Invoke-SqlClientNonQuery @SqlClientNonQueryParameters)
-												}
+											$SqlClientNonQueryParameters = @{
+												'SqlConnection' = $SqlConnection
+												'SqlCommandText' = [string]::Format($Insert_BackupFile, $FormatStringArray)
 											}
+
+											[void](Invoke-SqlClientNonQuery @SqlClientNonQueryParameters)
+
+											$FormatStringArray = @(
+												$TestSchemaName,
+												$TestTableName,
+												$DatabaseFolder,
+												$OrphanedBackup.Name,
+												$BackupHeader.Position,
+												'O',
+												[DateTimeOffset]::Now.ToSTring()
+											)
+
+											$SqlClientNonQueryParameters = @{
+												'SqlConnection' = $SqlConnection
+												'SqlCommandText' = [string]::Format($Update_BackupFile, $FormatStringArray)
+											}
+
+											[void](Invoke-SqlClientNonQuery @SqlClientNonQueryParameters)
 										}
 									}
 									#EndRegion
@@ -8898,17 +8904,15 @@ function Invoke-SqlInstanceBackup {
 					'StatementTimeout' = 0
 				}
 
-				$SmoServer = Connect-SmoServer @SmoServerParameters
-			} else {
-				$SmoServer = $SmoServerObject
+				$SmoServerObject = Connect-SmoServer @SmoServerParameters
 			}
 
-			$SmoServer.Databases.Refresh()
+			$SmoServerObject.Databases.Refresh()
 
-			[System.IO.DirectoryInfo]$BackupPath = $SmoServer.Settings.BackupDirectory
+			[System.IO.DirectoryInfo]$BackupPath = $SmoServerObject.Settings.BackupDirectory
 
-			if ($SmoServer.HostPlatform -eq 'Windows') {
-				if ([Environment]::MachineName -ne $SmoServer.NetName) {
+			if ($SmoServerObject.HostPlatform -eq 'Windows') {
+				if ([Environment]::MachineName -ne $SmoServerObject.NetName) {
 					if ($PSVersionTable.PSEdition -eq 'Desktop' -or $PSVersionTable.Platform -eq 'Win32NT') {
 						if (-not $([System.Uri]$BackupPath.FullName).IsUnc) {
 							throw [System.Management.Automation.ErrorRecord]::New(
@@ -8928,7 +8932,7 @@ function Invoke-SqlInstanceBackup {
 					}
 				}
 			} else {
-				if ([Environment]::MachineName -ne $SmoServer.NetName) {
+				if ([Environment]::MachineName -ne $SmoServerObject.NetName) {
 					if ($PSVersionTable.PSEdition -eq 'Desktop' -or $PSVersionTable.Platform -eq 'Win32NT') {
 						throw [System.Management.Automation.ErrorRecord]::New(
 							[Exception]::New('Backup of SQL Server on Linux from Windows host is not supported.'),
@@ -8949,7 +8953,7 @@ function Invoke-SqlInstanceBackup {
 				}
 			}
 
-			$RetainDays = $SmoServer.Configuration.MediaRetention.RunValue
+			$RetainDays = $SmoServerObject.Configuration.MediaRetention.RunValue
 
 			$StatisticsDatabaseName = $Script:PSMConfig.Config.AdminDatabase.DatabaseName
 			$StatisticsSchemaName = $Script:PSMConfig.Config.AdminDatabase.Statistics.Backup.SchemaName
@@ -8959,9 +8963,9 @@ function Invoke-SqlInstanceBackup {
 			$ErrorRecord = $_
 
 			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
-				if (Test-Path -Path Variable:\SmoServer) {
-					if ($SmoServer -is [Microsoft.SqlServer.Management.Smo.Server]) {
-						Disconnect-SmoServer -SmoServerObject $SmoServer
+				if (Test-Path -Path Variable:\SmoServerObject) {
+					if ($SmoServerObject -is [Microsoft.SqlServer.Management.Smo.Server]) {
+						Disconnect-SmoServer -SmoServerObject $SmoServerObject
 					}
 				}
 			}
@@ -8985,7 +8989,7 @@ function Invoke-SqlInstanceBackup {
 						}
 					} else {
 						$SummaryItem = [ordered]@{
-							'SqlInstance' = $SmoServer.Name
+							'SqlInstance' = $SmoServerObject.Name
 						}
 					}
 
@@ -9027,15 +9031,15 @@ function Invoke-SqlInstanceBackup {
 	process {
 		try {
 			if ($PSBoundParameters.ContainsKey('DatabaseName')) {
-				$Databases = $SmoServer.Databases.where({$_.Name -in $DatabaseName})
+				$Databases = $SmoServerObject.Databases.where({$_.Name -in $DatabaseName})
 			} else {
-				$Databases = $SmoServer.Databases
+				$Databases = $SmoServerObject.Databases
 			}
 
 			$Databases = $Databases.where({$_.Status -eq 'Normal' -and $_.IsDatabaseSnapshot -eq $false -and $_.Name -ne 'tempdb'})
 
-			if ($SmoServer.IsHadrEnabled) {
-				$DataTable = ($SmoServer.Databases['master'].ExecuteWithResults($Query_PreferredReplica)).Tables[0]
+			if ($SmoServerObject.IsHadrEnabled) {
+				$DataTable = ($SmoServerObject.Databases['master'].ExecuteWithResults($Query_PreferredReplica)).Tables[0]
 
 				[string[]]$PreferredReplicas = $DataTable | Select-Object -ExpandProperty Name
 
@@ -9046,7 +9050,7 @@ function Invoke-SqlInstanceBackup {
 				$Databases = $Databases.where({$_.RecoveryModel -ne 'Simple'})
 
 				if ($PSCmdlet.ParameterSetName -notIn @('TailLog-ServerInstance', 'TailLog-SmoServerObject')) {
-					$DataTable = ($SmoServer.Databases['msdb'].ExecuteWithResults($Query_LogShippingPrimary)).Tables[0]
+					$DataTable = ($SmoServerObject.Databases['msdb'].ExecuteWithResults($Query_LogShippingPrimary)).Tables[0]
 
 					if ($DataTable.Rows.Count -gt 0) {
 						[string[]]$LogShippingPrimary = $DataTable | Select-Object -ExpandProperty Name
@@ -9076,14 +9080,14 @@ function Invoke-SqlInstanceBackup {
 				($DatabaseObject.ExecuteWithResults($Query_DatabaseRecoveryStatus)).Tables
 			}
 
-			$RecoveryStatusDataTable = Invoke-RetryScriptBlock -ScriptBlock $RecoveryStatusScriptBlock -Arguments @($SmoServer.Databases['master'], $Query_DatabaseRecoveryStatus)
+			$RecoveryStatusDataTable = Invoke-RetryScriptBlock -ScriptBlock $RecoveryStatusScriptBlock -Arguments @($SmoServerObject.Databases['master'], $Query_DatabaseRecoveryStatus)
 
 			foreach ($Database in $Databases) {
 				Write-Verbose "$($Database.Name)"
 
 				try {
-					if ($SmoServer.IsHadrEnabled -and [string]::IsNullOrEmpty($Database.AvailabilityGroupName)) {
-						$BackupChildPath = Invoke-ReplaceInvalidCharacter -InputString $([string]::Format('{0}.{1}', $Database.Name, $SmoServer.NetName))
+					if ($SmoServerObject.IsHadrEnabled -and [string]::IsNullOrEmpty($Database.AvailabilityGroupName)) {
+						$BackupChildPath = Invoke-ReplaceInvalidCharacter -InputString $([string]::Format('{0}.{1}', $Database.Name, $SmoServerObject.NetName))
 					} else {
 						$BackupChildPath = Invoke-ReplaceInvalidCharacter -InputString $Database.name
 					}
@@ -9210,7 +9214,7 @@ function Invoke-SqlInstanceBackup {
 						}
 					}
 
-					switch ($SmoServer.VersionMajor) {
+					switch ($SmoServerObject.VersionMajor) {
 						{$PSItem -ge 13} {
 							$Database.ExecuteNonQuery('EXEC sp_flush_log;')
 
@@ -9239,7 +9243,7 @@ function Invoke-SqlInstanceBackup {
 
 					if ($PSCmdlet.ShouldProcess($Database.Name, "$($BackupParameters.BackupAction) Backup of database")) {
 						if ($TailLog) {
-							$SmoServer.KillAllProcesses($Database.Name)
+							$SmoServerObject.KillAllProcesses($Database.Name)
 						}
 
 						$VerboseRecord = $(Backup-SqlDatabase @BackupParameters) 4>&1
@@ -9270,7 +9274,7 @@ function Invoke-SqlInstanceBackup {
 
 						$NonQueryString = [string]::Format($Query_BackupStatistics, $FormatStringArray)
 
-						$SmoServer.Databases[$StatisticsDatabaseName].ExecuteNonQuery($NonQueryString)
+						$SmoServerObject.Databases[$StatisticsDatabaseName].ExecuteNonQuery($NonQueryString)
 
 						$Backup
 					}
@@ -9286,7 +9290,7 @@ function Invoke-SqlInstanceBackup {
 							$ErrorXml = ConvertTo-ErrorXML -ErrorObject $ErrorRecord
 
 							$SummaryItem = [ordered]@{
-								'SqlInstance' = $SmoServer.Name
+								'SqlInstance' = $SmoServerObject.Name
 								'DatabaseName' = $Database.Name
 							}
 
@@ -9320,7 +9324,7 @@ function Invoke-SqlInstanceBackup {
 					$ErrorXml = ConvertTo-ErrorXML -ErrorObject $ErrorRecord
 
 					$SummaryItem = [ordered]@{
-						'SqlInstance' = $SmoServer.Name
+						'SqlInstance' = $SmoServerObject.Name
 					}
 
 					$EmailBody = Build-MailBody -Xml $ErrorXml -SummaryItem $SummaryItem
@@ -9336,7 +9340,7 @@ function Invoke-SqlInstanceBackup {
 		}
 		finally {
 			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
-				Disconnect-SmoServer -SmoServerObject $SmoServer
+				Disconnect-SmoServer -SmoServerObject $SmoServerObject
 			}
 		}
 	}
@@ -9430,20 +9434,18 @@ function Invoke-SqlInstanceCheckDb {
 					'StatementTimeout' = 0
 				}
 
-				$SmoServer = Connect-SmoServer @SmoServerParameters
-			} else {
-				$SmoServer = $SmoServerObject
+				$SmoServerObject = Connect-SmoServer @SmoServerParameters
 			}
 
-			$SmoServer.Databases.Refresh()
+			$SmoServerObject.Databases.Refresh()
 		}
 		catch {
 			$ErrorRecord = $_
 
 			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
-				if (Test-Path -Path Variable:\SmoServer) {
-					if ($SmoServer -is [Microsoft.SqlServer.Management.Smo.Server]) {
-						Disconnect-SmoServer -SmoServerObject $SmoServer
+				if (Test-Path -Path Variable:\SmoServerObject) {
+					if ($SmoServerObject -is [Microsoft.SqlServer.Management.Smo.Server]) {
+						Disconnect-SmoServer -SmoServerObject $SmoServerObject
 					}
 				}
 			}
@@ -9467,7 +9469,7 @@ function Invoke-SqlInstanceCheckDb {
 						}
 					} else {
 						$SummaryItem = [ordered]@{
-							'SqlInstance' = $SmoServer.Name
+							'SqlInstance' = $SmoServerObject.Name
 						}
 					}
 
@@ -9489,14 +9491,14 @@ function Invoke-SqlInstanceCheckDb {
 	process {
 		try {
 			if ($PSBoundParameters.ContainsKey('DatabaseName')) {
-				$Databases = $SmoServer.Databases.where({$_.Name -in $DatabaseName})
+				$Databases = $SmoServerObject.Databases.where({$_.Name -in $DatabaseName})
 			} else {
-				$Databases = $SmoServer.Databases
+				$Databases = $SmoServerObject.Databases
 			}
 
 			$Databases = $Databases.where({$_.Status -eq 'Normal'})
 
-			if ($SmoServer.IsHadrEnabled) {
+			if ($SmoServerObject.IsHadrEnabled) {
 				$Databases = $Databases.where({$_.IsAccessible -eq $true})
 			}
 
@@ -9516,8 +9518,8 @@ function Invoke-SqlInstanceCheckDb {
 				Write-Verbose "Checking database $($Database.Name)."
 
 				try {
-					if ($SmoServer.ConnectionContext.SqlConnectionObject.State -ne 'Open') {
-						$SmoServer.ConnectionContext.SqlConnectionObject.Open()
+					if ($SmoServerObject.ConnectionContext.SqlConnectionObject.State -ne 'Open') {
+						$SmoServerObject.ConnectionContext.SqlConnectionObject.Open()
 					}
 
 					$RowsFileGroups = $Database.FileGroups.where({$_.FileGroupType -eq 'RowsFileGroup'})
@@ -9557,7 +9559,7 @@ function Invoke-SqlInstanceCheckDb {
 					$QueryString = [string]::Format('DBCC CHECKDB({0}) WITH {1};', $CheckDBArgument, $CheckDBOptions)
 
 					$SQLCommand = [Microsoft.Data.SqlClient.SqlCommand]::New()
-					$SQLCommand.Connection = $SmoServer.ConnectionContext.SqlConnectionObject
+					$SQLCommand.Connection = $SmoServerObject.ConnectionContext.SqlConnectionObject
 					$SQLCommand.CommandTimeout = 0
 					$SQLCommand.CommandText = $QueryString
 					$SQLCommand.Connection.ChangeDatabase($Database.Name)
@@ -9597,7 +9599,7 @@ function Invoke-SqlInstanceCheckDb {
 								$RecordXml = ConvertTo-RecordXML -InputObject $Dataset
 
 								$SummaryItem = [ordered]@{
-									'SqlInstance' = $SmoServer.Name
+									'SqlInstance' = $SmoServerObject.Name
 									'DatabaseName' = $Database.Name
 								}
 
@@ -9624,7 +9626,7 @@ function Invoke-SqlInstanceCheckDb {
 							$ErrorXml = ConvertTo-ErrorXML -ErrorObject $ErrorRecord
 
 							$SummaryItem = [ordered]@{
-								'SqlInstance' = $SmoServer.Name
+								'SqlInstance' = $SmoServerObject.Name
 								'DatabaseName' = $Database.Name
 							}
 
@@ -9657,7 +9659,7 @@ function Invoke-SqlInstanceCheckDb {
 					$ErrorXml = ConvertTo-ErrorXML -ErrorObject $ErrorRecord
 
 					$SummaryItem = [ordered]@{
-						'SqlInstance' = $SmoServer.Name
+						'SqlInstance' = $SmoServerObject.Name
 					}
 
 					$EmailBody = Build-MailBody -Xml $ErrorXml -SummaryItem $SummaryItem
@@ -9673,7 +9675,7 @@ function Invoke-SqlInstanceCheckDb {
 		}
 		finally {
 			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
-				Disconnect-SmoServer -SmoServerObject $SmoServer
+				Disconnect-SmoServer -SmoServerObject $SmoServerObject
 			}
 		}
 	}
@@ -9761,12 +9763,10 @@ function Invoke-SqlInstanceColumnStoreMaintenance {
 					'StatementTimeout' = 0
 				}
 
-				$SmoServer = Connect-SmoServer @SmoServerParameters
-			} else {
-				$SmoServer = $SmoServerObject
+				$SmoServerObject = Connect-SmoServer @SmoServerParameters
 			}
 
-			$SmoServer.Databases.Refresh()
+			$SmoServerObject.Databases.Refresh()
 
 			$StatisticsDatabaseName = $Script:PSMConfig.Config.AdminDatabase.DatabaseName
 			$StatisticsSchemaName = $Script:PSMConfig.Config.AdminDatabase.Statistics.ColumnStore.SchemaName
@@ -9776,9 +9776,9 @@ function Invoke-SqlInstanceColumnStoreMaintenance {
 			$ErrorRecord = $_
 
 			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
-				if (Test-Path -Path Variable:\SmoServer) {
-					if ($SmoServer -is [Microsoft.SqlServer.Management.Smo.Server]) {
-						Disconnect-SmoServer -SmoServerObject $SmoServer
+				if (Test-Path -Path Variable:\SmoServerObject) {
+					if ($SmoServerObject -is [Microsoft.SqlServer.Management.Smo.Server]) {
+						Disconnect-SmoServer -SmoServerObject $SmoServerObject
 					}
 				}
 			}
@@ -9802,7 +9802,7 @@ function Invoke-SqlInstanceColumnStoreMaintenance {
 						}
 					} else {
 						$SummaryItem = [ordered]@{
-							'SqlInstance' = $SmoServer.Name
+							'SqlInstance' = $SmoServerObject.Name
 						}
 					}
 
@@ -9904,14 +9904,14 @@ function Invoke-SqlInstanceColumnStoreMaintenance {
 	process {
 		try {
 			if ($PSBoundParameters.ContainsKey('DatabaseName')) {
-				$Databases = $SmoServer.Databases.where({$_.Name -in $DatabaseName})
+				$Databases = $SmoServerObject.Databases.where({$_.Name -in $DatabaseName})
 			} else {
-				$Databases = $SmoServer.Databases
+				$Databases = $SmoServerObject.Databases
 			}
 
 			$Databases = $Databases.where({$_.Status -eq 'Normal' -and $_.ReadOnly -eq $false -and $_.IsUpdateable -eq $true -and $_.Name -ne 'tempdb'})
 
-			if ($SmoServer.IsHadrEnabled) {
+			if ($SmoServerObject.IsHadrEnabled) {
 				$Databases = $Databases.where({$_.IsAccessible -eq $true})
 			}
 
@@ -9941,7 +9941,7 @@ function Invoke-SqlInstanceColumnStoreMaintenance {
 						try {
 							$IndexOutput = [SqlServerMaintenance.Index]::New()
 
-							$IndexOutput.SqlInstanceName = $SmoServer.Name
+							$IndexOutput.SqlInstanceName = $SmoServerObject.Name
 							$IndexOutput.DatabaseName = $Database.Name
 							$IndexOutput.SchemaName = $Row.SchemaName
 							$IndexOutput.TableName = $Row.ObjectName
@@ -9983,7 +9983,7 @@ function Invoke-SqlInstanceColumnStoreMaintenance {
 									$ErrorXml = ConvertTo-ErrorXML -ErrorObject $ErrorRecord
 
 									$SummaryItem = [ordered]@{
-										'SqlInstance' = $SmoServer.Name
+										'SqlInstance' = $SmoServerObject.Name
 										'DatabaseName' = $Database.Name
 										'TableName' = [string]::Format('[{0}].[{1}]', $Row.SchemaName, $Row.ObjectName)
 										'IndexName' = $Row.IndexName
@@ -10034,10 +10034,10 @@ function Invoke-SqlInstanceColumnStoreMaintenance {
 					}
 
 					if ($PSCmdlet.ShouldProcess($Database.Name, 'Bulk Copy index results')) {
-						$SmoServer.ConnectionContext.SqlConnectionObject.ChangeDatabase($StatisticsDatabaseName)
+						$SmoServerObject.ConnectionContext.SqlConnectionObject.ChangeDatabase($StatisticsDatabaseName)
 
 						$SqlClientBulkCopyParameters = @{
-							'SqlConnection' = $SmoServer.ConnectionContext.SqlConnectionObject
+							'SqlConnection' = $SmoServerObject.ConnectionContext.SqlConnectionObject
 							'TableName' = [string]::Format('[{0}].[{1}]', $StatisticsSchemaName, $StatisticsTableName)
 							'DataTable' = $ColumnStoreStats.Tables[0]
 						}
@@ -10056,7 +10056,7 @@ function Invoke-SqlInstanceColumnStoreMaintenance {
 							$ErrorXml = ConvertTo-ErrorXML -ErrorObject $ErrorRecord
 
 							$SummaryItem = [ordered]@{
-								'SqlInstance' = $SmoServer.Name
+								'SqlInstance' = $SmoServerObject.Name
 								'DatabaseName' = $Database.Name
 							}
 
@@ -10084,7 +10084,7 @@ function Invoke-SqlInstanceColumnStoreMaintenance {
 					$ErrorXml = ConvertTo-ErrorXML -ErrorObject $ErrorRecord
 
 					$SummaryItem = [ordered]@{
-						'SqlInstance' = $SmoServer.Name
+						'SqlInstance' = $SmoServerObject.Name
 					}
 
 					$EmailBody = Build-MailBody -Xml $ErrorXml -SummaryItem $SummaryItem
@@ -10100,7 +10100,7 @@ function Invoke-SqlInstanceColumnStoreMaintenance {
 		}
 		finally {
 			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
-				Disconnect-SmoServer -SmoServerObject $SmoServer
+				Disconnect-SmoServer -SmoServerObject $SmoServerObject
 			}
 		}
 	}
@@ -10155,21 +10155,19 @@ function Invoke-SqlInstanceCycleErrorLog {
 					'DatabaseName' = 'master'
 				}
 
-				$SmoServer = Connect-SmoServer @SmoServerParameters
-			} else {
-				$SmoServer = $SmoServerObject
+				$SmoServerObject = Connect-SmoServer @SmoServerParameters
 			}
 
-			$JobServer = $SmoServer.JobServer
-			$DatabaseObject = $SmoServer.Databases['master']
+			$JobServer = $SmoServerObject.JobServer
+			$DatabaseObject = $SmoServerObject.Databases['master']
 		}
 		catch {
 			$ErrorRecord = $_
 
 			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
-				if (Test-Path -Path Variable:\SmoServer) {
-					if ($SmoServer -is [Microsoft.SqlServer.Management.Smo.Server]) {
-						Disconnect-SmoServer -SmoServerObject $SmoServer
+				if (Test-Path -Path Variable:\SmoServerObject) {
+					if ($SmoServerObject -is [Microsoft.SqlServer.Management.Smo.Server]) {
+						Disconnect-SmoServer -SmoServerObject $SmoServerObject
 					}
 				}
 			}
@@ -10193,7 +10191,7 @@ function Invoke-SqlInstanceCycleErrorLog {
 						}
 					} else {
 						$SummaryItem = [ordered]@{
-							'SqlInstance' = $SmoServer.Name
+							'SqlInstance' = $SmoServerObject.Name
 						}
 					}
 
@@ -10250,7 +10248,7 @@ function Invoke-SqlInstanceCycleErrorLog {
 					$ErrorXml = ConvertTo-ErrorXML -ErrorObject $ErrorRecord
 
 					$SummaryItem = [ordered]@{
-						'SqlInstance' = $SmoServer.Name
+						'SqlInstance' = $SmoServerObject.Name
 					}
 
 					$EmailBody = Build-MailBody -Xml $ErrorXml -SummaryItem $SummaryItem
@@ -10266,7 +10264,7 @@ function Invoke-SqlInstanceCycleErrorLog {
 		}
 		finally {
 			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
-				Disconnect-SmoServer -SmoServerObject $SmoServer
+				Disconnect-SmoServer -SmoServerObject $SmoServerObject
 			}
 		}
 	}
@@ -10362,18 +10360,16 @@ function Invoke-SqlInstanceFullTextIndexMaintenance {
 					'StatementTimeout' = 0
 				}
 
-				$SmoServer = Connect-SmoServer @SmoServerParameters
-			} else {
-				$SmoServer = $SmoServerObject
+				$SmoServerObject = Connect-SmoServer @SmoServerParameters
 			}
 
-			if ($SmoServer.IsFullTextInstalled -eq $false) {
+			if ($SmoServerObject.IsFullTextInstalled -eq $false) {
 				Write-Warning 'Full-Text is not installed.'
 
 				Break
 			}
 
-			$SmoServer.Databases.Refresh()
+			$SmoServerObject.Databases.Refresh()
 
 			$StatisticsDatabaseName = $Script:PSMConfig.Config.AdminDatabase.DatabaseName
 			$StatisticsSchemaName = $Script:PSMConfig.Config.AdminDatabase.Statistics.FullTextIndex.SchemaName
@@ -10383,9 +10379,9 @@ function Invoke-SqlInstanceFullTextIndexMaintenance {
 			$ErrorRecord =  $_
 
 			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
-				if (Test-Path -Path Variable:\SmoServer) {
-					if ($SmoServer -is [Microsoft.SqlServer.Management.Smo.Server]) {
-						Disconnect-SmoServer -SmoServerObject $SmoServer
+				if (Test-Path -Path Variable:\SmoServerObject) {
+					if ($SmoServerObject -is [Microsoft.SqlServer.Management.Smo.Server]) {
+						Disconnect-SmoServer -SmoServerObject $SmoServerObject
 					}
 				}
 			}
@@ -10409,7 +10405,7 @@ function Invoke-SqlInstanceFullTextIndexMaintenance {
 						}
 					} else {
 						$SummaryItem = [ordered]@{
-							'SqlInstance' = $SmoServer.Name
+							'SqlInstance' = $SmoServerObject.Name
 						}
 					}
 
@@ -10474,14 +10470,14 @@ function Invoke-SqlInstanceFullTextIndexMaintenance {
 	process {
 		try {
 			if ($PSBoundParameters.ContainsKey('DatabaseName')) {
-				$Databases = $SmoServer.Databases.where({$_.Name -in $DatabaseName})
+				$Databases = $SmoServerObject.Databases.where({$_.Name -in $DatabaseName})
 			} else {
-				$Databases = $SmoServer.Databases
+				$Databases = $SmoServerObject.Databases
 			}
 
 			$Databases = $Databases.where({$_.Status -eq 'Normal' -and $_.ReadOnly -eq $false -and $_.IsUpdateable -eq $true -and $_.FullTextCatalogs.Count -gt 0 -and $_.name -NotIn @('master', 'tempdb', 'model')})
 
-			if ($SmoServer.IsHadrEnabled) {
+			if ($SmoServerObject.IsHadrEnabled) {
 				$Databases = $Databases.where({$_.IsAccessible -eq $true})
 			}
 
@@ -10513,7 +10509,7 @@ function Invoke-SqlInstanceFullTextIndexMaintenance {
 						try {
 							$IndexOutput = [SqlServerMaintenance.FullTextIndex]::New()
 
-							$IndexOutput.SqlInstanceName = $SmoServer.Name
+							$IndexOutput.SqlInstanceName = $SmoServerObject.Name
 							$IndexOutput.DatabaseName = $Database.Name
 							$IndexOutput.SchemaName = $Row.SchemaName
 							$IndexOutput.TableName = $Row.ObjectName
@@ -10548,7 +10544,7 @@ function Invoke-SqlInstanceFullTextIndexMaintenance {
 									$ErrorXml = ConvertTo-ErrorXML -ErrorObject $ErrorRecord
 
 									$SummaryItem = [ordered]@{
-										'SqlInstance' = $SmoServer.Name
+										'SqlInstance' = $SmoServerObject.Name
 										'DatabaseName' = $Database.Name
 										'FullTextCatalog' = $Row.CatalogName
 									}
@@ -10592,10 +10588,10 @@ function Invoke-SqlInstanceFullTextIndexMaintenance {
 					}
 
 					if ($PSCmdlet.ShouldProcess($Database.Name, 'Bulk Copy index results')) {
-						$SmoServer.ConnectionContext.SqlConnectionObject.ChangeDatabase($StatisticsDatabaseName)
+						$SmoServerObject.ConnectionContext.SqlConnectionObject.ChangeDatabase($StatisticsDatabaseName)
 
 						$SqlClientBulkCopyParameters = @{
-							'SqlConnection' = $SmoServer.ConnectionContext.SqlConnectionObject
+							'SqlConnection' = $SmoServerObject.ConnectionContext.SqlConnectionObject
 							'TableName' = [string]::Format('[{0}].[{1}]', $StatisticsSchemaName, $StatisticsTable)
 							'DataTable' = $FullTextIndexStats.Tables[0]
 						}
@@ -10614,7 +10610,7 @@ function Invoke-SqlInstanceFullTextIndexMaintenance {
 							$ErrorXml = ConvertTo-ErrorXML -ErrorObject $ErrorRecord
 
 							$SummaryItem = [ordered]@{
-								'SqlInstance' = $SmoServer.Name
+								'SqlInstance' = $SmoServerObject.Name
 								'DatabaseName' = $Database.Name
 							}
 
@@ -10642,7 +10638,7 @@ function Invoke-SqlInstanceFullTextIndexMaintenance {
 					$ErrorXml = ConvertTo-ErrorXML -ErrorObject $ErrorRecord
 
 					$SummaryItem = [ordered]@{
-						'SqlInstance' = $SmoServer.Name
+						'SqlInstance' = $SmoServerObject.Name
 					}
 
 					$EmailBody = Build-MailBody -Xml $ErrorXml -SummaryItem $SummaryItem
@@ -10658,7 +10654,7 @@ function Invoke-SqlInstanceFullTextIndexMaintenance {
 		}
 		finally {
 			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
-				Disconnect-SmoServer -SmoServerObject $SmoServer
+				Disconnect-SmoServer -SmoServerObject $SmoServerObject
 			}
 		}
 	}
@@ -10768,21 +10764,19 @@ function Invoke-SqlInstanceIndexMaintenance {
 					'StatementTimeout' = 0
 				}
 
-				$SmoServer = Connect-SmoServer @SmoServerParameters
-			} else {
-				$SmoServer = $SmoServerObject
+				$SmoServerObject = Connect-SmoServer @SmoServerParameters
 			}
 
-			if ($Online -and $SmoServer.EngineEdition -ne 'EnterpriseOrDeveloper') {
+			if ($Online -and $SmoServerObject.EngineEdition -ne 'EnterpriseOrDeveloper') {
 				throw [System.Management.Automation.ErrorRecord]::New(
-					[Exception]::New("Online is not supported in $($SmoServer.EngineEdition) of SQL Server."),
+					[Exception]::New("Online is not supported in $($SmoServerObject.EngineEdition) of SQL Server."),
 					'1',
 					[System.Management.Automation.ErrorCategory]::InvalidOperation,
-					$SmoServer
+					$SmoServerObject
 				)
 			}
 
-			$SmoServer.Databases.Refresh()
+			$SmoServerObject.Databases.Refresh()
 
 			$StatisticsDatabaseName = $Script:PSMConfig.Config.AdminDatabase.DatabaseName
 			$StatisticsSchemaName = $Script:PSMConfig.Config.AdminDatabase.Statistics.Index.SchemaName
@@ -10792,9 +10786,9 @@ function Invoke-SqlInstanceIndexMaintenance {
 			$ErrorRecord = $_
 
 			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
-				if (Test-Path -Path Variable:\SmoServer) {
-					if ($SmoServer -is [Microsoft.SqlServer.Management.Smo.Server]) {
-						Disconnect-SmoServer -SmoServerObject $SmoServer
+				if (Test-Path -Path Variable:\SmoServerObject) {
+					if ($SmoServerObject -is [Microsoft.SqlServer.Management.Smo.Server]) {
+						Disconnect-SmoServer -SmoServerObject $SmoServerObject
 					}
 				}
 			}
@@ -10818,7 +10812,7 @@ function Invoke-SqlInstanceIndexMaintenance {
 						}
 					} else {
 						$SummaryItem = [ordered]@{
-							'SqlInstance' = $SmoServer.Name
+							'SqlInstance' = $SmoServerObject.Name
 						}
 					}
 
@@ -10931,14 +10925,14 @@ function Invoke-SqlInstanceIndexMaintenance {
 	process {
 		try {
 			if ($PSBoundParameters.ContainsKey('DatabaseName')) {
-				$Databases = $SmoServer.Databases.where({$_.Name -in $DatabaseName})
+				$Databases = $SmoServerObject.Databases.where({$_.Name -in $DatabaseName})
 			} else {
-				$Databases = $SmoServer.Databases
+				$Databases = $SmoServerObject.Databases
 			}
 
 			$Databases = $Databases.where({$_.Status -eq 'Normal' -and $_.ReadOnly -eq $false -and $_.IsUpdateable -eq $true -and $_.Name -ne 'tempdb'})
 
-			if ($SmoServer.IsHadrEnabled) {
+			if ($SmoServerObject.IsHadrEnabled) {
 				$Databases = $Databases.where({$_.IsAccessible -eq $true})
 			}
 
@@ -10970,7 +10964,7 @@ function Invoke-SqlInstanceIndexMaintenance {
 
 							$IndexOutput = [SqlServerMaintenance.Index]::New()
 
-							$IndexOutput.SqlInstanceName = $SmoServer.Name
+							$IndexOutput.SqlInstanceName = $SmoServerObject.Name
 							$IndexOutput.DatabaseName = $Database.Name
 							$IndexOutput.SchemaName = $Row.SchemaName
 							$IndexOutput.TableName = $Row.ObjectName
@@ -11103,7 +11097,7 @@ function Invoke-SqlInstanceIndexMaintenance {
 
 														$Database.ExecuteNonQuery($SqlNonQuery)
 													} else {
-														if ($SmoServer.Version -lt [version]'15.0.0') {
+														if ($SmoServerObject.Version -lt [version]'15.0.0') {
 															# Added due to bug in SMO that causes error "Cannot read property XmlCompression. This property is not available on SQL Server 2017."
 															$SqlNonQuery = [string]::Format('ALTER INDEX [{0}] ON [{1}].[{2}] REBUILD PARTITION = {3};', $Row.IndexName, $Row.SchemaName, $Row.ObjectName, $Row.PartitionNumber)
 
@@ -11152,7 +11146,7 @@ function Invoke-SqlInstanceIndexMaintenance {
 									$ErrorXml = ConvertTo-ErrorXML -ErrorObject $ErrorRecord
 
 									$SummaryItem = [ordered]@{
-										'SqlInstance' = $SmoServer.Name
+										'SqlInstance' = $SmoServerObject.Name
 										'DatabaseName' = $Database.Name
 										'TableName' = [string]::Format('[{0}].[{1}]', $Row.SchemaName, $Row.ObjectName)
 										'IndexName' = $Row.IndexName
@@ -11197,10 +11191,10 @@ function Invoke-SqlInstanceIndexMaintenance {
 					}
 
 					if ($PSCmdlet.ShouldProcess($Database.Name, 'Bulk Copy index results')) {
-						$SmoServer.ConnectionContext.SqlConnectionObject.ChangeDatabase($StatisticsDatabaseName)
+						$SmoServerObject.ConnectionContext.SqlConnectionObject.ChangeDatabase($StatisticsDatabaseName)
 
 						$SqlClientBulkCopyParameters = @{
-							'SqlConnection' = $SmoServer.ConnectionContext.SqlConnectionObject
+							'SqlConnection' = $SmoServerObject.ConnectionContext.SqlConnectionObject
 							'TableName' = [string]::Format('[{0}].[{1}]', $StatisticsSchemaName, $StatisticsTableName)
 							'DataTable' = $IndexPhysicalStats.Tables[0]
 						}
@@ -11219,7 +11213,7 @@ function Invoke-SqlInstanceIndexMaintenance {
 							$ErrorXml = ConvertTo-ErrorXML -ErrorObject $ErrorRecord
 
 							$SummaryItem = [ordered]@{
-								'SqlInstance' = $SmoServer.Name
+								'SqlInstance' = $SmoServerObject.Name
 								'DatabaseName' = $Database.Name
 							}
 
@@ -11247,7 +11241,7 @@ function Invoke-SqlInstanceIndexMaintenance {
 					$ErrorXml = ConvertTo-ErrorXML -ErrorObject $ErrorRecord
 
 					$SummaryItem = [ordered]@{
-						'SqlInstance' = $SmoServer.Name
+						'SqlInstance' = $SmoServerObject.Name
 					}
 
 					$EmailBody = Build-MailBody -Xml $ErrorXml -SummaryItem $SummaryItem
@@ -11263,7 +11257,7 @@ function Invoke-SqlInstanceIndexMaintenance {
 		}
 		finally {
 			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
-				Disconnect-SmoServer -SmoServerObject $SmoServer
+				Disconnect-SmoServer -SmoServerObject $SmoServerObject
 			}
 		}
 	}
@@ -11347,7 +11341,7 @@ function Invoke-SqlInstanceStatisticsMaintenance {
 			ParameterSetName = 'StaticThreshold-SmoServerObject'
 		)]
 		[ValidateRange(0, [int]::MaxValue)]
-		[int]$RowCountThreshold = 0,
+		[int]$RowCountThreshold,
 
 		[Parameter(
 			Mandatory = $true,
@@ -11362,7 +11356,7 @@ function Invoke-SqlInstanceStatisticsMaintenance {
 			ParameterSetName = 'StaticThreshold-SmoServerObject'
 		)]
 		[ValidateRange(0, [int]::MaxValue)]
-		[int]$ModificationCountThreshold = 0,
+		[int]$ModificationCountThreshold,
 
 		[Parameter(
 			Mandatory = $false,
@@ -11466,7 +11460,7 @@ function Invoke-SqlInstanceStatisticsMaintenance {
 		try {
 			$ServerInstanceArray = @('Default-ServerInstance', 'StaticThreshold-ServerInstance', 'StatisticsSample-ServerInstance')
 			$DynamicSetArray = @('Default-ServerInstance', 'Default-SmoServerObject', 'StatisticsSample-ServerInstance', 'StatisticsSample-SmoServerObject')
-			$StaticSetArray = @('StaticThreshold-ServerInstance', 'StaticThreshold-SmoServerObject', 'SampleStaticThreshold-SmoServerObject')
+			$StaticSetArray = @('StaticThreshold-ServerInstance', 'StaticThreshold-SmoServerObject', 'SampleStaticThreshold-ServerInstance', 'SampleStaticThreshold-SmoServerObject')
 
 			if ($PSCmdlet.ParameterSetName -in $ServerInstanceArray) {
 				$SmoServerParameters = @{
@@ -11475,12 +11469,10 @@ function Invoke-SqlInstanceStatisticsMaintenance {
 					'StatementTimeout' = 0
 				}
 
-				$SmoServer = Connect-SmoServer @SmoServerParameters
-			} else {
-				$SmoServer = $SmoServerObject
+				$SmoServerObject = Connect-SmoServer @SmoServerParameters
 			}
 
-			$SmoServer.Databases.Refresh()
+			$SmoServerObject.Databases.Refresh()
 
 			if ($PSBoundParameters.ContainsKey('StatisticsSample')) {
 				$StatisticsSample = $PSBoundParameters['StatisticsSample']
@@ -11493,15 +11485,23 @@ function Invoke-SqlInstanceStatisticsMaintenance {
 			if ($PSCmdlet.ParameterSetName -in $DynamicSetArray) {
 				$RowCountThreshold = 1024
 				$ModificationCountThreshold = 0
+			} else {
+				if (-not $PSBoundParameters.ContainsKey('RowCountThreshold')) {
+					$RowCountThreshold = 0
+				}
+
+				if (-not $PSBoundParameters.ContainsKey('ModificationCountThreshold')) {
+					$ModificationCountThreshold = 0
+				}
 			}
 		}
 		catch {
 			$ErrorRecord = $_
 
 			if ($PSCmdlet.ParameterSetName -in $ServerInstanceArray) {
-				if (Test-Path -Path Variable:\SmoServer) {
-					if ($SmoServer -is [Microsoft.SqlServer.Management.Smo.Server]) {
-						Disconnect-SmoServer -SmoServerObject $SmoServer
+				if (Test-Path -Path Variable:\SmoServerObject) {
+					if ($SmoServerObject -is [Microsoft.SqlServer.Management.Smo.Server]) {
+						Disconnect-SmoServer -SmoServerObject $SmoServerObject
 					}
 				}
 			}
@@ -11525,7 +11525,7 @@ function Invoke-SqlInstanceStatisticsMaintenance {
 						}
 					} else {
 						$SummaryItem = [ordered]@{
-							'SqlInstance' = $SmoServer.Name
+							'SqlInstance' = $SmoServerObject.Name
 						}
 					}
 
@@ -11559,6 +11559,14 @@ function Invoke-SqlInstanceStatisticsMaintenance {
 			INNER JOIN sys.schemas ss ON o.schema_id = ss.schema_id
 			INNER JOIN sys.stats st ON st.object_id = o.object_id
 			CROSS APPLY sys.dm_db_stats_properties(st.object_id, st.stats_id) sp
+			OUTER APPLY (
+				SELECT type_desc
+				FROM sys.indexes
+				WHERE object_id = o.object_id
+					AND name = st.[name]
+			) i
+			WHERE i.type_desc IS NULL
+				OR i.type_desc NOT IN ('CLUSTERED COLUMNSTORE', 'NONCLUSTERED COLUMNSTORE', 'NONCLUSTERED HASH')
 			ORDER BY ss.[name]
 			,	o.[name]
 			,	st.[name];"
@@ -11616,14 +11624,14 @@ function Invoke-SqlInstanceStatisticsMaintenance {
 	process {
 		try {
 			if ($PSBoundParameters.ContainsKey('DatabaseName')) {
-				$Databases = $SmoServer.Databases.where({$_.Name -in $DatabaseName})
+				$Databases = $SmoServerObject.Databases.where({$_.Name -in $DatabaseName})
 			} else {
-				$Databases = $SmoServer.Databases
+				$Databases = $SmoServerObject.Databases
 			}
 
 			$Databases = $Databases.where({$_.Status -eq 'Normal' -and $_.ReadOnly -eq $false -and $_.IsUpdateable -eq $true -and $_.Name -ne 'tempdb'})
 
-			if ($SmoServer.IsHadrEnabled) {
+			if ($SmoServerObject.IsHadrEnabled) {
 				$Databases = $Databases.where({$_.IsAccessible -eq $true})
 			}
 
@@ -11688,7 +11696,7 @@ function Invoke-SqlInstanceStatisticsMaintenance {
 									$ErrorXml = ConvertTo-ErrorXML -ErrorObject $ErrorRecord
 
 									$SummaryItem = [ordered]@{
-										'SqlInstance' = $SmoServer.Name
+										'SqlInstance' = $SmoServerObject.Name
 										'DatabaseName' = $Database.Name
 										'TableName' = [string]::Format('[{0}].[{1}]', $Row.SchemaName, $Row.ObjectName)
 									}
@@ -11734,10 +11742,10 @@ function Invoke-SqlInstanceStatisticsMaintenance {
 					}
 
 					if ($PSCmdlet.ShouldProcess($Database.Name, 'Bulk Copy table statistics results')) {
-						$SmoServer.ConnectionContext.SqlConnectionObject.ChangeDatabase($StatisticsDatabaseName)
+						$SmoServerObject.ConnectionContext.SqlConnectionObject.ChangeDatabase($StatisticsDatabaseName)
 
 						$SqlClientBulkCopyParameters = @{
-							'SqlConnection' = $SmoServer.ConnectionContext.SqlConnectionObject
+							'SqlConnection' = $SmoServerObject.ConnectionContext.SqlConnectionObject
 							'TableName' = [string]::Format('[{0}].[{1}]', $StatisticsSchemaName, $StatisticsTableName)
 							'DataTable' = $StatisticsProperties.Tables[0]
 						}
@@ -11756,7 +11764,7 @@ function Invoke-SqlInstanceStatisticsMaintenance {
 							$ErrorXml = ConvertTo-ErrorXML -ErrorObject $ErrorRecord
 
 							$SummaryItem = [ordered]@{
-								'SqlInstance' = $SmoServer.Name
+								'SqlInstance' = $SmoServerObject.Name
 								'DatabaseName' = $Database.Name
 							}
 
@@ -11784,7 +11792,7 @@ function Invoke-SqlInstanceStatisticsMaintenance {
 					$ErrorXml = ConvertTo-ErrorXML -ErrorObject $ErrorRecord
 
 					$SummaryItem = [ordered]@{
-						'SqlInstance' = $SmoServer.Name
+						'SqlInstance' = $SmoServerObject.Name
 					}
 
 					$EmailBody = Build-MailBody -Xml $ErrorXml -SummaryItem $SummaryItem
@@ -11800,7 +11808,7 @@ function Invoke-SqlInstanceStatisticsMaintenance {
 		}
 		finally {
 			if ($PSCmdlet.ParameterSetName -in $ServerInstanceArray) {
-				Disconnect-SmoServer -SmoServerObject $SmoServer
+				Disconnect-SmoServer -SmoServerObject $SmoServerObject
 			}
 		}
 	}
@@ -12067,12 +12075,10 @@ function Move-SqlDatabaseTable {
 					'StatementTimeout' = 0
 				}
 
-				$SmoServer = Connect-SmoServer @SmoServerParameters
-			} else {
-				$SmoServer = $SmoServerObject
+				$SmoServerObject = Connect-SmoServer @SmoServerParameters
 			}
 
-			$DatabaseObject = Get-SmoDatabaseObject -SmoServerObject $SmoServer -DatabaseName $DatabaseName
+			$DatabaseObject = Get-SmoDatabaseObject -SmoServerObject $SmoServerObject -DatabaseName $DatabaseName
 
 			if ($DatabaseObject.FileGroups.Name -NotContains $FileGroupName) {
 				throw [System.Management.Automation.ErrorRecord]::New(
@@ -12085,9 +12091,9 @@ function Move-SqlDatabaseTable {
 		}
 		catch {
 			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
-				if (Test-Path -Path Variable:\SmoServer) {
-					if ($SmoServer -is [Microsoft.SqlServer.Management.Smo.Server]) {
-						Disconnect-SmoServer -SmoServerObject $SmoServer
+				if (Test-Path -Path Variable:\SmoServerObject) {
+					if ($SmoServerObject -is [Microsoft.SqlServer.Management.Smo.Server]) {
+						Disconnect-SmoServer -SmoServerObject $SmoServerObject
 					}
 				}
 			}
@@ -12213,7 +12219,7 @@ function Move-SqlDatabaseTable {
 			$DatabaseObject.Tables.Refresh()
 
 			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
-				Disconnect-SmoServer -SmoServerObject $SmoServer
+				Disconnect-SmoServer -SmoServerObject $SmoServerObject
 			}
 		}
 	}
@@ -12318,7 +12324,7 @@ function Read-SqlAgentAlert {
 						}
 					} else {
 						$SummaryItem = [ordered]@{
-							'SqlInstance' = $SmoServer.Name
+							'SqlInstance' = $SmoServerObject.Name
 						}
 					}
 
@@ -12643,7 +12649,7 @@ function Remove-DbStatistic {
 						}
 					} else {
 						$SummaryItem = [ordered]@{
-							'SqlInstance' = $SmoServer.Name
+							'SqlInstance' = $SmoServerObject.Name
 						}
 					}
 
@@ -12893,7 +12899,7 @@ function Remove-DbTest {
 						}
 					} else {
 						$SummaryItem = [ordered]@{
-							'SqlInstance' = $SmoServer.Name
+							'SqlInstance' = $SmoServerObject.Name
 						}
 					}
 
@@ -13473,7 +13479,7 @@ function Remove-SqlAgentAlertHistory {
 						}
 					} else {
 						$SummaryItem = [ordered]@{
-							'SqlInstance' = $SmoServer.Name
+							'SqlInstance' = $SmoServerObject.Name
 						}
 					}
 
@@ -13750,20 +13756,18 @@ function Remove-SqlDatabaseSnapshot {
 					'DatabaseName' = 'master'
 				}
 
-				$SmoServer = Connect-SmoServer @SmoServerParameters
-			} else {
-				$SmoServer = $SmoServerObject
+				$SmoServerObject = Connect-SmoServer @SmoServerParameters
 			}
 
-			$SmoServer.Databases.Refresh()
+			$SmoServerObject.Databases.Refresh()
 		}
 		catch {
 			$ErrorRecord = $_
 
 			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
-				if (Test-Path -Path Variable:\SmoServer) {
-					if ($SmoServer -is [Microsoft.SqlServer.Management.Smo.Server]) {
-						Disconnect-SmoServer -SmoServerObject $SmoServer
+				if (Test-Path -Path Variable:\SmoServerObject) {
+					if ($SmoServerObject -is [Microsoft.SqlServer.Management.Smo.Server]) {
+						Disconnect-SmoServer -SmoServerObject $SmoServerObject
 					}
 				}
 			}
@@ -13775,7 +13779,7 @@ function Remove-SqlDatabaseSnapshot {
 	process {
 		try {
 			foreach ($DatabaseSnapshot in $DatabaseSnapshotName) {
-				$Database = $SmoServer.Databases.Where({$_.Name -eq $DatabaseSnapshot -and $_.IsDatabaseSnapshot -eq $true})
+				$Database = $SmoServerObject.Databases.Where({$_.Name -eq $DatabaseSnapshot -and $_.IsDatabaseSnapshot -eq $true})
 
 				if ($Database.Count -eq 0) {
 					throw [System.Management.Automation.ErrorRecord]::New(
@@ -13796,7 +13800,7 @@ function Remove-SqlDatabaseSnapshot {
 		}
 		finally {
 			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
-				Disconnect-SmoServer -SmoServerObject $SmoServer
+				Disconnect-SmoServer -SmoServerObject $SmoServerObject
 			}
 		}
 	}
@@ -13865,15 +13869,13 @@ function Remove-SqlInstanceFileHistory {
 					'DatabaseName' = 'master'
 				}
 
-				$SmoServer = Connect-SmoServer @SmoServerParameters
-			} else {
-				$SmoServer = $SmoServerObject
+				$SmoServerObject = Connect-SmoServer @SmoServerParameters
 			}
 
-			$ErrorLogPath = $SmoServer.ErrorLogPath
+			$ErrorLogPath = $SmoServerObject.ErrorLogPath
 
 			if (-not $([System.Uri]$ErrorLogPath).IsUnc) {
-				if ([Environment]::MachineName -ne $SmoServer.NetName) {
+				if ([Environment]::MachineName -ne $SmoServerObject.NetName) {
 					throw [System.Management.Automation.ErrorRecord]::New(
 						[Exception]::New('Remote SQL instance not supported.'),
 						'1',
@@ -13909,7 +13911,7 @@ function Remove-SqlInstanceFileHistory {
 						}
 					} else {
 						$SummaryItem = [ordered]@{
-							'SqlInstance' = $SmoServer.Name
+							'SqlInstance' = $SmoServerObject.Name
 						}
 					}
 
@@ -13928,9 +13930,9 @@ function Remove-SqlInstanceFileHistory {
 		}
 		finally {
 			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
-				if (Test-Path -Path Variable:\SmoServer) {
-					if ($SmoServer -is [Microsoft.SqlServer.Management.Smo.Server]) {
-						Disconnect-SmoServer -SmoServerObject $SmoServer
+				if (Test-Path -Path Variable:\SmoServerObject) {
+					if ($SmoServerObject -is [Microsoft.SqlServer.Management.Smo.Server]) {
+						Disconnect-SmoServer -SmoServerObject $SmoServerObject
 					}
 				}
 			}
@@ -13993,7 +13995,7 @@ function Remove-SqlInstanceFileHistory {
 					$ErrorXml = ConvertTo-ErrorXML -ErrorObject $ErrorRecord
 
 					$SummaryItem = [ordered]@{
-						'SqlInstance' = $SmoServer.Name
+						'SqlInstance' = $SmoServerObject.Name
 					}
 
 					$EmailBody = Build-MailBody -Xml $ErrorXml -SummaryItem $SummaryItem
@@ -14107,7 +14109,7 @@ function Remove-SqlInstanceHistory {
 						}
 					} else {
 						$SummaryItem = [ordered]@{
-							'SqlInstance' = $SmoServer.Name
+							'SqlInstance' = $SmoServerObject.Name
 						}
 					}
 
@@ -14375,12 +14377,10 @@ function Resize-DatabaseLogicalFile {
 					'StatementTimeout' = 0
 				}
 
-				$SmoServer = Connect-SmoServer @SmoServerParameters
-			} else {
-				$SmoServer = $SmoServerObject
+				$SmoServerObject = Connect-SmoServer @SmoServerParameters
 			}
 
-			$SmoDatabaseObject = Get-SmoDatabaseObject -SmoServerObject $SmoServer -DatabaseName $DatabaseName
+			$SmoDatabaseObject = Get-SmoDatabaseObject -SmoServerObject $SmoServerObject -DatabaseName $DatabaseName
 
 			if ($SmoDatabaseObject.Status -ne 'Normal') {
 				throw [System.Management.Automation.ErrorRecord]::New(
@@ -14412,8 +14412,8 @@ function Resize-DatabaseLogicalFile {
 		catch {
 			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
 				if (Test-Path -Path Variable:\SmoDatabaseObject) {
-					if ($SmoServer -is [Microsoft.SqlServer.Management.Smo.Server]) {
-						Disconnect-SmoServer -SmoServerObject $SmoServer
+					if ($SmoServerObject -is [Microsoft.SqlServer.Management.Smo.Server]) {
+						Disconnect-SmoServer -SmoServerObject $SmoServerObject
 					}
 				}
 			}
@@ -14482,7 +14482,7 @@ function Resize-DatabaseLogicalFile {
 		}
 		finally {
 			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
-				Disconnect-SmoServer -SmoServerObject $SmoServer
+				Disconnect-SmoServer -SmoServerObject $SmoServerObject
 			}
 		}
 	}
@@ -14568,12 +14568,10 @@ function Resize-DatabaseTransactionLog {
 					'DatabaseName' = 'master'
 				}
 
-				$SmoServer = Connect-SmoServer @SmoServerParameters
-			} else {
-				$SmoServer = $SmoServerObject
+				$SmoServerObject = Connect-SmoServer @SmoServerParameters
 			}
 
-			$SmoDatabaseObject = Get-SmoDatabaseObject -SmoServerObject $SmoServer -DatabaseName $DatabaseName
+			$SmoDatabaseObject = Get-SmoDatabaseObject -SmoServerObject $SmoServerObject -DatabaseName $DatabaseName
 
 			if ($SmoDatabaseObject.Status -ne 'Normal') {
 				throw [System.Management.Automation.ErrorRecord]::New(
@@ -14614,8 +14612,8 @@ function Resize-DatabaseTransactionLog {
 		catch {
 			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
 				if (Test-Path -Path Variable:\SmoDatabaseObject) {
-					if ($SmoServer -is [Microsoft.SqlServer.Management.Smo.Server]) {
-						Disconnect-SmoServer -SmoServerObject $SmoServer
+					if ($SmoServerObject -is [Microsoft.SqlServer.Management.Smo.Server]) {
+						Disconnect-SmoServer -SmoServerObject $SmoServerObject
 					}
 				}
 			}
@@ -14638,7 +14636,7 @@ function Resize-DatabaseTransactionLog {
 				}
 
 				{$_ -gt $LogFileSize} {
-					$DatabaseTransactionLogInfo = Get-DatabaseTransactionLogInfo -SqlConnection $SmoServer.ConnectionContext.SqlConnectionObject -DatabaseName $DatabaseName
+					$DatabaseTransactionLogInfo = Get-DatabaseTransactionLogInfo -SqlConnection $SmoServerObject.ConnectionContext.SqlConnectionObject -DatabaseName $DatabaseName
 
 					$VLFSizes = $DatabaseTransactionLogInfo | Select-Object VlfCreateLsn, @{N='RunningSizeMB';E={[Math]::Ceiling($_.RunningSizeMB)}}
 
@@ -14740,7 +14738,7 @@ function Resize-DatabaseTransactionLog {
 		}
 		finally {
 			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
-				Disconnect-SmoServer -SmoServerObject $SmoServer
+				Disconnect-SmoServer -SmoServerObject $SmoServerObject
 			}
 		}
 	}
@@ -14803,16 +14801,14 @@ function Restore-SqlDatabaseSnapshot {
 					'DatabaseName' = 'master'
 				}
 
-				$SmoServer = Connect-SmoServer @SmoServerParameters
-			} else {
-				$SmoServer = $SmoServerObject
+				$SmoServerObject = Connect-SmoServer @SmoServerParameters
 			}
 		}
 		catch {
 			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
-				if (Test-Path -Path Variable:\SmoServer) {
-					if ($SmoServer -is [Microsoft.SqlServer.Management.Smo.Server]) {
-						Disconnect-SmoServer -SmoServerObject $SmoServer
+				if (Test-Path -Path Variable:\SmoServerObject) {
+					if ($SmoServerObject -is [Microsoft.SqlServer.Management.Smo.Server]) {
+						Disconnect-SmoServer -SmoServerObject $SmoServerObject
 					}
 				}
 			}
@@ -14827,7 +14823,7 @@ function Restore-SqlDatabaseSnapshot {
 
 	process {
 		try {
-			$Database = $SmoServer.Databases.where({$_.Name -eq $DatabaseSnapshotName -and $_.IsDatabaseSnapshot -eq $true})
+			$Database = $SmoServerObject.Databases.where({$_.Name -eq $DatabaseSnapshotName -and $_.IsDatabaseSnapshot -eq $true})
 
 			if ($Database.Count -eq 0) {
 				throw [System.Management.Automation.ErrorRecord]::New(
@@ -14838,7 +14834,7 @@ function Restore-SqlDatabaseSnapshot {
 				)
 			}
 
-			if ($SmoServer.Databases.where({$_.DatabaseSnapshotBaseName -eq $Database.DatabaseSnapshotBaseName}).Count -gt 1) {
+			if ($SmoServerObject.Databases.where({$_.DatabaseSnapshotBaseName -eq $Database.DatabaseSnapshotBaseName}).Count -gt 1) {
 				throw [System.Management.Automation.ErrorRecord]::New(
 					[System.ArgumentException]::New('Database contains multiple snapshots.'),
 					'1',
@@ -14850,9 +14846,9 @@ function Restore-SqlDatabaseSnapshot {
 			$RestoreSnapshotDDL = [string]::Format($DDLFormatString, $Database.DatabaseSnapshotBaseName, $DatabaseSnapshotName)
 
 			if ($PSCmdlet.ShouldProcess($DatabaseSnapshotName, 'Restore Database Snapshot')) {
-				[void]$(Invoke-SqlClientNonQuery -SqlConnection $SmoServer.ConnectionContext.SqlConnectionObject -SqlCommandText $RestoreSnapshotDDL -CommandTimeout 0)
+				[void]$(Invoke-SqlClientNonQuery -SqlConnection $SmoServerObject.ConnectionContext.SqlConnectionObject -SqlCommandText $RestoreSnapshotDDL -CommandTimeout 0)
 
-				Get-SqlDatabaseSnapshot -SmoServerObject $SmoServer -DatabaseSnapshotName $DatabaseSnapshotName
+				Get-SqlDatabaseSnapshot -SmoServerObject $SmoServerObject -DatabaseSnapshotName $DatabaseSnapshotName
 			}
 		}
 		catch {
@@ -14860,7 +14856,7 @@ function Restore-SqlDatabaseSnapshot {
 		}
 		finally {
 			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
-				Disconnect-SmoServer -SmoServerObject $SmoServer
+				Disconnect-SmoServer -SmoServerObject $SmoServerObject
 			}
 		}
 	}
@@ -14923,12 +14919,10 @@ function Save-SqlInstanceDatabaseStatistic {
 					'DatabaseName' = 'master'
 				}
 
-				$SmoServer = Connect-SmoServer @SmoServerParameters
-			} else {
-				$SmoServer = $SmoServerObject
+				$SmoServerObject = Connect-SmoServer @SmoServerParameters
 			}
 
-			$SmoServer.Databases.Refresh()
+			$SmoServerObject.Databases.Refresh()
 
 			$StatisticsDatabaseName = $Script:PSMConfig.Config.AdminDatabase.DatabaseName
 			$StatisticsSchemaName = $Script:PSMConfig.Config.AdminDatabase.Statistics.Database.SchemaName
@@ -14938,9 +14932,9 @@ function Save-SqlInstanceDatabaseStatistic {
 			$ErrorRecord = $_
 
 			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
-				if (Test-Path -Path Variable:\SmoServer) {
-					if ($SmoServer -is [Microsoft.SqlServer.Management.Smo.Server]) {
-						Disconnect-SmoServer -SmoServerObject $SmoServer
+				if (Test-Path -Path Variable:\SmoServerObject) {
+					if ($SmoServerObject -is [Microsoft.SqlServer.Management.Smo.Server]) {
+						Disconnect-SmoServer -SmoServerObject $SmoServerObject
 					}
 				}
 			}
@@ -14964,7 +14958,7 @@ function Save-SqlInstanceDatabaseStatistic {
 						}
 					} else {
 						$SummaryItem = [ordered]@{
-							'SqlInstance' = $SmoServer.Name
+							'SqlInstance' = $SmoServerObject.Name
 						}
 					}
 
@@ -15003,9 +14997,9 @@ function Save-SqlInstanceDatabaseStatistic {
 	process {
 		try {
 			if ($PSBoundParameters.ContainsKey('DatabaseName')) {
-				$Databases = $SmoServer.Databases.where({$_.Name -in $DatabaseName})
+				$Databases = $SmoServerObject.Databases.where({$_.Name -in $DatabaseName})
 			} else {
-				$Databases = $SmoServer.Databases
+				$Databases = $SmoServerObject.Databases
 			}
 
 			$Databases = $Databases.where({$_.IsAccessible -and $_.Status -NotIn 'Offline', 'Offline, AutoClosed', 'Restoring'})
@@ -15056,10 +15050,10 @@ function Save-SqlInstanceDatabaseStatistic {
 					$DataTable.Rows.Add($NewRow)
 				}
 
-				$SmoServer.ConnectionContext.SqlConnectionObject.ChangeDatabase($StatisticsDatabaseName)
+				$SmoServerObject.ConnectionContext.SqlConnectionObject.ChangeDatabase($StatisticsDatabaseName)
 
 				$SqlClientBulkCopyParameters = @{
-					'SqlConnection' = $SmoServer.ConnectionContext.SqlConnectionObject
+					'SqlConnection' = $SmoServerObject.ConnectionContext.SqlConnectionObject
 					'TableName' = [string]::Format('[{0}].[{1}]', $StatisticsSchemaName, $StatisticsTableName)
 					'DataTable' = $DataTable
 				}
@@ -15078,7 +15072,7 @@ function Save-SqlInstanceDatabaseStatistic {
 					$ErrorXml = ConvertTo-ErrorXML -ErrorObject $ErrorRecord
 
 					$SummaryItem = [ordered]@{
-						'SqlInstance' = $SmoServer.Name
+						'SqlInstance' = $SmoServerObject.Name
 					}
 
 					if ($PSBoundParameters.ContainsKey('DatabaseName')) {
@@ -15102,7 +15096,7 @@ function Save-SqlInstanceDatabaseStatistic {
 			}
 
 			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
-				Disconnect-SmoServer -SmoServerObject $SmoServer
+				Disconnect-SmoServer -SmoServerObject $SmoServerObject
 			}
 		}
 	}
@@ -15165,12 +15159,10 @@ function Save-SqlInstanceQueryStoreOption {
 					'DatabaseName' = 'master'
 				}
 
-				$SmoServer = Connect-SmoServer @SmoServerParameters
-			} else {
-				$SmoServer = $SmoServerObject
+				$SmoServerObject = Connect-SmoServer @SmoServerParameters
 			}
 
-			$SmoServer.Databases.Refresh()
+			$SmoServerObject.Databases.Refresh()
 
 			$StatisticsDatabaseName = $Script:PSMConfig.Config.AdminDatabase.DatabaseName
 			$StatisticsSchemaName = $Script:PSMConfig.Config.AdminDatabase.Statistics.QueryStore.SchemaName
@@ -15180,9 +15172,9 @@ function Save-SqlInstanceQueryStoreOption {
 			$ErrorRecord = $_
 
 			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
-				if (Test-Path -Path Variable:\SmoServer) {
-					if ($SmoServer -is [Microsoft.SqlServer.Management.Smo.Server]) {
-						Disconnect-SmoServer -SmoServerObject $SmoServer
+				if (Test-Path -Path Variable:\SmoServerObject) {
+					if ($SmoServerObject -is [Microsoft.SqlServer.Management.Smo.Server]) {
+						Disconnect-SmoServer -SmoServerObject $SmoServerObject
 					}
 				}
 			}
@@ -15206,7 +15198,7 @@ function Save-SqlInstanceQueryStoreOption {
 						}
 					} else {
 						$SummaryItem = [ordered]@{
-							'SqlInstance' = $SmoServer.Name
+							'SqlInstance' = $SmoServerObject.Name
 						}
 					}
 
@@ -15251,9 +15243,9 @@ function Save-SqlInstanceQueryStoreOption {
 	process {
 		try {
 			if ($PSBoundParameters.ContainsKey('DatabaseName')) {
-				$Databases = $SmoServer.Databases.where({$_.Name -in $DatabaseName})
+				$Databases = $SmoServerObject.Databases.where({$_.Name -in $DatabaseName})
 			} else {
-				$Databases = $SmoServer.Databases
+				$Databases = $SmoServerObject.Databases
 			}
 
 			$Databases = $Databases.where({$_.IsAccessible -and $_.Name -NotIn 'master', 'tempdb'})
@@ -15293,10 +15285,10 @@ function Save-SqlInstanceQueryStoreOption {
 					$DataTable.Rows.Add($NewRow)
 				}
 
-				$SmoServer.ConnectionContext.SqlConnectionObject.ChangeDatabase($StatisticsDatabaseName)
+				$SmoServerObject.ConnectionContext.SqlConnectionObject.ChangeDatabase($StatisticsDatabaseName)
 
 				$SqlClientBulkCopyParameters = @{
-					'SqlConnection' = $SmoServer.ConnectionContext.SqlConnectionObject
+					'SqlConnection' = $SmoServerObject.ConnectionContext.SqlConnectionObject
 					'TableName' = [string]::Format('[{0}].[{1}]', $StatisticsSchemaName, $StatisticsTableName)
 					'DataTable' = $DataTable
 				}
@@ -15315,7 +15307,7 @@ function Save-SqlInstanceQueryStoreOption {
 					$ErrorXml = ConvertTo-ErrorXML -ErrorObject $ErrorRecord
 
 					$SummaryItem = [ordered]@{
-						'SqlInstance' = $SmoServer.Name
+						'SqlInstance' = $SmoServerObject.Name
 					}
 
 					if ($PSBoundParameters.ContainsKey('DatabaseName')) {
@@ -15339,7 +15331,7 @@ function Save-SqlInstanceQueryStoreOption {
 			}
 
 			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
-				Disconnect-SmoServer -SmoServerObject $SmoServer
+				Disconnect-SmoServer -SmoServerObject $SmoServerObject
 			}
 		}
 	}
@@ -16123,11 +16115,9 @@ function Set-SqlServerMaintenanceConfiguration {
 					}
 
 					if ($PSBoundParameters.ContainsKey('RecipientAddress')) {
-						$ChildNodes = $Script:PSMConfig.SelectNodes('//Config/EmailNotification/Recipients/Recipient')
+						$XmlNode = $Script:PSMConfig.SelectNodes('//Config/EmailNotification/Recipients')
 
-						foreach($ChildNode in $ChildNodes){
-							[void]$ChildNode.ParentNode.RemoveChild($ChildNode)
-						}
+						$XmlNode.RemoveAll()
 
 						foreach ($Recipient in $PSBoundParameters['RecipientAddress']) {
 							$Element = $Script:PSMConfig.CreateElement('Recipient')
@@ -16263,18 +16253,16 @@ function Switch-SqlInstanceTDECertificate {
 					'DatabaseName' = 'master'
 				}
 
-				$SmoServer = Connect-SmoServer @SmoServerParameters
-			} else {
-				$SmoServer = $SmoServerObject
+				$SmoServerObject = Connect-SmoServer @SmoServerParameters
 			}
 
 			$AGReplicaList = [System.Collections.Generic.List[string]]::New()
 
-			if (-not [string]::IsNullOrEmpty($SmoServer.ClusterName)) {
-				$AGReplicaList.AddRange([string[]]$($SmoServer.AvailabilityGroups.Where({$_.IsDistributedAvailabilityGroup -eq $false}).AvailabilityReplicas.Name | Select-Object -Unique))
+			if (-not [string]::IsNullOrEmpty($SmoServerObject.ClusterName)) {
+				$AGReplicaList.AddRange([string[]]$($SmoServerObject.AvailabilityGroups.Where({$_.IsDistributedAvailabilityGroup -eq $false}).AvailabilityReplicas.Name | Select-Object -Unique))
 			}
 
-			$DatabaseObject = Get-SmoDatabaseObject -SmoServerObject $SmoServer -DatabaseName 'master'
+			$DatabaseObject = Get-SmoDatabaseObject -SmoServerObject $SmoServerObject -DatabaseName 'master'
 
 			if ($PSBoundParameters.ContainsKey('CertificateName')) {
 				$Certificate = Get-SmoDatabaseCertificate -DatabaseObject $DatabaseObject -CertificateName $CertificateName
@@ -16293,10 +16281,10 @@ function Switch-SqlInstanceTDECertificate {
 				if ($Certificates.Count -eq 0) {
 					$Timestamp = $(Get-Date).ToUniversalTime().ToString('yyyyMMddHHmmss')
 
-					if ([string]::IsNullOrEmpty($SmoServer.ClusterName)) {
-						$CertificateName = [string]::Format('TDE_{0}_{1}', $SmoServer.NetName, $Timestamp)
+					if ([string]::IsNullOrEmpty($SmoServerObject.ClusterName)) {
+						$CertificateName = [string]::Format('TDE_{0}_{1}', $SmoServerObject.NetName, $Timestamp)
 					} else {
-						$CertificateName = [string]::Format('TDE_{0}_{1}', $SmoServer.ClusterName, $Timestamp)
+						$CertificateName = [string]::Format('TDE_{0}_{1}', $SmoServerObject.ClusterName, $Timestamp)
 					}
 
 					$Certificate = $null
@@ -16307,7 +16295,7 @@ function Switch-SqlInstanceTDECertificate {
 				}
 			}
 
-			$SmoServer.Databases.Refresh()
+			$SmoServerObject.Databases.Refresh()
 		}
 		catch {
 			throw $_
@@ -16317,14 +16305,14 @@ function Switch-SqlInstanceTDECertificate {
 	process {
 		try {
 			if ($PSBoundParameters.ContainsKey('DatabaseName')) {
-				$Databases = $SmoServer.Databases.where({$_.Name -in $DatabaseName})
+				$Databases = $SmoServerObject.Databases.where({$_.Name -in $DatabaseName})
 			} else {
-				$Databases = $SmoServer.Databases
+				$Databases = $SmoServerObject.Databases
 			}
 
 			$Databases = $Databases.where({$_.Status -eq 'Normal' -and $_.ReadOnly -eq $false -and $_.IsUpdateable -eq $true -and $_.Name -ne 'tempdb' -and $null -ne $_.DatabaseEncryptionKey.EncryptorName})
 
-			if ($SmoServer.IsHadrEnabled) {
+			if ($SmoServerObject.IsHadrEnabled) {
 				$Databases = $Databases.where({$_.IsAccessible -eq $true})
 			}
 
@@ -16353,8 +16341,8 @@ function Switch-SqlInstanceTDECertificate {
 
 				$BaseFileName  = [string]::Format('{0}_{1}', $CertificateName, $(Get-Date).ToUniversalTime().ToString('yyyyMMddHHmmss'))
 
-				$CertificatePath = $(Join-Path2 -Path $SmoServer.BackupDirectory -ChildPath $([string]::Format('{0}.{1}', $BaseFileName, 'cer')))
-				$PrivateKeyPath = $(Join-Path2 -Path $SmoServer.BackupDirectory -ChildPath $([string]::Format('{0}.{1}', $BaseFileName, 'key')))
+				$CertificatePath = $(Join-Path2 -Path $SmoServerObject.BackupDirectory -ChildPath $([string]::Format('{0}.{1}', $BaseFileName, 'cer')))
+				$PrivateKeyPath = $(Join-Path2 -Path $SmoServerObject.BackupDirectory -ChildPath $([string]::Format('{0}.{1}', $BaseFileName, 'key')))
 
 				$PrivateKeyPassword = [RandomPassword]::Generate(32, 64, $true)
 
@@ -16370,7 +16358,7 @@ function Switch-SqlInstanceTDECertificate {
 					Export-SmoDatabaseCertificate @SmoDatabaseCertificateParameters
 				}
 
-				foreach ($AGReplica in $AGReplicaList.where({$_ -ne $SmoServer.NetName})) {
+				foreach ($AGReplica in $AGReplicaList.where({$_ -ne $SmoServerObject.NetName})) {
 					if ($null -ne $(Get-SmoDatabaseCertificate -ServerInstance $AGReplica -DatabaseName 'master' -CertificateName $CertificateName)) {
 						continue
 					}

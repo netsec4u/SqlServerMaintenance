@@ -4,7 +4,7 @@
 RootModule = 'SqlServerMaintenance.psm1'
 
 # Version number of this module.
-ModuleVersion = '2.7.0.1'
+ModuleVersion = '2.7.0.2'
 
 # Supported PSEditions
 CompatiblePSEditions = @('Core', 'Desktop')
