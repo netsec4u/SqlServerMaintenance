@@ -1054,11 +1054,11 @@ function Export-SecureString {
 				)
 			}
 
-			$X509Certificate2 = $X509Certificate2Collection[0]
+			$RSAPublicKey = [System.Security.Cryptography.X509Certificates.RSACertificateExtensions]::GetRSAPublicKey($X509Certificate2Collection[0])
 
 			$ByteArray = [System.Text.Encoding]::UTF8.GetBytes([System.Runtime.InteropServices.Marshal]::PtrToStringAuto([System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($Password)))
 
-			$EncryptedByteArray = $X509Certificate2.PublicKey.Key.Encrypt($ByteArray, [System.Security.Cryptography.RSAEncryptionPadding]::OaepSHA512)
+			$EncryptedByteArray = $RSAPublicKey.Encrypt($ByteArray, [System.Security.Cryptography.RSAEncryptionPadding]::OaepSHA512)
 
 			$Base64String = [Convert]::ToBase64String($EncryptedByteArray)
 
@@ -1614,9 +1614,10 @@ function Import-SecureString {
 				)
 			}
 
-			$X509Certificate2 = $X509Certificate2Collection[0]
-
-			if ($null -eq $X509Certificate2.PrivateKey) {
+			try {
+				$RSAPrivateKey = [System.Security.Cryptography.X509Certificates.RSACertificateExtensions]::GetRSAPrivateKey($X509Certificate2Collection[0])
+			}
+			catch {
 				throw [System.Management.Automation.ErrorRecord]::New(
 					[Exception]::New('Cannot open private key.  Ensure the certificate has an associated private key and that the current user context has permission to access the private key.'),
 					'1',
@@ -1629,7 +1630,7 @@ function Import-SecureString {
 
 			$SecureString = [SecureString]::New()
 
-			foreach ($Character in [System.Text.Encoding]::UTF8.GetString($X509Certificate2.PrivateKey.Decrypt($EncryptedByteArray, [System.Security.Cryptography.RSAEncryptionPadding]::OaepSHA512)).ToCharArray()) {
+			foreach ($Character in [System.Text.Encoding]::UTF8.GetString($RSAPrivateKey.Decrypt($EncryptedByteArray, [System.Security.Cryptography.RSAEncryptionPadding]::OaepSHA512)).ToCharArray()) {
 				$SecureString.AppendChar($Character)
 			}
 
@@ -11565,8 +11566,8 @@ function Invoke-SqlInstanceStatisticsMaintenance {
 				WHERE object_id = o.object_id
 					AND name = st.[name]
 			) i
-			WHERE i.type_desc IS NULL
-				OR i.type_desc NOT IN ('CLUSTERED COLUMNSTORE', 'NONCLUSTERED COLUMNSTORE', 'NONCLUSTERED HASH')
+			WHERE o.is_ms_shipped = 0
+				AND (i.type_desc IS NULL OR i.type_desc NOT IN ('CLUSTERED COLUMNSTORE', 'NONCLUSTERED COLUMNSTORE', 'NONCLUSTERED HASH'))
 			ORDER BY ss.[name]
 			,	o.[name]
 			,	st.[name];"
@@ -15732,13 +15733,13 @@ function Set-SqlServerMaintenanceConfiguration {
 
 				$AttributeCollection.Add($ParameterAttribute)
 
-				$ValidateSetAttribute = [System.Management.Automation.ValidateSetAttribute]::new('Annonymous', 'Basic')
+				$ValidateSetAttribute = [System.Management.Automation.ValidateSetAttribute]::new('Anonymous', 'Basic')
 
 				$AttributeCollection.Add($ValidateSetAttribute)
 
 				$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string], $AttributeCollection)
 
-				$RuntimeDefinedParameter.Value = 'Annonymous'
+				$RuntimeDefinedParameter.Value = 'Anonymous'
 
 				$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
 				#EndRegion
@@ -16065,9 +16066,9 @@ function Set-SqlServerMaintenanceConfiguration {
 		try {
 			$NetworkParameterSetNames = @('Network', 'Network-Credential')
 
-			if ($PSBoundParameters['SmtpAuthenticationMethod'] -eq 'Annonymous' -and $PSCmdlet.ParameterSetName -eq 'Network-Credential') {
+			if ($PSBoundParameters['SmtpAuthenticationMethod'] -eq 'Anonymous' -and $PSCmdlet.ParameterSetName -eq 'Network-Credential') {
 				throw [System.Management.Automation.ErrorRecord]::New(
-					[Exception]::New('SmtpAuthenticationMethod cannot be Annonymous when using SmtpCredential and Thumbprint parameters.'),
+					[Exception]::New('SmtpAuthenticationMethod cannot be Anonymous when using SmtpCredential and Thumbprint parameters.'),
 					'3',
 					[System.Management.Automation.ErrorCategory]::InvalidArgument,
 					$PSBoundParameters['SmtpAuthenticationMethod']
@@ -16102,7 +16103,7 @@ function Set-SqlServerMaintenanceConfiguration {
 							$Script:PSMConfig.Config.SMTPSettings.Network.SmtpAuthentication.SmtpPassword.EncryptedBase64String = Export-SecureString -Password $PSBoundParameters['SmtpCredential'].Password -Thumbprint $PSBoundParameters['Thumbprint']
 							$Script:PSMConfig.Config.SMTPSettings.Network.SmtpAuthentication.SmtpPassword.Thumbprint = $PSBoundParameters['Thumbprint']
 						} else {
-							$Script:PSMConfig.Config.SMTPSettings.Network.SmtpAuthentication.Method = 'Annonymous'
+							$Script:PSMConfig.Config.SMTPSettings.Network.SmtpAuthentication.Method = 'Anonymous'
 						}
 					} else {
 						$Script:PSMConfig.Config.SMTPSettings.SmtpDeliveryMethod = $PSCmdlet.ParameterSetName
