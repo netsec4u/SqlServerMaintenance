@@ -4,7 +4,7 @@
 RootModule = 'SqlServerMaintenance.psm1'
 
 # Version number of this module.
-ModuleVersion = '2.7.0.3'
+ModuleVersion = '2.7.1.0'
 
 # Supported PSEditions
 CompatiblePSEditions = @('Core', 'Desktop')
@@ -190,7 +190,7 @@ PrivateData = @{
 	} # End of PSData hashtable
 
 	DefaultConfiguration = '<Config>
-		<Version>2.0.0</Version>
+		<Version>2.1.0</Version>
 		<SmtpSettings SmtpDeliveryMethod="SpecifiedPickupDirectory">
 			<PickupDirectory Path="C:\ProgramData\PowerShell\SQLServerMaintenance\Email\" />
 			<Network>
@@ -199,7 +199,7 @@ PrivateData = @{
 				<UseTls>True</UseTls>
 				<SmtpAuthentication Method="Basic">
 					<SmtpUsername>username</SmtpUsername>
-					<SmtpPassword EncryptedBase64String="EncryptedBase64String" Thumbprint="Thumbprint" />
+					<SmtpPassword EncryptedBase64String="EncryptedBase64String" Thumbprint="Thumbprint" CertificatePath="CertificatePath" KeyPath="KeyPath" />
 				</SmtpAuthentication>
 			</Network>
 		</SmtpSettings>

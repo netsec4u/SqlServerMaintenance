@@ -999,9 +999,18 @@ function Export-SecureString {
 	The secure string to export.
 	.PARAMETER Thumbprint
 	The thumbprint of the X509 certificate to use for encryption. The certificate must be in the local machine's personal certificate store (Cert:\LocalMachine\My).
+	.PARAMETER CertificatePath
+	The file path of the X509 certificate to use for encryption in PEM format.
+	.PARAMETER KeyPath
+	The file path of the private key corresponding to the X509 certificate in PEM format.
 	.EXAMPLE
 	$Password = Read-Host -Prompt 'Enter password' -AsSecureString
 	Export-SecureString -Password $Password -Thumbprint '1234567890abcdef1234567890abcdef12345678'
+
+	Exports the secure string in $Password as an encrypted base64 string using the specified certificate's public key for encryption.
+	.EXAMPLE
+	$Password = Read-Host -Prompt 'Enter password' -AsSecureString
+	Export-SecureString -Password $Password -CertificatePath 'C:\path\to\certificate.pem' -KeyPath 'C:\path\to\privatekey.key'
 
 	Exports the secure string in $Password as an encrypted base64 string using the specified certificate's public key for encryption.
 	.NOTES
@@ -1012,7 +1021,8 @@ function Export-SecureString {
 	[CmdletBinding(
 		PositionalBinding = $false,
 		SupportsShouldProcess = $false,
-		ConfirmImpact = 'low'
+		ConfirmImpact = 'low',
+		DefaultParameterSetName = 'ByThumbprint'
 	)]
 
 	[OutputType([System.String])]
@@ -1028,10 +1038,27 @@ function Export-SecureString {
 		[Parameter(
 			Mandatory = $true,
 			ValueFromPipeline = $false,
-			ValueFromPipelineByPropertyName = $false
+			ValueFromPipelineByPropertyName = $false,
+			ParameterSetName = 'ByThumbprint'
 		)]
 		[ValidateNotNullOrEmpty()]
-		[System.String]$Thumbprint
+		[System.String]$Thumbprint,
+
+		[Parameter(
+			Mandatory = $true,
+			ValueFromPipeline = $false,
+			ValueFromPipelineByPropertyName = $false,
+			ParameterSetName = 'ByPath'
+		)]
+		[string]$CertificatePath,
+
+		[Parameter(
+			Mandatory = $true,
+			ValueFromPipeline = $false,
+			ValueFromPipelineByPropertyName = $false,
+			ParameterSetName = 'ByPath'
+		)]
+		[string]$KeyPath
 	)
 
 	begin {
@@ -1039,22 +1066,42 @@ function Export-SecureString {
 
 	process {
 		try {
-			$X509Store = [System.Security.Cryptography.X509Certificates.X509Store]::New([System.Security.Cryptography.X509Certificates.StoreName]::My, [System.Security.Cryptography.X509Certificates.StoreLocation]::LocalMachine)
+			switch ($PSCmdlet.ParameterSetName) {
+				'ByPath' {
+					$X509Certificate = [System.Security.Cryptography.X509Certificates.X509Certificate2]::CreateFromPemFile($CertificatePath, $KeyPath)
+				}
+				'ByThumbprint' {
+					$StoreName = [System.Security.Cryptography.X509Certificates.StoreName]::My
+					$StoreLocation = [System.Security.Cryptography.X509Certificates.StoreLocation]::LocalMachine
 
-			$X509Store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadOnly)
+					$X509Store = [System.Security.Cryptography.X509Certificates.X509Store]::New($StoreName, $StoreLocation)
 
-			$X509Certificate2Collection = $X509Store.Certificates.Find([System.Security.Cryptography.X509Certificates.X509FindType]::FindByThumbprint, $Thumbprint, $true)
+					$X509Store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadOnly)
 
-			if ($X509Certificate2Collection.Count -eq 0) {
-				throw [System.Management.Automation.ErrorRecord]::New(
-					[Exception]::New('Unable to find valid certificate.'),
-					'1',
-					[System.Management.Automation.ErrorCategory]::OpenError,
-					$Thumbprint
-				)
+					$X509Certificate2Collection = $X509Store.Certificates.Find([System.Security.Cryptography.X509Certificates.X509FindType]::FindByThumbprint, $Thumbprint, $true)
+
+					if ($X509Certificate2Collection.Count -eq 0) {
+						throw [System.Management.Automation.ErrorRecord]::New(
+							[Exception]::New('Unable to find valid certificate.'),
+							'1',
+							[System.Management.Automation.ErrorCategory]::OpenError,
+							$Thumbprint
+						)
+					}
+
+					$X509Certificate = $X509Certificate2Collection[0]
+				}
+				Default {
+					throw [System.Management.Automation.ErrorRecord]::New(
+						[Exception]::New('An unexpected error has occurred.'),
+						'1',
+						[System.Management.Automation.ErrorCategory]::InvalidOperation,
+						$PSCmdlet.ParameterSetName
+					)
+				}
 			}
 
-			$RSAPublicKey = [System.Security.Cryptography.X509Certificates.RSACertificateExtensions]::GetRSAPublicKey($X509Certificate2Collection[0])
+			$RSAPublicKey = [System.Security.Cryptography.X509Certificates.RSACertificateExtensions]::GetRSAPublicKey($X509Certificate)
 
 			$ByteArray = [System.Text.Encoding]::UTF8.GetBytes([System.Runtime.InteropServices.Marshal]::PtrToStringAuto([System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($Password)))
 
@@ -1068,8 +1115,10 @@ function Export-SecureString {
 			throw $_
 		}
 		finally {
-			$X509Store.Close()
-			$X509Store.Dispose()
+			if ($PSCmdlet.ParameterSetName -eq 'ByThumbprint') {
+				$X509Store.Close()
+				$X509Store.Dispose()
+			}
 		}
 	}
 
@@ -1558,9 +1607,18 @@ function Import-SecureString {
 	The encrypted base64 string to import.
 	.PARAMETER Thumbprint
 	The thumbprint of the X509 certificate to use for decryption. The certificate must be in the local machine's personal certificate store (Cert:\LocalMachine\My).
+	.PARAMETER CertificatePath
+	The file path of the X509 certificate to use for decryption in PEM format.
+	.PARAMETER KeyPath
+	The file path of the private key corresponding to the X509 certificate in PEM format.
 	.EXAMPLE
 	$EncryptedBase64String = 'Base64StringHere'
 	Import-SecureString -EncryptedBase64String $EncryptedBase64String -Thumbprint '1234567890abcdef1234567890abcdef12345678'
+
+	Imports the encrypted base64 string in $EncryptedBase64String as a secure string using the specified certificate's private key for decryption.
+	.EXAMPLE
+	$EncryptedBase64String = 'Base64StringHere'
+	Import-SecureString -EncryptedBase64String $EncryptedBase64String -CertificatePath 'C:\path\to\certificate.pem' -KeyPath 'C:\path\to\privatekey.key'
 
 	Imports the encrypted base64 string in $EncryptedBase64String as a secure string using the specified certificate's private key for decryption.
 	.NOTES
@@ -1571,7 +1629,8 @@ function Import-SecureString {
 	[CmdletBinding(
 		PositionalBinding = $false,
 		SupportsShouldProcess = $false,
-		ConfirmImpact = 'low'
+		ConfirmImpact = 'low',
+		DefaultParameterSetName = 'ByThumbprint'
 	)]
 
 	[OutputType([SecureString])]
@@ -1588,10 +1647,27 @@ function Import-SecureString {
 		[Parameter(
 			Mandatory = $true,
 			ValueFromPipeline = $false,
-			ValueFromPipelineByPropertyName = $false
+			ValueFromPipelineByPropertyName = $false,
+			ParameterSetName = 'ByThumbprint'
 		)]
 		[ValidateNotNullOrEmpty()]
-		[System.String]$Thumbprint
+		[System.String]$Thumbprint,
+
+		[Parameter(
+			Mandatory = $true,
+			ValueFromPipeline = $false,
+			ValueFromPipelineByPropertyName = $false,
+			ParameterSetName = 'ByPath'
+		)]
+		[string]$CertificatePath,
+
+		[Parameter(
+			Mandatory = $true,
+			ValueFromPipeline = $false,
+			ValueFromPipelineByPropertyName = $false,
+			ParameterSetName = 'ByPath'
+		)]
+		[string]$KeyPath
 	)
 
 	begin {
@@ -1599,23 +1675,43 @@ function Import-SecureString {
 
 	process {
 		try {
-			$X509Store = [System.Security.Cryptography.X509Certificates.X509Store]::New([System.Security.Cryptography.X509Certificates.StoreName]::My, [System.Security.Cryptography.X509Certificates.StoreLocation]::LocalMachine)
+			switch ($PSCmdlet.ParameterSetName) {
+				'ByPath' {
+					$X509Certificate = [System.Security.Cryptography.X509Certificates.X509Certificate2]::CreateFromPemFile($CertificatePath, $KeyPath)
+				}
+				'ByThumbprint' {
+					$StoreName = [System.Security.Cryptography.X509Certificates.StoreName]::My
+					$StoreLocation = [System.Security.Cryptography.X509Certificates.StoreLocation]::LocalMachine
 
-			$X509Store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadOnly)
+					$X509Store = [System.Security.Cryptography.X509Certificates.X509Store]::New($StoreName, $StoreLocation)
 
-			$X509Certificate2Collection = $X509Store.Certificates.Find([System.Security.Cryptography.X509Certificates.X509FindType]::FindByThumbprint, $Thumbprint, $true)
+					$X509Store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadOnly)
 
-			if ($X509Certificate2Collection.Count -eq 0) {
-				throw [System.Management.Automation.ErrorRecord]::New(
-					[Exception]::New('Unable to find valid certificate.'),
-					'1',
-					[System.Management.Automation.ErrorCategory]::OpenError,
-					$Thumbprint
-				)
+					$X509Certificate2Collection = $X509Store.Certificates.Find([System.Security.Cryptography.X509Certificates.X509FindType]::FindByThumbprint, $Thumbprint, $true)
+
+					if ($X509Certificate2Collection.Count -eq 0) {
+						throw [System.Management.Automation.ErrorRecord]::New(
+							[Exception]::New('Unable to find valid certificate.'),
+							'1',
+							[System.Management.Automation.ErrorCategory]::OpenError,
+							$Thumbprint
+						)
+					}
+
+					$X509Certificate = $X509Certificate2Collection[0]
+				}
+				Default {
+					throw [System.Management.Automation.ErrorRecord]::New(
+						[Exception]::New('An unexpected error has occurred.'),
+						'1',
+						[System.Management.Automation.ErrorCategory]::InvalidOperation,
+						$PSCmdlet.ParameterSetName
+					)
+				}
 			}
 
 			try {
-				$RSAPrivateKey = [System.Security.Cryptography.X509Certificates.RSACertificateExtensions]::GetRSAPrivateKey($X509Certificate2Collection[0])
+				$RSAPrivateKey = [System.Security.Cryptography.X509Certificates.RSACertificateExtensions]::GetRSAPrivateKey($X509Certificate)
 			}
 			catch {
 				throw [System.Management.Automation.ErrorRecord]::New(
@@ -1640,8 +1736,10 @@ function Import-SecureString {
 			throw $_
 		}
 		finally {
-			$X509Store.Close()
-			$X509Store.Dispose()
+			if ($PSCmdlet.ParameterSetName -eq 'ByThumbprint') {
+				$X509Store.Close()
+				$X509Store.Dispose()
+			}
 		}
 	}
 
@@ -1786,7 +1884,20 @@ function Initialize-ModuleConfiguration {
 								# Do nothing.
 							}
 							'Basic' {
-								$SecureString = Import-SecureString -EncryptedBase64String $Script:PSMConfig.Config.SMTPSettings.Network.SmtpAuthentication.SmtpPassword.EncryptedBase64String -Thumbprint $Script:PSMConfig.Config.SMTPSettings.Network.SmtpAuthentication.SmtpPassword.Thumbprint
+								if ($PSVersionTable.PSEdition -eq 'Desktop' -or $PSVersionTable.Platform -eq 'Win32NT') {
+									$SecureStringParameters = @{
+										'EncryptedBase64String' = $Script:PSMConfig.Config.SMTPSettings.Network.SmtpAuthentication.SmtpPassword.EncryptedBase64String
+										'Thumbprint' = $Script:PSMConfig.Config.SMTPSettings.Network.SmtpAuthentication.SmtpPassword.Thumbprint
+									}
+								} else {
+									$SecureStringParameters = @{
+										'EncryptedBase64String' = $Script:PSMConfig.Config.SMTPSettings.Network.SmtpAuthentication.SmtpPassword.EncryptedBase64String
+										'CertificatePath' = $Script:PSMConfig.Config.SMTPSettings.Network.SmtpAuthentication.SmtpPassword.CertificatePath
+										'KeyPath' = $Script:PSMConfig.Config.SMTPSettings.Network.SmtpAuthentication.SmtpPassword.KeyPath
+									}
+								}
+
+								$SecureString = Import-SecureString @SecureStringParameters
 								$Credential = [System.Management.Automation.PSCredential]::New($Script:PSMConfig.Config.SMTPSettings.Network.SmtpAuthentication.SmtpUsername, $SecureString)
 
 								$Script:BaseMailMessageParameters.Add('Credential', $Credential)
@@ -2296,6 +2407,7 @@ function Update-PSMConfiguration {
 		$KnownVersions = @(
 			[version]'1.0.0'
 			[version]'2.0.0'
+			[version]'2.1.0'
 		)
 
 		if ([version]$Script:PSMConfig.Config.Version -notin $KnownVersions) {
@@ -2327,6 +2439,21 @@ function Update-PSMConfiguration {
 				$NewSmtpSettingsNode = $Script:PSMConfig.ImportNode($SmtpSettingsNode, $true)
 
 				[void]$Script:PSMConfig.Config.ReplaceChild($NewSmtpSettingsNode, $OldSmtpSettingsNode)
+			}
+
+			if ([version]$Script:PSMConfig.Config.Version -eq [version]'2.0.0') {
+				$Script:PSMConfig.Config.Version = '2.1.0'
+
+				$SmtpPasswordNode = $DefaultConfiguration.Config.SmtpSettings.Network.SmtpAuthentication.SmtpPassword
+
+				$SmtpPasswordNode.EncryptedBase64String = $Script:PSMConfig.Config.SMTPSettings.Network.SmtpAuthentication.SmtpPassword.EncryptedBase64String
+				$SmtpPasswordNode.Thumbprint = $Script:PSMConfig.Config.SMTPSettings.Network.SmtpAuthentication.SmtpPassword.Thumbprint
+
+				$OldSmtpPasswordNode = $Script:PSMConfig.SelectSingleNode('//Config/SmtpSettings/Network/SmtpAuthentication/SmtpPassword')
+
+				$NewSmtpPasswordNode = $Script:PSMConfig.ImportNode($SmtpPasswordNode, $true)
+
+				[void]$Script:PSMConfig.Config.SmtpSettings.Network.SmtpAuthentication.ReplaceChild($NewSmtpPasswordNode, $OldSmtpPasswordNode)
 			}
 
 			$XmlWriterSettings = [System.Xml.XmlWriterSettings]::new()
@@ -6494,21 +6621,41 @@ function Get-SqlServerMaintenanceConfiguration {
 			switch ($SettingName) {
 				'SMTPSettings' {
 					if ($Script:PSMConfig.Config.SmtpSettings.SmtpDeliveryMethod -eq 'Network') {
-						$Output = [PSCustomObject][ordered]@{
-							'SmtpDeliveryMethod' = $Script:PSMConfig.Config.SMTPSettings.SmtpDeliveryMethod
-							'SmtpServer' = $Script:PSMConfig.Config.SMTPSettings.Network.SmtpServer
-							'SmtpPort' = $Script:PSMConfig.Config.SMTPSettings.Network.SmtpPort
-							'UseTls' = $Script:PSMConfig.Config.SMTPSettings.Network.UseTls
-							'SmtpAuthenticationMethod' = $Script:PSMConfig.Config.SMTPSettings.Network.SmtpAuthentication.Method
-							SmtpUsername = $null
-							EncryptedBase64String = $null
-							Thumbprint = $null
+						if ($PSVersionTable.PSEdition -eq 'Core' -and $PSVersionTable.Platform -eq 'Unix') {
+							$Output = [PSCustomObject][ordered]@{
+								'SmtpDeliveryMethod' = $Script:PSMConfig.Config.SMTPSettings.SmtpDeliveryMethod
+								'SmtpServer' = $Script:PSMConfig.Config.SMTPSettings.Network.SmtpServer
+								'SmtpPort' = $Script:PSMConfig.Config.SMTPSettings.Network.SmtpPort
+								'UseTls' = $Script:PSMConfig.Config.SMTPSettings.Network.UseTls
+								'SmtpAuthenticationMethod' = $Script:PSMConfig.Config.SMTPSettings.Network.SmtpAuthentication.Method
+								SmtpUsername = $null
+								EncryptedBase64String = $null
+								CertificatePath = $null
+								KeyPath = $null
+							}
+						} else {
+							$Output = [PSCustomObject][ordered]@{
+								'SmtpDeliveryMethod' = $Script:PSMConfig.Config.SMTPSettings.SmtpDeliveryMethod
+								'SmtpServer' = $Script:PSMConfig.Config.SMTPSettings.Network.SmtpServer
+								'SmtpPort' = $Script:PSMConfig.Config.SMTPSettings.Network.SmtpPort
+								'UseTls' = $Script:PSMConfig.Config.SMTPSettings.Network.UseTls
+								'SmtpAuthenticationMethod' = $Script:PSMConfig.Config.SMTPSettings.Network.SmtpAuthentication.Method
+								SmtpUsername = $null
+								EncryptedBase64String = $null
+								Thumbprint = $null
+							}
 						}
 
 						if ($Script:PSMConfig.Config.SMTPSettings.Network.SmtpAuthentication.Method -eq 'Basic') {
 							$Output.SmtpUsername = $Script:PSMConfig.Config.SMTPSettings.Network.SmtpAuthentication.SmtpUsername
 							$Output.EncryptedBase64String = $Script:PSMConfig.Config.SMTPSettings.Network.SmtpAuthentication.SmtpPassword.EncryptedBase64String
-							$Output.Thumbprint = $Script:PSMConfig.Config.SMTPSettings.Network.SmtpAuthentication.SmtpPassword.Thumbprint
+
+							if ($PSVersionTable.PSEdition -eq 'Core' -and $PSVersionTable.Platform -eq 'Unix') {
+								$Output.CertificatePath = $Script:PSMConfig.Config.SMTPSettings.Network.SmtpAuthentication.SmtpPassword.CertificatePath
+								$Output.KeyPath = $Script:PSMConfig.Config.SMTPSettings.Network.SmtpAuthentication.SmtpPassword.KeyPath
+							} else {
+								$Output.Thumbprint = $Script:PSMConfig.Config.SMTPSettings.Network.SmtpAuthentication.SmtpPassword.Thumbprint
+							}
 						}
 
 						$Output
@@ -15706,7 +15853,7 @@ function Set-SqlServerMaintenanceConfiguration {
 				$AttributeCollection.Add($ParameterAttribute)
 
 				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
-				$ParameterAttribute.Mandatory = $true
+				$ParameterAttribute.Mandatory = $false
 				$ParameterAttribute.ParameterSetName = 'Network-Credential'
 
 				$AttributeCollection.Add($ParameterAttribute)
@@ -15761,19 +15908,61 @@ function Set-SqlServerMaintenanceConfiguration {
 				#EndRegion
 
 				#Region Thumbprint
-				$ParameterName = 'Thumbprint'
+				if ($PSVersionTable.PSEdition -eq 'Desktop' -or $PSVersionTable.Platform -eq 'Win32NT') {
+					$ParameterName = 'Thumbprint'
 
-				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
+					$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
 
-				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
-				$ParameterAttribute.Mandatory = $true
-				$ParameterAttribute.ParameterSetName = 'Network-Credential'
+					$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
+					$ParameterAttribute.Mandatory = $true
+					$ParameterAttribute.ParameterSetName = 'Network-Credential'
 
-				$AttributeCollection.Add($ParameterAttribute)
+					$AttributeCollection.Add($ParameterAttribute)
 
-				$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string], $AttributeCollection)
+					$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string], $AttributeCollection)
 
-				$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
+					$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
+				}
+				#EndRegion
+
+				#Region CertificatePath
+				if ($PSVersionTable.PSEdition -eq 'Core' -and $PSVersionTable.Platform -eq 'Unix') {
+					$ParameterName = 'CertificatePath'
+
+					$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
+
+					$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
+					$ParameterAttribute.Mandatory = $true
+					$ParameterAttribute.ParameterSetName = 'Network-Credential-Unix'
+
+					$AttributeCollection.Add($ParameterAttribute)
+
+					$AttributeCollection.Add([ValidatePathExists]::New('Leaf'))
+
+					$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string], $AttributeCollection)
+
+					$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
+				}
+				#EndRegion
+
+				#Region KeyPath
+				if ($PSVersionTable.PSEdition -eq 'Core' -and $PSVersionTable.Platform -eq 'Unix') {
+					$ParameterName = 'KeyPath'
+
+					$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
+
+					$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
+					$ParameterAttribute.Mandatory = $true
+					$ParameterAttribute.ParameterSetName = 'Network-Credential-Unix'
+
+					$AttributeCollection.Add($ParameterAttribute)
+
+					$AttributeCollection.Add([ValidatePathExists]::New('Leaf'))
+
+					$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string], $AttributeCollection)
+
+					$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
+				}
 				#EndRegion
 
 				#Region PickupDirectoryPath
@@ -16100,8 +16289,28 @@ function Set-SqlServerMaintenanceConfiguration {
 							$Script:PSMConfig.Config.SMTPSettings.Network.SmtpAuthentication.Method = 'Basic'
 
 							$Script:PSMConfig.Config.SMTPSettings.Network.SmtpAuthentication.SmtpUsername = $PSBoundParameters['SmtpCredential'].UserName
-							$Script:PSMConfig.Config.SMTPSettings.Network.SmtpAuthentication.SmtpPassword.EncryptedBase64String = Export-SecureString -Password $PSBoundParameters['SmtpCredential'].Password -Thumbprint $PSBoundParameters['Thumbprint']
-							$Script:PSMConfig.Config.SMTPSettings.Network.SmtpAuthentication.SmtpPassword.Thumbprint = $PSBoundParameters['Thumbprint']
+
+							if ($PSVersionTable.PSEdition -eq 'Desktop' -or $PSVersionTable.Platform -eq 'Win32NT') {
+								$Script:PSMConfig.Config.SMTPSettings.Network.SmtpAuthentication.SmtpPassword.Thumbprint = $PSBoundParameters['Thumbprint']
+
+								$SecureStringParameters = @{
+									'Password' = $PSBoundParameters['SmtpCredential'].Password
+									'Thumbprint' = $PSBoundParameters['Thumbprint']
+								}
+							} else {
+								$Script:PSMConfig.Config.SMTPSettings.Network.SmtpAuthentication.SmtpPassword.CertificatePath = $PSBoundParameters['CertificatePath']
+								$Script:PSMConfig.Config.SMTPSettings.Network.SmtpAuthentication.SmtpPassword.KeyPath = $PSBoundParameters['KeyPath']
+
+								$SecureStringParameters = @{
+									'Password' = $PSBoundParameters['SmtpCredential'].Password
+									'CertificatePath' = $PSBoundParameters['CertificatePath']
+									'KeyPath' = $PSBoundParameters['KeyPath']
+								}
+
+								Write-Warning 'The protection of SMTP password using certificate-based encryption on non-Windows platforms relies on the security of the certificate and key files. Ensure that appropriate file system permissions are set to restrict access to these files.'
+							}
+
+							$Script:PSMConfig.Config.SMTPSettings.Network.SmtpAuthentication.SmtpPassword.EncryptedBase64String = Export-SecureString @SecureStringParameters
 						} else {
 							$Script:PSMConfig.Config.SMTPSettings.Network.SmtpAuthentication.Method = 'Anonymous'
 						}

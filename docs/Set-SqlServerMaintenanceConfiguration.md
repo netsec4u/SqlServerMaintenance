@@ -55,6 +55,22 @@ Set-SqlServerMaintenanceConfiguration
 	[<CommonParameters>]
 ```
 
+### Network-Credential-Unix
+```
+Set-SqlServerMaintenanceConfiguration
+	-SettingName SmtpSettings
+	-SmtpServer <String>
+	-SmtpPort <Int32>
+	[-UseTLS]
+  -SmtpAuthenticationMethod <String>
+  -SmtpCredential <PSCredential>
+  -CertificatePath <String>
+  -KeyPath <String>
+	[-WhatIf]
+	[-Confirm]
+	[<CommonParameters>]
+```
+
 ### SpecifiedPickupDirectory
 ```
 Set-SqlServerMaintenanceConfiguration
@@ -195,6 +211,28 @@ Sets SQL Agent Alert retention period for module configuration.
 
 ## PARAMETERS
 
+### -CertificatePath
+
+Specifies the path to the certificate to use when authenticating with the smtp server.
+Dynamic parameter available when Platform is Unix and SettingName is SMTPSettings and SmtpAuthenticationMethod is Basic.
+
+```yaml
+Type: System.String
+DefaultValue: None
+SupportsWildcards: false
+Aliases: []
+ParameterSets:
+- Name: Network-Credential-Unix
+  Position: Named
+  IsRequired: true
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
+DontShow: false
+AcceptedValues: []
+HelpMessage: ''
+```
+
 ### -Confirm
 
 Prompts you for confirmation before running the cmdlet.
@@ -229,6 +267,28 @@ SupportsWildcards: false
 Aliases: []
 ParameterSets:
 - Name: AdminDatabase
+  Position: Named
+  IsRequired: true
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
+DontShow: false
+AcceptedValues: []
+HelpMessage: ''
+```
+
+### -KeyPath
+
+Specifies the path to the private key to use when authenticating with the smtp server.
+Dynamic parameter available when Platform is Unix and SettingName is SMTPSettings and SmtpAuthenticationMethod is Basic.
+
+```yaml
+Type: System.String
+DefaultValue: None
+SupportsWildcards: false
+Aliases: []
+ParameterSets:
+- Name: Network-Credential-Unix
   Position: Named
   IsRequired: true
   ValueFromPipeline: false
@@ -510,7 +570,7 @@ HelpMessage: ''
 
 ### -Thumbprint
 Specifies the thumbprint of the certificate to use when authenticating with the smtp server.
-Dynamic parameter available when SettingName is SMTPSettings and SmtpAuthenticationMethod is Basic.
+Dynamic parameter available when Platform is Win32NT and SettingName is SMTPSettings and SmtpAuthenticationMethod is Basic.
 
 ```yaml
 Type: System.String
