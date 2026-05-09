@@ -1,10 +1,10 @@
 ---
 document type: cmdlet
 external help file: SqlServerMaintenance-Help.xml
-HelpUri: ''
+HelpUri: https://github.com/netsec4u/SqlServerMaintenance/blob/main/docs/Save-SqlInstanceQueryStoreOption.md
 Locale: en-US
 Module Name: SqlServerMaintenance
-ms.date: 07/29/2025
+ms.date: 05/08/2026
 PlatyPS schema version: 2024-05-01
 title: Save-SqlInstanceQueryStoreOption
 ---
@@ -157,6 +157,4 @@ Query Store cannot be enabled for the master or tempdb databases.
 
 
 ## RELATED LINKS
-
-None.
 

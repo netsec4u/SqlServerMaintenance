@@ -1,11 +1,11 @@
 ---
 document type: module
 Help Version: 2.0.0.0
-HelpInfoUri: https://github.com/netsec4u/SqlServerMaintenance/blob/main/docs/SqlServerMaintenance.md
+HelpInfoUri: https://netsec4u.github.io/Help/SqlServerMaintenance/
 Locale: en-US
 Module Guid: c571c8da-cef7-4b95-ba3d-bda6e5f2fee9
 Module Name: SqlServerMaintenance
-ms.date: 07/29/2025
+ms.date: 05/08/2026
 PlatyPS schema version: 2024-05-01
 title: SqlServerMaintenance Module
 ---
@@ -33,14 +33,6 @@ Finds database files that are currently not associated with any attached databas
 ### [Find-OrphanedDatabaseUser](Find-OrphanedDatabaseUser.md)
 
 Find orphaned database users.
-
-### [Get-AvailabilityGroupDatabaseReplicaStatus](Get-AvailabilityGroupDatabaseReplicaStatus.md)
-
-Get availability group database replica status information.
-
-### [Get-AvailabilityGroupSeedingStatus](Get-AvailabilityGroupSeedingStatus.md)
-
-Get availability group seeding status information.
 
 ### [Get-DatabasePrimaryFile](Get-DatabasePrimaryFile.md)
 

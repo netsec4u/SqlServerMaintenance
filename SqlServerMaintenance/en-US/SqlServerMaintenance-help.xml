@@ -68,8 +68,7 @@
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -129,8 +128,7 @@ The cmdlet is not run.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -203,8 +201,7 @@ The cmdlet is not run.</maml:para>
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
         <maml:name>WhatIf</maml:name>
         <maml:description>
-          <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+          <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
         </maml:description>
         <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
       </command:parameter>
@@ -250,7 +247,7 @@ Add-LogShippedDatabase -PrimarySmoServerObject $PrimarySmoServer -SecondarySmoSe
     <command:relatedLinks>
       <maml:navigationLink>
         <maml:linkText>Online Version</maml:linkText>
-        <command:uri />
+        <command:uri>https://github.com/netsec4u/SqlServerMaintenance/blob/main/docs/Add-LogShippedDatabase.md</command:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>
@@ -301,8 +298,7 @@ Add-LogShippedDatabase -PrimarySmoServerObject $PrimarySmoServer -SecondarySmoSe
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -341,8 +337,7 @@ The cmdlet is not run.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -387,8 +382,7 @@ The cmdlet is not run.</maml:para>
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
         <maml:name>WhatIf</maml:name>
         <maml:description>
-          <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+          <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
         </maml:description>
         <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
       </command:parameter>
@@ -433,7 +427,7 @@ Checkpoint-SqlDatabaseSnapshot -SmoServerObject $SmoServer -DatabaseName Adventu
     <command:relatedLinks>
       <maml:navigationLink>
         <maml:linkText>Online Version</maml:linkText>
-        <command:uri />
+        <command:uri>https://github.com/netsec4u/SqlServerMaintenance/blob/main/docs/Checkpoint-SqlDatabaseSnapshot.md</command:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>
@@ -529,7 +523,7 @@ Find-OrphanedDatabasePhysicalFile -SmoServerObject $SmoServer</dev:code>
     <command:relatedLinks>
       <maml:navigationLink>
         <maml:linkText>Online Version</maml:linkText>
-        <command:uri />
+        <command:uri>https://github.com/netsec4u/SqlServerMaintenance/blob/main/docs/Find-OrphanedDatabasePhysicalFile.md</command:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>
@@ -655,280 +649,7 @@ Find-OrphanedDatabaseUser -SmoServerObject $SmoServer -DatabaseName AdventureWor
     <command:relatedLinks>
       <maml:navigationLink>
         <maml:linkText>Online Version</maml:linkText>
-        <command:uri />
-      </maml:navigationLink>
-    </command:relatedLinks>
-  </command:command>
-  <command:command>
-    <command:details>
-      <command:name>Get-AvailabilityGroupDatabaseReplicaStatus</command:name>
-      <maml:description>
-        <maml:para>Get availability group database replica status information.</maml:para>
-      </maml:description>
-      <command:verb>Get</command:verb>
-      <command:noun>AvailabilityGroupDatabaseReplicaStatus</command:noun>
-    </command:details>
-    <maml:description>
-      <maml:para>Get availability group database replica status information.</maml:para>
-    </maml:description>
-    <command:syntax>
-      <command:syntaxItem>
-        <maml:name>Get-AvailabilityGroupDatabaseReplicaStatus
-</maml:name>
-        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
-          <maml:name>AvailabilityGroupName</maml:name>
-          <maml:description>
-            <maml:para>Specifies availability group name.</maml:para>
-          </maml:description>
-          <command:parameterValue required="false" variableLength="true">System.String</command:parameterValue>
-        </command:parameter>
-        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
-          <maml:name>DatabaseName</maml:name>
-          <maml:description>
-            <maml:para>Specifies the name of the database to gather status information.</maml:para>
-          </maml:description>
-          <command:parameterValue required="false" variableLength="true">System.String</command:parameterValue>
-        </command:parameter>
-        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
-          <maml:name>ServerInstance</maml:name>
-          <maml:description>
-            <maml:para>The name of the SQL Server instance to connect to.</maml:para>
-          </maml:description>
-          <command:parameterValue required="true" variableLength="true">System.String</command:parameterValue>
-        </command:parameter>
-      </command:syntaxItem>
-      <command:syntaxItem>
-        <maml:name>Get-AvailabilityGroupDatabaseReplicaStatus
-</maml:name>
-        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
-          <maml:name>AvailabilityGroupName</maml:name>
-          <maml:description>
-            <maml:para>Specifies availability group name.</maml:para>
-          </maml:description>
-          <command:parameterValue required="false" variableLength="true">System.String</command:parameterValue>
-        </command:parameter>
-        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
-          <maml:name>DatabaseName</maml:name>
-          <maml:description>
-            <maml:para>Specifies the name of the database to gather status information.</maml:para>
-          </maml:description>
-          <command:parameterValue required="false" variableLength="true">System.String</command:parameterValue>
-        </command:parameter>
-        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
-          <maml:name>SmoServerObject</maml:name>
-          <maml:description>
-            <maml:para>An existing SMO Server object representing the SQL Server instance.</maml:para>
-          </maml:description>
-          <command:parameterValue required="true" variableLength="true">Microsoft.SqlServer.Management.Smo.Server</command:parameterValue>
-        </command:parameter>
-      </command:syntaxItem>
-    </command:syntax>
-    <command:parameters>
-      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
-        <maml:name>AvailabilityGroupName</maml:name>
-        <maml:description>
-          <maml:para>Specifies availability group name.</maml:para>
-        </maml:description>
-        <command:parameterValue required="false" variableLength="true">System.String</command:parameterValue>
-      </command:parameter>
-      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
-        <maml:name>DatabaseName</maml:name>
-        <maml:description>
-          <maml:para>Specifies the name of the database to gather status information.</maml:para>
-        </maml:description>
-        <command:parameterValue required="false" variableLength="true">System.String</command:parameterValue>
-      </command:parameter>
-      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
-        <maml:name>ServerInstance</maml:name>
-        <maml:description>
-          <maml:para>The name of the SQL Server instance to connect to.</maml:para>
-        </maml:description>
-        <command:parameterValue required="true" variableLength="true">System.String</command:parameterValue>
-      </command:parameter>
-      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
-        <maml:name>SmoServerObject</maml:name>
-        <maml:description>
-          <maml:para>An existing SMO Server object representing the SQL Server instance.</maml:para>
-        </maml:description>
-        <command:parameterValue required="true" variableLength="true">Microsoft.SqlServer.Management.Smo.Server</command:parameterValue>
-      </command:parameter>
-    </command:parameters>
-    <command:inputTypes />
-    <command:returnValues>
-      <command:returnValue>
-        <dev:type>
-          <dev:name>Microsoft.SqlServer.Management.Smo.DatabaseReplicaState</dev:name>
-        </dev:type>
-        <maml:description>
-          <maml:para />
-        </maml:description>
-      </command:returnValue>
-    </command:returnValues>
-    <maml:alertSet>
-      <maml:alert>
-        <maml:para />
-      </maml:alert>
-    </maml:alertSet>
-    <command:examples>
-      <command:example>
-        <maml:title>--------- Example 1 ---------</maml:title>
-        <maml:introduction>
-        </maml:introduction>
-        <dev:code>Get-AvailabilityGroupDatabaseReplicaStatus -ServerInstance .</dev:code>
-        <dev:remarks>
-          <maml:para>Get availability group database replica status for all databases.</maml:para>
-        </dev:remarks>
-      </command:example>
-      <command:example>
-        <maml:title>--------- Example 2 ---------</maml:title>
-        <maml:introduction>
-        </maml:introduction>
-        <dev:code>Get-AvailabilityGroupDatabaseReplicaStatus -ServerInstance . -DatabaseName AdventureWorks</dev:code>
-        <dev:remarks>
-          <maml:para>Get availability group database replica status for AdventureWorks database.</maml:para>
-        </dev:remarks>
-      </command:example>
-      <command:example>
-        <maml:title>--------- Example 3 ---------</maml:title>
-        <maml:introduction>
-        </maml:introduction>
-        <dev:code>$SqlConnection = Connect-SqlServerInstance -ServerInstance . -DatabaseName master
-Get-AvailabilityGroupDatabaseReplicaStatus -SqlConnection $SqlConnection -DatabaseName AdventureWorks</dev:code>
-        <dev:remarks>
-          <maml:para>Get availability group database replica status for AdventureWorks database.</maml:para>
-        </dev:remarks>
-      </command:example>
-    </command:examples>
-    <command:relatedLinks>
-      <maml:navigationLink>
-        <maml:linkText>Online Version</maml:linkText>
-        <command:uri />
-      </maml:navigationLink>
-    </command:relatedLinks>
-  </command:command>
-  <command:command>
-    <command:details>
-      <command:name>Get-AvailabilityGroupSeedingStatus</command:name>
-      <maml:description>
-        <maml:para>Get availability group seeding status information.</maml:para>
-      </maml:description>
-      <command:verb>Get</command:verb>
-      <command:noun>AvailabilityGroupSeedingStatus</command:noun>
-    </command:details>
-    <maml:description>
-      <maml:para>Get availability group seeding status information.</maml:para>
-    </maml:description>
-    <command:syntax>
-      <command:syntaxItem>
-        <maml:name>Get-AvailabilityGroupSeedingStatus
-</maml:name>
-        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
-          <maml:name>DatabaseName</maml:name>
-          <maml:description>
-            <maml:para>Specifies the name of the database to gather status information.</maml:para>
-          </maml:description>
-          <command:parameterValue required="false" variableLength="true">System.String</command:parameterValue>
-        </command:parameter>
-        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
-          <maml:name>ServerInstance</maml:name>
-          <maml:description>
-            <maml:para>The name of the SQL Server instance to connect to.</maml:para>
-          </maml:description>
-          <command:parameterValue required="true" variableLength="true">System.String</command:parameterValue>
-        </command:parameter>
-      </command:syntaxItem>
-      <command:syntaxItem>
-        <maml:name>Get-AvailabilityGroupSeedingStatus
-</maml:name>
-        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
-          <maml:name>DatabaseName</maml:name>
-          <maml:description>
-            <maml:para>Specifies the name of the database to gather status information.</maml:para>
-          </maml:description>
-          <command:parameterValue required="false" variableLength="true">System.String</command:parameterValue>
-        </command:parameter>
-        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
-          <maml:name>SqlConnection</maml:name>
-          <maml:description>
-            <maml:para>An open SQL Client Connection object.</maml:para>
-          </maml:description>
-          <command:parameterValue required="true" variableLength="true">Microsoft.Data.SqlClient.SqlConnection</command:parameterValue>
-        </command:parameter>
-      </command:syntaxItem>
-    </command:syntax>
-    <command:parameters>
-      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
-        <maml:name>DatabaseName</maml:name>
-        <maml:description>
-          <maml:para>Specifies the name of the database to gather status information.</maml:para>
-        </maml:description>
-        <command:parameterValue required="false" variableLength="true">System.String</command:parameterValue>
-      </command:parameter>
-      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
-        <maml:name>ServerInstance</maml:name>
-        <maml:description>
-          <maml:para>The name of the SQL Server instance to connect to.</maml:para>
-        </maml:description>
-        <command:parameterValue required="true" variableLength="true">System.String</command:parameterValue>
-      </command:parameter>
-      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
-        <maml:name>SqlConnection</maml:name>
-        <maml:description>
-          <maml:para>An open SQL Client Connection object.</maml:para>
-        </maml:description>
-        <command:parameterValue required="true" variableLength="true">Microsoft.Data.SqlClient.SqlConnection</command:parameterValue>
-      </command:parameter>
-    </command:parameters>
-    <command:inputTypes />
-    <command:returnValues>
-      <command:returnValue>
-        <dev:type>
-          <dev:name>System.Data.DataRow</dev:name>
-        </dev:type>
-        <maml:description>
-          <maml:para />
-        </maml:description>
-      </command:returnValue>
-    </command:returnValues>
-    <maml:alertSet>
-      <maml:alert>
-        <maml:para />
-      </maml:alert>
-    </maml:alertSet>
-    <command:examples>
-      <command:example>
-        <maml:title>--------- Example 1 ---------</maml:title>
-        <maml:introduction>
-        </maml:introduction>
-        <dev:code>Get-AvailabilityGroupSeedingStatus -ServerInstance .</dev:code>
-        <dev:remarks>
-          <maml:para>Get availability group seeding status for all databases.</maml:para>
-        </dev:remarks>
-      </command:example>
-      <command:example>
-        <maml:title>--------- Example 2 ---------</maml:title>
-        <maml:introduction>
-        </maml:introduction>
-        <dev:code>Get-AvailabilityGroupSeedingStatus -ServerInstance . -DatabaseName AdventureWorks</dev:code>
-        <dev:remarks>
-          <maml:para>Get availability group seeding status for AdventureWorks database.</maml:para>
-        </dev:remarks>
-      </command:example>
-      <command:example>
-        <maml:title>--------- Example 3 ---------</maml:title>
-        <maml:introduction>
-        </maml:introduction>
-        <dev:code>$SqlConnection = Connect-SqlServerInstance -ServerInstance . -DatabaseName master
-Get-AvailabilityGroupSeedingStatus -SqlConnection $SqlConnection -DatabaseName AdventureWorks</dev:code>
-        <dev:remarks>
-          <maml:para>Get availability group seeding status for AdventureWorks database.</maml:para>
-        </dev:remarks>
-      </command:example>
-    </command:examples>
-    <command:relatedLinks>
-      <maml:navigationLink>
-        <maml:linkText>Online Version</maml:linkText>
-        <command:uri />
+        <command:uri>https://github.com/netsec4u/SqlServerMaintenance/blob/main/docs/Find-OrphanedDatabaseUser.md</command:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>
@@ -1045,7 +766,7 @@ Get-DatabasePrimaryFile -SqlConnection $SqlConnection -MDFPath C:\MyData\databas
     <command:relatedLinks>
       <maml:navigationLink>
         <maml:linkText>Online Version</maml:linkText>
-        <command:uri />
+        <command:uri>https://github.com/netsec4u/SqlServerMaintenance/blob/main/docs/Get-DatabasePrimaryFile.md</command:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>
@@ -1741,7 +1462,7 @@ Get-DatabaseRecovery -BackupFileInfo $BackupFileInfo -SmoServerObject $SmoServer
     <command:relatedLinks>
       <maml:navigationLink>
         <maml:linkText>Online Version</maml:linkText>
-        <command:uri />
+        <command:uri>https://github.com/netsec4u/SqlServerMaintenance/blob/main/docs/Get-DatabaseRecovery.md</command:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>
@@ -1858,7 +1579,7 @@ Get-DatabaseTransactionLogInfo -SqlConnection $SqlConnection -DatabaseName Adven
     <command:relatedLinks>
       <maml:navigationLink>
         <maml:linkText>Online Version</maml:linkText>
-        <command:uri />
+        <command:uri>https://github.com/netsec4u/SqlServerMaintenance/blob/main/docs/Get-DatabaseTransactionLogInfo.md</command:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>
@@ -1984,7 +1705,7 @@ Get-LSPrimaryDatabase -SqlConnection $SqlConnection -DatabaseName AdventureWorks
     <command:relatedLinks>
       <maml:navigationLink>
         <maml:linkText>Online Version</maml:linkText>
-        <command:uri />
+        <command:uri>https://github.com/netsec4u/SqlServerMaintenance/blob/main/docs/Get-LSPrimaryDatabase.md</command:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>
@@ -2110,7 +1831,7 @@ Get-LSSecondaryDatabase -SqlConnection $SqlConnection -DatabaseName AdventureWor
     <command:relatedLinks>
       <maml:navigationLink>
         <maml:linkText>Online Version</maml:linkText>
-        <command:uri />
+        <command:uri>https://github.com/netsec4u/SqlServerMaintenance/blob/main/docs/Get-LSSecondaryDatabase.md</command:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>
@@ -2266,7 +1987,7 @@ Get-SqlDatabaseSnapshot -SmoServerObject $SmoServer</dev:code>
     <command:relatedLinks>
       <maml:navigationLink>
         <maml:linkText>Online Version</maml:linkText>
-        <command:uri />
+        <command:uri>https://github.com/netsec4u/SqlServerMaintenance/blob/main/docs/Get-SqlDatabaseSnapshot.md</command:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>
@@ -2518,7 +2239,7 @@ Get-SqlInstanceDataFileUsage -SmoServerObject $SmoServer -DatabaseName Adventure
     <command:relatedLinks>
       <maml:navigationLink>
         <maml:linkText>Online Version</maml:linkText>
-        <command:uri />
+        <command:uri>https://github.com/netsec4u/SqlServerMaintenance/blob/main/docs/Get-SqlInstanceDataFileUsage.md</command:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>
@@ -2665,7 +2386,7 @@ Get-SqlInstanceLogFileGrowthRate -SmoServerObject $SmoServer -DatabaseName Adven
     <command:relatedLinks>
       <maml:navigationLink>
         <maml:linkText>Online Version</maml:linkText>
-        <command:uri />
+        <command:uri>https://github.com/netsec4u/SqlServerMaintenance/blob/main/docs/Get-SqlInstanceLogFileGrowthRate.md</command:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>
@@ -2814,7 +2535,7 @@ Get-SqlInstanceLogFileVLFCount -SmoServerObject $SmoServer -DatabaseName Adventu
     <command:relatedLinks>
       <maml:navigationLink>
         <maml:linkText>Online Version</maml:linkText>
-        <command:uri />
+        <command:uri>https://github.com/netsec4u/SqlServerMaintenance/blob/main/docs/Get-SqlInstanceLogFileVLFCount.md</command:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>
@@ -2961,7 +2682,7 @@ Get-SqlInstanceQueryStoreUsage -SmoServerObject $SmoServer -DatabaseName Adventu
     <command:relatedLinks>
       <maml:navigationLink>
         <maml:linkText>Online Version</maml:linkText>
-        <command:uri />
+        <command:uri>https://github.com/netsec4u/SqlServerMaintenance/blob/main/docs/Get-SqlInstanceQueryStoreUsage.md</command:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>
@@ -3087,7 +2808,7 @@ Get-SqlInstanceTDEStatus -SqlConnection $SqlConnection -DatabaseName AdventureWo
     <command:relatedLinks>
       <maml:navigationLink>
         <maml:linkText>Online Version</maml:linkText>
-        <command:uri />
+        <command:uri>https://github.com/netsec4u/SqlServerMaintenance/blob/main/docs/Get-SqlInstanceTDEStatus.md</command:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>
@@ -3155,7 +2876,7 @@ Get-SqlInstanceTDEStatus -SqlConnection $SqlConnection -DatabaseName AdventureWo
     <command:relatedLinks>
       <maml:navigationLink>
         <maml:linkText>Online Version</maml:linkText>
-        <command:uri />
+        <command:uri>https://github.com/netsec4u/SqlServerMaintenance/blob/main/docs/Get-SqlServerMaintenanceConfiguration.md</command:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>
@@ -3192,8 +2913,7 @@ Get-SqlInstanceTDEStatus -SqlConnection $SqlConnection -DatabaseName AdventureWo
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -3218,8 +2938,7 @@ The cmdlet is not run.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -3250,8 +2969,7 @@ The cmdlet is not run.</maml:para>
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
         <maml:name>WhatIf</maml:name>
         <maml:description>
-          <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+          <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
         </maml:description>
         <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
       </command:parameter>
@@ -3296,7 +3014,7 @@ Initialize-SqlServerMaintenanceDatabase -SmoServerObject $SmoServer</dev:code>
     <command:relatedLinks>
       <maml:navigationLink>
         <maml:linkText>Online Version</maml:linkText>
-        <command:uri />
+        <command:uri>https://github.com/netsec4u/SqlServerMaintenance/blob/main/docs/Initialize-SqlServerMaintenanceDatabase.md</command:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>
@@ -3340,8 +3058,7 @@ Initialize-SqlServerMaintenanceDatabase -SmoServerObject $SmoServer</dev:code>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -3373,8 +3090,7 @@ The cmdlet is not run.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -3412,8 +3128,7 @@ The cmdlet is not run.</maml:para>
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
         <maml:name>WhatIf</maml:name>
         <maml:description>
-          <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+          <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
         </maml:description>
         <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
       </command:parameter>
@@ -3467,7 +3182,7 @@ Invoke-CycleFullTextIndexLog -SmoServerObject $SmoServer -Database AdventureWork
     <command:relatedLinks>
       <maml:navigationLink>
         <maml:linkText>Online Version</maml:linkText>
-        <command:uri />
+        <command:uri>https://github.com/netsec4u/SqlServerMaintenance/blob/main/docs/Invoke-CycleFullTextIndexLog.md</command:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>
@@ -3526,8 +3241,7 @@ This server instance becomes the target of the backup operation.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -3573,8 +3287,7 @@ The cmdlet is not run.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -3627,8 +3340,7 @@ This server instance becomes the target of the backup operation.</maml:para>
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
         <maml:name>WhatIf</maml:name>
         <maml:description>
-          <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+          <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
         </maml:description>
         <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
       </command:parameter>
@@ -3699,7 +3411,7 @@ Invoke-LogShipping -SqlConnection $SqlConnection -DatabaseName AdventureWorks -S
     <command:relatedLinks>
       <maml:navigationLink>
         <maml:linkText>Online Version</maml:linkText>
-        <command:uri />
+        <command:uri>https://github.com/netsec4u/SqlServerMaintenance/blob/main/docs/Invoke-LogShipping.md</command:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>
@@ -4008,7 +3720,7 @@ Invoke-SqlBackupVerification -SqlConnection $SqlConnection -BackupPath C:\MSSQLS
     <command:relatedLinks>
       <maml:navigationLink>
         <maml:linkText>Online Version</maml:linkText>
-        <command:uri />
+        <command:uri>https://github.com/netsec4u/SqlServerMaintenance/blob/main/docs/Invoke-SqlBackupVerification.md</command:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>
@@ -4066,8 +3778,7 @@ Invoke-SqlBackupVerification -SqlConnection $SqlConnection -BackupPath C:\MSSQLS
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -4114,8 +3825,7 @@ Database will be in recovery on completion of log backup.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -4162,8 +3872,7 @@ A copy-only backup does not affect the normal sequence of your regularly schedul
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -4210,8 +3919,7 @@ Database will be in recovery on completion of log backup.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -4257,8 +3965,7 @@ The cmdlet is not run.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -4305,8 +4012,7 @@ A copy-only backup does not affect the normal sequence of your regularly schedul
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -4374,8 +4080,7 @@ Database will be in recovery on completion of log backup.</maml:para>
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
         <maml:name>WhatIf</maml:name>
         <maml:description>
-          <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+          <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
         </maml:description>
         <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
       </command:parameter>
@@ -4450,7 +4155,7 @@ Invoke-SqlInstanceBackup -SmoServerObject $SmoServer -BackupType Full</dev:code>
     <command:relatedLinks>
       <maml:navigationLink>
         <maml:linkText>Online Version</maml:linkText>
-        <command:uri />
+        <command:uri>https://github.com/netsec4u/SqlServerMaintenance/blob/main/docs/Invoke-SqlInstanceBackup.md</command:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>
@@ -4523,8 +4228,7 @@ The actual database check is not performed.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -4585,8 +4289,7 @@ The actual database check is not performed.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -4653,8 +4356,7 @@ The actual database check is not performed.</maml:para>
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
         <maml:name>WhatIf</maml:name>
         <maml:description>
-          <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+          <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
         </maml:description>
         <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
       </command:parameter>
@@ -4708,7 +4410,7 @@ Invoke-SqlInstanceCheckDb -SmoServerObject $SmoServer</dev:code>
     <command:relatedLinks>
       <maml:navigationLink>
         <maml:linkText>Online Version</maml:linkText>
-        <command:uri />
+        <command:uri>https://github.com/netsec4u/SqlServerMaintenance/blob/main/docs/Invoke-SqlInstanceCheckDb.md</command:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>
@@ -4773,8 +4475,7 @@ Invoke-SqlInstanceCheckDb -SmoServerObject $SmoServer</dev:code>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -4827,8 +4528,7 @@ The cmdlet is not run.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -4887,8 +4587,7 @@ The cmdlet is not run.</maml:para>
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
         <maml:name>WhatIf</maml:name>
         <maml:description>
-          <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+          <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
         </maml:description>
         <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
       </command:parameter>
@@ -4944,7 +4643,7 @@ Invoke-SqlInstanceColumnStoreMaintenance -SmoServerObject $SmoServer</dev:code>
     <command:relatedLinks>
       <maml:navigationLink>
         <maml:linkText>Online Version</maml:linkText>
-        <command:uri />
+        <command:uri>https://github.com/netsec4u/SqlServerMaintenance/blob/main/docs/Invoke-SqlInstanceColumnStoreMaintenance.md</command:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>
@@ -4981,8 +4680,7 @@ Invoke-SqlInstanceColumnStoreMaintenance -SmoServerObject $SmoServer</dev:code>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -5007,8 +4705,7 @@ The cmdlet is not run.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -5039,8 +4736,7 @@ The cmdlet is not run.</maml:para>
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
         <maml:name>WhatIf</maml:name>
         <maml:description>
-          <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+          <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
         </maml:description>
         <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
       </command:parameter>
@@ -5085,7 +4781,7 @@ Invoke-SqlInstanceCycleErrorLog -SmoServerObject $SmoServer</dev:code>
     <command:relatedLinks>
       <maml:navigationLink>
         <maml:linkText>Online Version</maml:linkText>
-        <command:uri />
+        <command:uri>https://github.com/netsec4u/SqlServerMaintenance/blob/main/docs/Invoke-SqlInstanceCycleErrorLog.md</command:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>
@@ -5157,8 +4853,7 @@ Invoke-SqlInstanceCycleErrorLog -SmoServerObject $SmoServer</dev:code>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -5218,8 +4913,7 @@ The cmdlet is not run.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -5285,8 +4979,7 @@ The cmdlet is not run.</maml:para>
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
         <maml:name>WhatIf</maml:name>
         <maml:description>
-          <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+          <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
         </maml:description>
         <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
       </command:parameter>
@@ -5340,7 +5033,7 @@ Invoke-SqlInstanceFullTextIndexMaintenance -SmoServerObject $SmoServer</dev:code
     <command:relatedLinks>
       <maml:navigationLink>
         <maml:linkText>Online Version</maml:linkText>
-        <command:uri />
+        <command:uri>https://github.com/netsec4u/SqlServerMaintenance/blob/main/docs/Invoke-SqlInstanceFullTextIndexMaintenance.md</command:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>
@@ -5426,8 +5119,7 @@ Invoke-SqlInstanceFullTextIndexMaintenance -SmoServerObject $SmoServer</dev:code
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -5501,8 +5193,7 @@ The cmdlet is not run.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -5582,8 +5273,7 @@ The cmdlet is not run.</maml:para>
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
         <maml:name>WhatIf</maml:name>
         <maml:description>
-          <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+          <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
         </maml:description>
         <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
       </command:parameter>
@@ -5649,7 +5339,7 @@ Invoke-SqlInstanceIndexMaintenance -SmoServerObject $SmoServer</dev:code>
     <command:relatedLinks>
       <maml:navigationLink>
         <maml:linkText>Online Version</maml:linkText>
-        <command:uri />
+        <command:uri>https://github.com/netsec4u/SqlServerMaintenance/blob/main/docs/Invoke-SqlInstanceIndexMaintenance.md</command:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>
@@ -5723,8 +5413,7 @@ Parameter is available when StatisticsScanType is Percent or Rows.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -5784,8 +5473,7 @@ The cmdlet is not run.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -5845,8 +5533,7 @@ The cmdlet is not run.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -5908,8 +5595,7 @@ Parameter is available when StatisticsScanType is Percent or Rows.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -5991,8 +5677,7 @@ Parameter is available when StatisticsScanType is Percent or Rows.</maml:para>
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
         <maml:name>WhatIf</maml:name>
         <maml:description>
-          <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+          <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
         </maml:description>
         <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
       </command:parameter>
@@ -6090,7 +5775,7 @@ Invoke-SqlInstanceStatisticsMaintenance -SmoServerObject $SmoServer</dev:code>
     <command:relatedLinks>
       <maml:navigationLink>
         <maml:linkText>Online Version</maml:linkText>
-        <command:uri />
+        <command:uri>https://github.com/netsec4u/SqlServerMaintenance/blob/main/docs/Invoke-SqlInstanceStatisticsMaintenance.md</command:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>
@@ -6141,8 +5826,7 @@ Invoke-SqlInstanceStatisticsMaintenance -SmoServerObject $SmoServer</dev:code>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -6180,8 +5864,7 @@ The cmdlet is not run.</maml:para>
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
         <maml:name>WhatIf</maml:name>
         <maml:description>
-          <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+          <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
         </maml:description>
         <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
       </command:parameter>
@@ -6216,7 +5899,7 @@ The cmdlet is not run.</maml:para>
     <command:relatedLinks>
       <maml:navigationLink>
         <maml:linkText>Online Version</maml:linkText>
-        <command:uri />
+        <command:uri>https://github.com/netsec4u/SqlServerMaintenance/blob/main/docs/Move-SqlBackupFile.md</command:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>
@@ -6281,8 +5964,7 @@ The cmdlet is not run.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -6335,8 +6017,7 @@ The cmdlet is not run.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -6396,8 +6077,7 @@ The cmdlet is not run.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -6450,8 +6130,7 @@ The cmdlet is not run.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -6511,8 +6190,7 @@ The cmdlet is not run.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -6565,8 +6243,7 @@ The cmdlet is not run.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -6632,8 +6309,7 @@ The cmdlet is not run.</maml:para>
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
         <maml:name>WhatIf</maml:name>
         <maml:description>
-          <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+          <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
         </maml:description>
         <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
       </command:parameter>
@@ -6735,7 +6411,7 @@ Move-SqlDatabaseTable -SmoServerObject $SmoServer -DatabaseName AdventureWorks -
     <command:relatedLinks>
       <maml:navigationLink>
         <maml:linkText>Online Version</maml:linkText>
-        <command:uri />
+        <command:uri>https://github.com/netsec4u/SqlServerMaintenance/blob/main/docs/Move-SqlDatabaseTable.md</command:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>
@@ -6855,7 +6531,7 @@ Read-SqlAgentAlert -SqlConnection $SqlConnection</dev:code>
     <command:relatedLinks>
       <maml:navigationLink>
         <maml:linkText>Online Version</maml:linkText>
-        <command:uri />
+        <command:uri>https://github.com/netsec4u/SqlServerMaintenance/blob/main/docs/Read-SqlAgentAlert.md</command:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>
@@ -6892,8 +6568,7 @@ Read-SqlAgentAlert -SqlConnection $SqlConnection</dev:code>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -6932,8 +6607,7 @@ The cmdlet is not run.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -6972,8 +6646,7 @@ The cmdlet is not run.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -6998,8 +6671,7 @@ The cmdlet is not run.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -7044,8 +6716,7 @@ The cmdlet is not run.</maml:para>
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
         <maml:name>WhatIf</maml:name>
         <maml:description>
-          <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+          <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
         </maml:description>
         <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
       </command:parameter>
@@ -7099,7 +6770,7 @@ Remove-DbStatistic -SqlConnection $SqlConnection -StatisticsName Database</dev:c
     <command:relatedLinks>
       <maml:navigationLink>
         <maml:linkText>Online Version</maml:linkText>
-        <command:uri />
+        <command:uri>https://github.com/netsec4u/SqlServerMaintenance/blob/main/docs/Remove-DbStatistic.md</command:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>
@@ -7136,8 +6807,7 @@ Remove-DbStatistic -SqlConnection $SqlConnection -StatisticsName Database</dev:c
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -7176,8 +6846,7 @@ The cmdlet is not run.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -7216,8 +6885,7 @@ The cmdlet is not run.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -7242,8 +6910,7 @@ The cmdlet is not run.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -7288,8 +6955,7 @@ The cmdlet is not run.</maml:para>
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
         <maml:name>WhatIf</maml:name>
         <maml:description>
-          <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+          <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
         </maml:description>
         <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
       </command:parameter>
@@ -7343,7 +7009,7 @@ Remove-DbTest -SqlConnection $SqlConnection -TestName Backup</dev:code>
     <command:relatedLinks>
       <maml:navigationLink>
         <maml:linkText>Online Version</maml:linkText>
-        <command:uri />
+        <command:uri>https://github.com/netsec4u/SqlServerMaintenance/blob/main/docs/Remove-DbTest.md</command:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>
@@ -7401,8 +7067,7 @@ Remove-DbTest -SqlConnection $SqlConnection -TestName Backup</dev:code>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -7455,8 +7120,7 @@ The cmdlet is not run.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -7509,8 +7173,7 @@ The cmdlet is not run.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -7563,8 +7226,7 @@ The cmdlet is not run.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -7617,8 +7279,7 @@ The cmdlet is not run.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -7671,8 +7332,7 @@ The cmdlet is not run.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -7718,8 +7378,7 @@ The cmdlet is not run.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -7772,8 +7431,7 @@ The cmdlet is not run.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -7853,8 +7511,7 @@ The cmdlet is not run.</maml:para>
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
         <maml:name>WhatIf</maml:name>
         <maml:description>
-          <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+          <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
         </maml:description>
         <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
       </command:parameter>
@@ -7927,7 +7584,7 @@ Remove-LogShippedDatabase -PrimarySmoServerObject $PrimarySmoServer -SecondarySm
     <command:relatedLinks>
       <maml:navigationLink>
         <maml:linkText>Online Version</maml:linkText>
-        <command:uri />
+        <command:uri>https://github.com/netsec4u/SqlServerMaintenance/blob/main/docs/Remove-LogShippedDatabase.md</command:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>
@@ -7971,8 +7628,7 @@ Remove-LogShippedDatabase -PrimarySmoServerObject $PrimarySmoServer -SecondarySm
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -8004,8 +7660,7 @@ The cmdlet is not run.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -8043,8 +7698,7 @@ The cmdlet is not run.</maml:para>
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
         <maml:name>WhatIf</maml:name>
         <maml:description>
-          <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+          <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
         </maml:description>
         <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
       </command:parameter>
@@ -8089,7 +7743,7 @@ Remove-SqlAgentAlertHistory -SqlConnection $SqlConnection</dev:code>
     <command:relatedLinks>
       <maml:navigationLink>
         <maml:linkText>Online Version</maml:linkText>
-        <command:uri />
+        <command:uri>https://github.com/netsec4u/SqlServerMaintenance/blob/main/docs/Remove-SqlAgentAlertHistory.md</command:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>
@@ -8140,8 +7794,7 @@ Remove-SqlAgentAlertHistory -SqlConnection $SqlConnection</dev:code>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -8179,8 +7832,7 @@ The cmdlet is not run.</maml:para>
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
         <maml:name>WhatIf</maml:name>
         <maml:description>
-          <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+          <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
         </maml:description>
         <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
       </command:parameter>
@@ -8215,7 +7867,7 @@ The cmdlet is not run.</maml:para>
     <command:relatedLinks>
       <maml:navigationLink>
         <maml:linkText>Online Version</maml:linkText>
-        <command:uri />
+        <command:uri>https://github.com/netsec4u/SqlServerMaintenance/blob/main/docs/Remove-SqlBackupFile.md</command:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>
@@ -8259,8 +7911,7 @@ The cmdlet is not run.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -8292,8 +7943,7 @@ The cmdlet is not run.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -8331,8 +7981,7 @@ The cmdlet is not run.</maml:para>
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
         <maml:name>WhatIf</maml:name>
         <maml:description>
-          <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+          <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
         </maml:description>
         <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
       </command:parameter>
@@ -8394,7 +8043,7 @@ Remove-SqlDatabaseSnapshot -SmoServerObject $SmoServer -DatabaseSnapshotName Adv
     <command:relatedLinks>
       <maml:navigationLink>
         <maml:linkText>Online Version</maml:linkText>
-        <command:uri />
+        <command:uri>https://github.com/netsec4u/SqlServerMaintenance/blob/main/docs/Remove-SqlDatabaseSnapshot.md</command:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>
@@ -8445,8 +8094,7 @@ Remove-SqlDatabaseSnapshot -SmoServerObject $SmoServer -DatabaseSnapshotName Adv
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -8485,8 +8133,7 @@ The cmdlet is not run.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -8531,8 +8178,7 @@ The cmdlet is not run.</maml:para>
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
         <maml:name>WhatIf</maml:name>
         <maml:description>
-          <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+          <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
         </maml:description>
         <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
       </command:parameter>
@@ -8586,7 +8232,7 @@ Remove-SqlInstanceFileHistory -SmoServerObject $SmoServer</dev:code>
     <command:relatedLinks>
       <maml:navigationLink>
         <maml:linkText>Online Version</maml:linkText>
-        <command:uri />
+        <command:uri>https://github.com/netsec4u/SqlServerMaintenance/blob/main/docs/Remove-SqlInstanceFileHistory.md</command:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>
@@ -8637,8 +8283,7 @@ Remove-SqlInstanceFileHistory -SmoServerObject $SmoServer</dev:code>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -8677,8 +8322,7 @@ The cmdlet is not run.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -8723,8 +8367,7 @@ The cmdlet is not run.</maml:para>
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
         <maml:name>WhatIf</maml:name>
         <maml:description>
-          <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+          <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
         </maml:description>
         <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
       </command:parameter>
@@ -8778,7 +8421,7 @@ Remove-SqlInstanceHistory -SqlConnection $SqlConnection</dev:code>
     <command:relatedLinks>
       <maml:navigationLink>
         <maml:linkText>Online Version</maml:linkText>
-        <command:uri />
+        <command:uri>https://github.com/netsec4u/SqlServerMaintenance/blob/main/docs/Remove-SqlInstanceHistory.md</command:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>
@@ -9062,7 +8705,7 @@ Resize-DatabaseLogicalFile -SmoServerObject $SmoServer -DatabaseName AdventureWo
     <command:relatedLinks>
       <maml:navigationLink>
         <maml:linkText>Online Version</maml:linkText>
-        <command:uri />
+        <command:uri>https://github.com/netsec4u/SqlServerMaintenance/blob/main/docs/Resize-DatabaseLogicalFile.md</command:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>
@@ -9242,7 +8885,7 @@ Resize-DatabaseTransactionLog -SmoServerObject $SmoServer -DatabaseName Adventur
     <command:relatedLinks>
       <maml:navigationLink>
         <maml:linkText>Online Version</maml:linkText>
-        <command:uri />
+        <command:uri>https://github.com/netsec4u/SqlServerMaintenance/blob/main/docs/Resize-DatabaseTransactionLog.md</command:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>
@@ -9286,8 +8929,7 @@ Resize-DatabaseTransactionLog -SmoServerObject $SmoServer -DatabaseName Adventur
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -9319,8 +8961,7 @@ The cmdlet is not run.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -9358,8 +8999,7 @@ The cmdlet is not run.</maml:para>
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
         <maml:name>WhatIf</maml:name>
         <maml:description>
-          <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+          <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
         </maml:description>
         <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
       </command:parameter>
@@ -9413,7 +9053,7 @@ Restore-SqlDatabaseSnapshot -SmoServerObject $SmoServer -DatabaseSnapshotName Ad
     <command:relatedLinks>
       <maml:navigationLink>
         <maml:linkText>Online Version</maml:linkText>
-        <command:uri />
+        <command:uri>https://github.com/netsec4u/SqlServerMaintenance/blob/main/docs/Restore-SqlDatabaseSnapshot.md</command:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>
@@ -9539,7 +9179,7 @@ Save-SqlInstanceDatabaseStatistic -SmoServerObject $SmoServer</dev:code>
     <command:relatedLinks>
       <maml:navigationLink>
         <maml:linkText>Online Version</maml:linkText>
-        <command:uri />
+        <command:uri>https://github.com/netsec4u/SqlServerMaintenance/blob/main/docs/Save-SqlInstanceDatabaseStatistic.md</command:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>
@@ -9665,7 +9305,7 @@ Save-SqlInstanceQueryStoreOption -SmoServerObject $SmoServer</dev:code>
     <command:relatedLinks>
       <maml:navigationLink>
         <maml:linkText>Online Version</maml:linkText>
-        <command:uri />
+        <command:uri>https://github.com/netsec4u/SqlServerMaintenance/blob/main/docs/Save-SqlInstanceQueryStoreOption.md</command:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>
@@ -9784,8 +9424,7 @@ Enter a name (optional) and email address, such as Name&lt;someone@example.com&g
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -9892,8 +9531,7 @@ Enter a name (optional) and email address, such as Name&lt;someone@example.com&g
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -10006,8 +9644,7 @@ Enter a name (optional) and email address, such as Name&lt;someone@example.com&g
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
         <maml:name>WhatIf</maml:name>
         <maml:description>
-          <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+          <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
         </maml:description>
         <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
       </command:parameter>
@@ -10074,7 +9711,7 @@ Send-DatabaseMail -SqlConnection $SqlConnection -MailTo 'john@contoso.com' -Subj
     <command:relatedLinks>
       <maml:navigationLink>
         <maml:linkText>Online Version</maml:linkText>
-        <command:uri />
+        <command:uri>https://github.com/netsec4u/SqlServerMaintenance/blob/main/docs/Send-DatabaseMail.md</command:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>
@@ -10111,8 +9748,7 @@ Send-DatabaseMail -SqlConnection $SqlConnection -MailTo 'john@contoso.com' -Subj
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -10169,8 +9805,7 @@ Dynamic parameter available when SettingName is SMTPSettings.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -10243,8 +9878,7 @@ Dynamic parameter available when SettingName is SMTPSettings.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -10285,8 +9919,7 @@ Dynamic parameter available when Platform is Unix and SettingName is SMTPSetting
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -10319,8 +9952,7 @@ Dynamic parameter available when SettingName is SMTPSettings.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -10361,8 +9993,7 @@ Dynamic parameter available when SettingName is EmailNotification.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -10395,8 +10026,7 @@ Dynamic parameter available when SettingName is AdminDatabase.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -10437,8 +10067,7 @@ Dynamic parameter available when SettingName is Statistics.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -10479,8 +10108,7 @@ Dynamic parameter available when SettingName is Tests.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -10513,8 +10141,7 @@ Dynamic parameter available when SettingName is Statistics, Tests, or SQLAgentAl
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -10658,8 +10285,7 @@ Dynamic parameter available when SettingName is SMTPSettings.</maml:para>
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
         <maml:name>WhatIf</maml:name>
         <maml:description>
-          <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+          <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
         </maml:description>
         <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
       </command:parameter>
@@ -10757,7 +10383,7 @@ The cmdlet is not run.</maml:para>
     <command:relatedLinks>
       <maml:navigationLink>
         <maml:linkText>Online Version</maml:linkText>
-        <command:uri />
+        <command:uri>https://github.com/netsec4u/SqlServerMaintenance/blob/main/docs/Set-SqlServerMaintenanceConfiguration.md</command:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>
@@ -10808,8 +10434,7 @@ The cmdlet is not run.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -10848,8 +10473,7 @@ The cmdlet is not run.</maml:para>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
-            <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+            <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
           </maml:description>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
         </command:parameter>
@@ -10894,8 +10518,7 @@ The cmdlet is not run.</maml:para>
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
         <maml:name>WhatIf</maml:name>
         <maml:description>
-          <maml:para>Shows what would happen if the cmdlet runs.
-The cmdlet is not run.</maml:para>
+          <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
         </maml:description>
         <command:parameterValue required="false" variableLength="true">System.Management.Automation.SwitchParameter</command:parameterValue>
       </command:parameter>
@@ -10940,7 +10563,7 @@ Switch-SqlInstanceTDECertificate -SmoServerObject $SmoServer</dev:code>
     <command:relatedLinks>
       <maml:navigationLink>
         <maml:linkText>Online Version</maml:linkText>
-        <command:uri />
+        <command:uri>https://github.com/netsec4u/SqlServerMaintenance/blob/main/docs/Switch-SqlInstanceTDECertificate.md</command:uri>
       </maml:navigationLink>
     </command:relatedLinks>
   </command:command>

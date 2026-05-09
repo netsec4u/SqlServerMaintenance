@@ -1,10 +1,10 @@
 ---
 document type: cmdlet
 external help file: SqlServerMaintenance-Help.xml
-HelpUri: ''
+HelpUri: https://github.com/netsec4u/SqlServerMaintenance/blob/main/docs/Invoke-SqlInstanceIndexMaintenance.md
 Locale: en-US
 Module Name: SqlServerMaintenance
-ms.date: 07/29/2025
+ms.date: 05/08/2026
 PlatyPS schema version: 2024-05-01
 title: Invoke-SqlInstanceIndexMaintenance
 ---
@@ -302,8 +302,7 @@ HelpMessage: ''
 
 ### -WhatIf
 
-Shows what would happen if the cmdlet runs.
-The cmdlet is not run.
+Runs the command in a mode that only reports what would happen without performing the actions.
 
 ```yaml
 Type: System.Management.Automation.SwitchParameter
@@ -356,6 +355,4 @@ Reorg must be performed to compress LOBs ??? Verify
 
 
 ## RELATED LINKS
-
-None.
 

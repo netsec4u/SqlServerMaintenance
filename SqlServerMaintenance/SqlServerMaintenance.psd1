@@ -4,7 +4,7 @@
 RootModule = 'SqlServerMaintenance.psm1'
 
 # Version number of this module.
-ModuleVersion = '2.7.1.0'
+ModuleVersion = '2.7.2.0'
 
 # Supported PSEditions
 CompatiblePSEditions = @('Core', 'Desktop')
@@ -73,8 +73,6 @@ FunctionsToExport = @(
 	'Checkpoint-SqlDatabaseSnapshot',
 	'Find-OrphanedDatabasePhysicalFile',
 	'Find-OrphanedDatabaseUser',
-	'Get-AvailabilityGroupDatabaseReplicaStatus',
-	'Get-AvailabilityGroupSeedingStatus',
 	'Get-DatabasePrimaryFile',
 	'Get-DatabaseRecovery',
 	'Get-DatabaseTransactionLogInfo',
@@ -232,7 +230,7 @@ PrivateData = @{
 } # End of PrivateData hashtable
 
 # HelpInfo URI of this module
-HelpInfoURI = 'https://github.com/netsec4u/SqlServerMaintenance/blob/main/docs/SqlServerMaintenance.md'
+HelpInfoURI = 'https://netsec4u.github.io/Help/SqlServerMaintenance/'
 
 # Default prefix for commands exported from this module. Override the default prefix using Import-Module -Prefix.
 # DefaultCommandPrefix = ''

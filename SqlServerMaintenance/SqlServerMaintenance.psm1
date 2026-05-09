@@ -1823,6 +1823,25 @@ function Initialize-ModuleConfiguration {
 				[void][System.IO.Directory]::CreateDirectory($ConfigurationPath)
 			}
 
+			if ($PSVersionTable.PSEdition -eq 'Desktop' -or $PSVersionTable.Platform -eq 'Win32NT') {
+				if (Test-Path -Path 'HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server') {
+					$RegistryKey = Get-Item -LiteralPath 'HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server'
+
+					if ($null -ne $RegistryKey.GetValue('InstalledInstances', $null)) {
+						$Ace = New-ACE -User @('NT SERVICE\MSSQLSERVER', 'NT SERVICE\SQLSERVERAGENT') -FileSystemRight FullControl
+
+						if (-not (Test-FolderAcl -Path $ConfigurationPath -FileSystemAccessRule $Ace)) {
+							try {
+								Set-FolderAcl -Path $ConfigurationPath -FileSystemAccessRule $Ace
+							}
+							catch {
+								Write-Warning "Failed to set folder ACL for the configuration folder. Import the module with elevated permissions to set the ACL.  The folder permissions are necessary to allow for SQL Server Agent to write to the configuration file when running in NonInteractive mode."
+							}
+						}
+					}
+				}
+			}
+
 			if (-not (Test-Path -LiteralPath $EmailPath)) {
 				[void][System.IO.Directory]::CreateDirectory($EmailPath)
 			}
@@ -2209,6 +2228,97 @@ function Join-Path2 {
 	}
 }
 
+function New-ACE {
+	<#
+	.SYNOPSIS
+	Add new ACE to file or folder.
+	.DESCRIPTION
+	Add Access Control Entry to file or folder.
+	.PARAMETER User
+	User(s) to apply ACE.
+	.PARAMETER FileSystemRight
+	File system rights.
+	.PARAMETER InheritanceFlag
+	Inheritance flags to set.
+	.PARAMETER PropagationFlag
+	Propagation flags to set.
+	.PARAMETER AccessControlType
+	Access control type.
+	.EXAMPLE
+	New-ACE -User domain\JSmith -FileSystemRight FullControl -InheritanceFlag ContainerInherit -PropagationFlag None -AccessControlType Allow
+	.NOTES
+	#>
+
+	[System.Diagnostics.DebuggerStepThrough()]
+
+	[CmdletBinding(
+		PositionalBinding = $false,
+		SupportsShouldProcess = $true,
+		ConfirmImpact = 'Low'
+	)]
+
+	[OutputType([System.Security.AccessControl.FileSystemAccessRule])]
+
+	param (
+		[Parameter(
+			Mandatory = $true,
+			ValueFromPipeline = $false,
+			ValueFromPipelineByPropertyName = $false
+		)]
+		[ValidateNotNullOrEmpty()]
+		[string[]]$User,
+
+		[Parameter(
+			Mandatory = $true,
+			ValueFromPipeline = $false,
+			ValueFromPipelineByPropertyName = $false
+		)]
+		[System.Security.AccessControl.FileSystemRights[]]$FileSystemRight,
+
+		[Parameter(
+			Mandatory = $false,
+			ValueFromPipeline = $false,
+			ValueFromPipelineByPropertyName = $false
+		)]
+		[System.Security.AccessControl.InheritanceFlags[]]$InheritanceFlag = @([System.Security.AccessControl.InheritanceFlags]::ContainerInherit, [System.Security.AccessControl.InheritanceFlags]::ObjectInherit),
+
+		[Parameter(
+			Mandatory = $false,
+			ValueFromPipeline = $false,
+			ValueFromPipelineByPropertyName = $false
+		)]
+		[System.Security.AccessControl.PropagationFlags[]]$PropagationFlag = [System.Security.AccessControl.PropagationFlags]::None,
+
+		[Parameter(
+			Mandatory = $false,
+			ValueFromPipeline = $false,
+			ValueFromPipelineByPropertyName = $false
+		)]
+		[System.Security.AccessControl.AccessControlType]$AccessControlType = [System.Security.AccessControl.AccessControlType]::Allow
+	)
+
+	begin {
+	}
+
+	process {
+		foreach ($UserItem in $User) {
+			try {
+				$NTAccount = [System.Security.Principal.NTAccount]::New($UserItem)
+
+				if ($PSCmdlet.ShouldProcess($UserItem, 'Set ACE.')) {
+					[System.Security.AccessControl.FileSystemAccessRule]::New($NTAccount, $FileSystemRight, $InheritanceFlag, $PropagationFlag, $AccessControlType)
+				}
+			}
+			catch {
+				throw $_
+			}
+		}
+	}
+
+	end {
+	}
+}
+
 function Remove-BackupTestDatabase {
 	<#
 	.SYNOPSIS
@@ -2362,6 +2472,140 @@ function Remove-BackupTestDatabase {
 				Disconnect-SmoServer -SmoServerObject $SmoServerObject
 			}
 		}
+	}
+
+	end {
+	}
+}
+
+function Set-FolderAcl {
+	<#
+	.SYNOPSIS
+	Sets folder access control list (ACL).
+	.DESCRIPTION
+	Sets folder access control list (ACL).
+	.PARAMETER Path
+	Physical folder path.
+	.PARAMETER FileSystemAccessRule
+	File system access rule(s) to apply to the folder.
+	.EXAMPLE
+	Set-FolderAcl -Path 'C:\MyFolder' -FileSystemAccessRule (New-ACE -User 'domain\JSmith' -FileSystemRight FullControl)
+	.NOTES
+	#>
+
+	[System.Diagnostics.DebuggerStepThrough()]
+
+	[CmdletBinding(
+		PositionalBinding = $false,
+		SupportsShouldProcess = $true,
+		ConfirmImpact = 'Medium'
+	)]
+
+	[OutputType([System.Void])]
+
+	param (
+		[Parameter(
+			Mandatory = $true,
+			ValueFromPipeline = $false,
+			ValueFromPipelineByPropertyName = $false
+		)]
+		[ValidatePathExists('Container')]
+		[System.IO.DirectoryInfo]$Path,
+
+		[Parameter(
+			Mandatory = $true,
+			ValueFromPipeline = $false,
+			ValueFromPipelineByPropertyName = $false
+		)]
+		[System.Security.AccessControl.FileSystemAccessRule[]]$FileSystemAccessRule
+	)
+
+	begin {
+	}
+
+	process {
+		try {
+			$Acl = Get-Acl -Path $Path
+
+			foreach ($FileSystemAccessRuleItem in $FileSystemAccessRule) {
+				$Acl.AddAccessRule($FileSystemAccessRuleItem)
+			}
+
+			if ($PSCmdlet.ShouldProcess($Path, 'Set ACL')) {
+				Set-ACL -Path $Path -AclObject $Acl
+			}
+		}
+		catch {
+			throw $_
+		}
+	}
+
+	end {
+	}
+}
+
+function Test-FolderAcl {
+	<#
+	.SYNOPSIS
+	Add new ACE to file or folder.
+	.DESCRIPTION
+	Add Access Control Entry to file or folder.
+	.PARAMETER Path
+	Physical folder path.
+	.PARAMETER FileSystemAccessRule
+	File system access rule(s) to check against the folder ACL.
+	.EXAMPLE
+	Test-FolderAcl -Path 'C:\MyFolder' -FileSystemAccessRule (New-ACE -User 'domain\JSmith' -FileSystemRight FullControl)
+	.NOTES
+	#>
+
+	[System.Diagnostics.DebuggerStepThrough()]
+
+	[CmdletBinding(
+		PositionalBinding = $false,
+		SupportsShouldProcess = $false,
+		ConfirmImpact = 'Low'
+	)]
+
+	[OutputType([bool])]
+
+	param (
+		[Parameter(
+			Mandatory = $true,
+			ValueFromPipeline = $false,
+			ValueFromPipelineByPropertyName = $false
+		)]
+		[ValidatePathExists('Container')]
+		[System.IO.DirectoryInfo]$Path,
+
+		[Parameter(
+			Mandatory = $true,
+			ValueFromPipeline = $false,
+			ValueFromPipelineByPropertyName = $false
+		)]
+		[System.Security.AccessControl.FileSystemAccessRule[]]$FileSystemAccessRule
+	)
+
+	begin {
+	}
+
+	process {
+		$Output = $true
+
+		$Acl = Get-Acl -Path $Path
+
+		foreach ($AccessRuleItem in $FileSystemAccessRule) {
+			try {
+				if ($Acl.Access.where({$_.IdentityReference.Value -eq $AccessRuleItem.IdentityReference.Value -and $_.FileSystemRights -eq $AccessRuleItem.FileSystemRights -and $_.AccessControlType -eq $AccessRuleItem.AccessControlType -and $_.InheritanceFlags -eq $AccessRuleItem.InheritanceFlags -and $_.PropagationFlags -eq $AccessRuleItem.PropagationFlags}).Count -eq 0) {
+					$Output = $false
+				}
+			}
+			catch {
+				throw $_
+			}
+		}
+
+		$Output
 	}
 
 	end {
@@ -3446,235 +3690,6 @@ function Find-OrphanedDatabaseUser {
 	}
 }
 
-function Get-AvailabilityGroupDatabaseReplicaStatus {
-	<#
-	.EXTERNALHELP
-	SqlServerMaintenance-Help.xml
-	#>
-
-	[System.Diagnostics.DebuggerStepThrough()]
-
-	[CmdletBinding(
-		PositionalBinding = $false,
-		SupportsShouldProcess = $false,
-		ConfirmImpact = 'Low',
-		DefaultParameterSetName = 'ServerInstance'
-	)]
-
-	[OutputType([Microsoft.SqlServer.Management.Smo.DatabaseReplicaState])]
-
-	param (
-		[Parameter(
-			Mandatory = $true,
-			ValueFromPipeline = $false,
-			ValueFromPipelineByPropertyName = $false,
-			ParameterSetName = 'ServerInstance'
-		)]
-		[ValidateLength(1,128)]
-		[string]$ServerInstance,
-
-		[Parameter(
-			Mandatory = $true,
-			ValueFromPipeline = $false,
-			ValueFromPipelineByPropertyName = $false,
-			ParameterSetName = 'SmoServerObject'
-		)]
-		[Microsoft.SqlServer.Management.Smo.Server]$SmoServerObject,
-
-		[Parameter(
-			Mandatory = $false,
-			ValueFromPipeline = $false,
-			ValueFromPipelineByPropertyName = $false
-		)]
-		[ValidateLength(1, 128)]
-		[string]$AvailabilityGroupName,
-
-		[Parameter(
-			Mandatory = $false,
-			ValueFromPipeline = $false,
-			ValueFromPipelineByPropertyName = $false
-		)]
-		[ValidateLength(1,128)]
-		[string]$DatabaseName
-	)
-
-	begin {
-		try {
-			$ServerInstanceParameterSets = @('ServerInstance')
-
-			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
-				$SmoServerParameters = @{
-					'ServerInstance' = $ServerInstance
-					'DatabaseName' = 'master'
-				}
-
-				$SmoServerObject = Connect-SmoServer @SmoServerParameters
-			}
-
-			$SmoServerObject.Refresh()
-		}
-		catch {
-			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
-				if (Test-Path -Path Variable:\SmoServerObject) {
-					if ($SmoServerObject -is [Microsoft.SqlServer.Management.Smo.Server]) {
-						Disconnect-SmoServer -SmoServerObject $SmoServerObject
-					}
-				}
-			}
-
-			throw $_
-		}
-	}
-
-	process {
-		try {
-			$AvailabilityGroupParameters = @{
-				'SmoServerObject' = $SmoServerObject
-			}
-
-			if ($PSBoundParameters.ContainsKey('AvailabilityGroupName')) {
-				$AvailabilityGroupParameters.Add('AvailabilityGroupName', $AvailabilityGroupName)
-			}
-
-			$AvailabilityGroup = Get-SmoAvailabilityGroup @AvailabilityGroupParameters
-
-			if ($PSBoundParameters.ContainsKey('DatabaseName')) {
-				$Output = $AvailabilityGroup.DatabaseReplicaStates.where({$_.AvailabilityDatabaseName -eq $DatabaseName})
-			} else {
-				$Output = $AvailabilityGroup.DatabaseReplicaStates
-			}
-
-			$Output
-		}
-		catch {
-			throw $_
-		}
-		finally {
-			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
-				if (Test-Path -Path Variable:\SmoServerObject) {
-					Disconnect-SmoServer -SmoServerObject $SmoServerObject
-				}
-			}
-		}
-	}
-
-	end {
-	}
-}
-
-function Get-AvailabilityGroupSeedingStatus {
-	<#
-	.EXTERNALHELP
-	SqlServerMaintenance-Help.xml
-	#>
-
-	[System.Diagnostics.DebuggerStepThrough()]
-
-	[CmdletBinding(
-		PositionalBinding = $false,
-		SupportsShouldProcess = $false,
-		ConfirmImpact = 'Low',
-		DefaultParameterSetName = 'ServerInstance'
-	)]
-
-	[OutputType([System.Data.DataRow])]
-
-	param (
-		[Parameter(
-			Mandatory = $true,
-			ValueFromPipeline = $false,
-			ValueFromPipelineByPropertyName = $false,
-			ParameterSetName = 'ServerInstance'
-		)]
-		[ValidateLength(1,128)]
-		[string]$ServerInstance,
-
-		[Parameter(
-			Mandatory = $true,
-			ValueFromPipeline = $false,
-			ValueFromPipelineByPropertyName = $false,
-			ParameterSetName = 'SqlConnection'
-		)]
-		[Microsoft.Data.SqlClient.SqlConnection]$SqlConnection,
-
-		[Parameter(
-			Mandatory = $false,
-			ValueFromPipeline = $false,
-			ValueFromPipelineByPropertyName = $false
-		)]
-		[ValidateLength(1,128)]
-		[string]$DatabaseName
-	)
-
-	begin {
-		$StatusFormatString = "SELECT dhas.ag_db_id
-			,	ag.name AS AvailabilityGroupName
-			,	adb.database_name
-			,	dhas.start_time
-			,	dhas.completion_time
-			,	dhas.current_state
-			,	dhas.performed_seeding
-			,	dhas.failure_state
-			,	dhas.failure_state_desc
-			,	ss.internal_state_desc
-			,	ss.remote_machine_name
-			,	DatabaseSizeMB = ss.database_size_bytes / 1045876
-			,	TransferredSizeMB = ss.transferred_size_bytes / 1045876
-			,	TransferRateMBS = ss.transfer_rate_bytes_per_second / 1045876
-			,	TimeRemainingSec = CASE WHEN ss.transfer_rate_bytes_per_second = 0 THEN NULL ELSE (ss.database_size_bytes - ss.transferred_size_bytes) / ss.transfer_rate_bytes_per_second END
-			,	TimeRemaining = CASE WHEN ss.transfer_rate_bytes_per_second = 0 THEN NULL
-				ELSE
-					CASE WHEN ((ss.database_size_bytes - ss.transferred_size_bytes) / ss.transfer_rate_bytes_per_second) < 360000 THEN '0' ELSE '' END
-						+ RTRIM(((ss.database_size_bytes - ss.transferred_size_bytes) / ss.transfer_rate_bytes_per_second) / 3600)
-						+ ':' + RIGHT('0' + RTRIM(((ss.database_size_bytes - ss.transferred_size_bytes) / ss.transfer_rate_bytes_per_second) % 3600 / 60), 2)
-						+ ':' + RIGHT('0' + RTRIM(((ss.database_size_bytes - ss.transferred_size_bytes) / ss.transfer_rate_bytes_per_second) % 60), 2)
-				END
-			FROM sys.dm_hadr_automatic_seeding dhas
-			JOIN sys.availability_databases_cluster adb ON dhas.ag_db_id = adb.group_database_id
-			JOIN sys.availability_groups ag ON dhas.ag_id = ag.group_id
-			LEFT JOIN sys.dm_hadr_physical_seeding_stats ss ON dhas.operation_id = ss.local_physical_seeding_id{0}
-			ORDER BY ag.name
-			,	adb.database_name
-			,	dhas.completion_time DESC;"
-
-		$WhereClauseFormatString = "`r`n`t`tWHERE adb.database_name = N'{0}'"
-	}
-
-	process {
-		try {
-			if ($PSBoundParameters.ContainsKey('DatabaseName')) {
-				$WhereClause = [string]::Format($WhereClauseFormatString, $DatabaseName)
-			} else {
-				$WhereClause = ''
-			}
-
-			$SqlClientDataSetParameters = @{
-				'DatabaseName' = 'master'
-				'SqlCommandText' = [string]::Format($StatusFormatString, $WhereClause)
-				'OutputAs' = 'DataRow'
-			}
-
-			if ($PSBoundParameters.ContainsKey('ServerInstance')) {
-				$SqlClientDataSetParameters.Add('ServerInstance', $ServerInstance)
-			}
-
-			if ($PSBoundParameters.ContainsKey('SqlConnection')) {
-				$SqlClientDataSetParameters.Add('SqlConnection', $SqlConnection)
-			}
-
-			$StatusDataTable = Get-SqlClientDataSet @SqlClientDataSetParameters
-
-			$StatusDataTable
-		}
-		catch {
-			throw $_
-		}
-	}
-
-	end {
-	}
-}
-
 function Get-DatabasePrimaryFile {
 	<#
 	.EXTERNALHELP
@@ -4524,6 +4539,9 @@ function Get-DatabaseRecovery {
 								}
 								{$_ -in $StopAtParameterSets} {
 									[void]$RestoreOptions.Add([string]::Format("STOPAT = '{0}'", $RecoveryDateTime.LocalDatetime.ToString()))
+								}
+								{$_ -in $BackupFileInfoParameterSets} {
+									# No operation.  This is to prevent the default case from being hit when using the BackupFileInfo parameter sets.
 								}
 								Default {
 									throw [System.Management.Automation.ErrorRecord]::New(

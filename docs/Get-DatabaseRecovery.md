@@ -1,10 +1,10 @@
 ---
 document type: cmdlet
 external help file: SqlServerMaintenance-Help.xml
-HelpUri: ''
+HelpUri: https://github.com/netsec4u/SqlServerMaintenance/blob/main/docs/Get-DatabaseRecovery.md
 Locale: en-US
 Module Name: SqlServerMaintenance
-ms.date: 07/29/2025
+ms.date: 05/08/2026
 PlatyPS schema version: 2024-05-01
 title: Get-DatabaseRecovery
 ---
@@ -662,6 +662,4 @@ https://sqlbak.com/academy/log-sequence-number
 
 
 ## RELATED LINKS
-
-None.
 
