@@ -3625,6 +3625,8 @@ function Find-OrphanedDatabaseUser {
 
 				$SmoServerObject = Connect-SmoServer @SmoServerParameters
 			}
+
+			$SmoServerObject.Logins.Refresh()
 		}
 		catch {
 			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
@@ -3648,11 +3650,15 @@ function Find-OrphanedDatabaseUser {
 			foreach ($Database in $DatabaseName) {
 				$DatabaseObject = Get-SmoDatabaseObject -SmoServerObject $SmoServerObject -DatabaseName $Database
 
+				$DatabaseObject.Refresh()
+
 				if ($DatabaseObject.Status -ne 'Normal') {
 					Write-Error "Database $Database is not online."
 
 					continue
 				}
+
+				$DatabaseObject.Users.Refresh()
 
 				$DatabaseUsers = $DatabaseObject.Users.where({$_.Name -eq 'dbo' -or ($_.IsSystemObject -eq $false -and $_.AuthenticationType -NotIn @('Database', 'None'))})
 
@@ -9190,6 +9196,13 @@ function Invoke-SqlInstanceBackup {
 					AND database_guid = s.database_guid
 				ORDER BY backup_finish_date
 			) bs;"
+		$Query_DifferentialBaseTime = "SELECT DB_NAME()
+			,	name
+			,	differential_base_time
+			FROM sys.database_files
+			WHERE type_desc = 'ROWS'
+				AND is_read_only = 0
+				AND differential_base_time < '{0}';"
 		$Query_BackupStatistics = "INSERT INTO [{0}].[{1}] (CollectionDate, DatabaseName, DatabaseGUID, MediaName, BackupType, Pages, Seconds, MBPerSecond)
 			VALUES (SYSDATETIMEOFFSET(), N'{2}', CAST('{3}' AS UNIQUEIDENTIFIER), N'{4}', '{5}', {6}, {7}, {8});"
 	}
@@ -9294,16 +9307,26 @@ function Invoke-SqlInstanceBackup {
 						}
 						'Diff' {
 							if ($DatabaseRecoveryStatus.Count -eq 0) {
-								[BackupType]$EffectiveBackupType = 'Full'
-
 								Write-Warning 'Full backup required before Diff backup can be performed.  A full backup will be performed.'
+
+								[BackupType]$EffectiveBackupType = 'Full'
 							} else {
 								$ModifiedPercent = $($Database.ExecuteWithResults($Query_Modified)).Tables[0].ModifiedPercent
 
 								if ($DatabaseRecoveryStatus.backup_set_id -is [DBNull] -or $ModifiedPercent -gt $DiffBackupThreshold -or $Database.LastBackupDate -eq '0001-01-01 00:00:00' -or $Database.Name -eq 'master') {
 									[BackupType]$EffectiveBackupType = 'Full'
 								} else {
-									[BackupType]$EffectiveBackupType = 'Diff'
+									if ($SmoServerObject.IsHadrEnabled -and $Database.Name -in $SmoServer.AvailabilityGroups.AvailabilityDatabases.Name) {
+										if ($($Database.ExecuteWithResults([string]::Format($Query_DifferentialBaseTime, $Database.CreateDate))).Tables[0].Rows.Count -gt 0) {
+											Write-Warning 'Full backup required before differential backup can be performed.  A full backup will be performed.'
+
+											[BackupType]$EffectiveBackupType = 'Full'
+										} else {
+											 [BackupType]$EffectiveBackupType = 'Diff'
+										}
+									} else {
+										[BackupType]$EffectiveBackupType = 'Diff'
+									}
 								}
 							}
 						}
@@ -9329,11 +9352,25 @@ function Invoke-SqlInstanceBackup {
 									)
 								}
 
-								if ($Database.LastBackupDate -ne '0001-01-01 00:00:00') {
-									Write-Warning 'Backup chain has been broken.  A full backup will be performed.'
-								}
+								if ($SmoServerObject.IsHadrEnabled -and $Database.Name -in $SmoServer.AvailabilityGroups.AvailabilityDatabases.Name) {
+									if ($($Database.ExecuteWithResults([string]::Format($Query_DifferentialBaseTime, $Database.CreateDate))).Tables[0].Rows.Count -gt 0) {
+										Write-Warning 'Full backup required before transaction log backup can be performed.  A full backup will be performed.'
 
-								[BackupType]$EffectiveBackupType = 'Full'
+										[BackupType]$EffectiveBackupType = 'Full'
+									} else {
+										if ($Database.LastBackupDate -ne '0001-01-01 00:00:00') {
+											Write-Warning 'Backup chain has been broken.  A full backup will be performed.'
+										}
+
+										[BackupType]$EffectiveBackupType = 'Full'
+									}
+								} else {
+									if ($Database.LastBackupDate -ne '0001-01-01 00:00:00') {
+										Write-Warning 'Backup chain has been broken.  A full backup will be performed.'
+									}
+
+									[BackupType]$EffectiveBackupType = 'Full'
+								}
 							} else {
 								[BackupType]$EffectiveBackupType = 'Log'
 							}
