@@ -9316,7 +9316,7 @@ function Invoke-SqlInstanceBackup {
 								if ($DatabaseRecoveryStatus.backup_set_id -is [DBNull] -or $ModifiedPercent -gt $DiffBackupThreshold -or $Database.LastBackupDate -eq '0001-01-01 00:00:00' -or $Database.Name -eq 'master') {
 									[BackupType]$EffectiveBackupType = 'Full'
 								} else {
-									if ($SmoServerObject.IsHadrEnabled -and $Database.Name -in $SmoServer.AvailabilityGroups.AvailabilityDatabases.Name) {
+									if ($SmoServerObject.IsHadrEnabled -and $Database.Name -in $SmoServerObject.AvailabilityGroups.AvailabilityDatabases.Name) {
 										if ($($Database.ExecuteWithResults([string]::Format($Query_DifferentialBaseTime, $Database.CreateDate))).Tables[0].Rows.Count -gt 0) {
 											Write-Warning 'Full backup required before differential backup can be performed.  A full backup will be performed.'
 
@@ -9352,7 +9352,7 @@ function Invoke-SqlInstanceBackup {
 									)
 								}
 
-								if ($SmoServerObject.IsHadrEnabled -and $Database.Name -in $SmoServer.AvailabilityGroups.AvailabilityDatabases.Name) {
+								if ($SmoServerObject.IsHadrEnabled -and $Database.Name -in $SmoServerObject.AvailabilityGroups.AvailabilityDatabases.Name) {
 									if ($($Database.ExecuteWithResults([string]::Format($Query_DifferentialBaseTime, $Database.CreateDate))).Tables[0].Rows.Count -gt 0) {
 										Write-Warning 'Full backup required before transaction log backup can be performed.  A full backup will be performed.'
 
