@@ -722,8 +722,8 @@ namespace SqlServerMaintenance
 		public string BackupDatabaseName;
 		public System.Guid DatabaseGUID;
 		public System.IO.FileInfo BackupFileName;
-		public DateTime BackupStartDate;
-		public DateTime BackupFinishDate;
+		public DateTimeOffset BackupStartDate;
+		public DateTimeOffset BackupFinishDate;
 		public string BackupType;
 		public Int16 BackupPosition;
 		public string RecoveryModel;
@@ -1485,7 +1485,7 @@ function Get-SqlToolsPath {
 				'ArgumentList' = $HKLMPath
 			}
 
-			If ($PSBoundParameters.ContainsKey('Session')) {
+			if ($PSBoundParameters.ContainsKey('Session')) {
 				$CommandParameters.Add('Session', $Session)
 			}
 
@@ -2835,6 +2835,8 @@ function Add-LogShippedDatabase {
 				$SecondarySmoServer = $SecondarySmoServerObject
 			}
 
+			$TimeZoneInfo = Get-SqlServerTimeZone -SmoServerObject $PrimarySmoServer
+
 			[System.IO.DirectoryInfo]$BackupPath = $PrimarySmoServer.Settings.BackupDirectory
 
 			if ($PrimarySmoServer.HostPlatform -eq 'Windows') {
@@ -3109,6 +3111,7 @@ function Add-LogShippedDatabase {
 							'BackupPath' = $BackupPath
 							'DatabaseName' = $Database
 							'LastDatabaseBackup' = $true
+							'TimeZoneId' = $TimeZoneInfo.Id
 						}
 
 						try {
@@ -3123,17 +3126,17 @@ function Add-LogShippedDatabase {
 						if ($null -eq $DatabaseRecovery) {
 							Invoke-SqlInstanceBackup -ServerInstance $PrimaryServerInstance -DatabaseName $Database -BackupType Full
 
-							$DatabaseRecovery = Get-DatabaseRecovery @DatabaseRecoveryParameters -RecoveryDateTime $(Get-Date)
+							$DatabaseRecovery = Get-DatabaseRecovery @DatabaseRecoveryParameters -RecoveryDateTime $(Get-Date) -TimeZoneId $TimeZoneInfo.Id
 						} elseif ($DatabaseRecovery.where({$_.BackupType -eq 'Database'}).RecoveryModel -ne 'FULL') {
 							Invoke-SqlInstanceBackup -ServerInstance $PrimaryServerInstance -DatabaseName $Database -BackupType Full
 
-							$DatabaseRecovery = Get-DatabaseRecovery @DatabaseRecoveryParameters -RecoveryDateTime $(Get-Date)
+							$DatabaseRecovery = Get-DatabaseRecovery @DatabaseRecoveryParameters -RecoveryDateTime $(Get-Date) -TimeZoneId $TimeZoneInfo.Id
 						} else {
 							if ($DatabaseRecovery.where({$_.BackupType -eq 'Database Differential'}).Count -gt 0) {
 								if ($DatabaseRecovery.where({$_.BackupType -eq 'Database Differential'}).RecoveryModel -ne 'FULL') {
 									Invoke-SqlInstanceBackup -ServerInstance $PrimaryServerInstance -DatabaseName $Database -BackupType Full
 
-									$DatabaseRecovery = Get-DatabaseRecovery @DatabaseRecoveryParameters -RecoveryDateTime $(Get-Date)
+									$DatabaseRecovery = Get-DatabaseRecovery @DatabaseRecoveryParameters -RecoveryDateTime $(Get-Date) -TimeZoneId $TimeZoneInfo.Id
 								}
 							}
 						}
@@ -3198,12 +3201,6 @@ function Add-LogShippedDatabase {
 
 								[System.IO.File]::Copy($TransactionLogBackup.FullName, $DestinationFile, $true)
 							}
-
-							$LastTransactionLogBackupDate = ($TransactionLogBackups.where({$_.BackupDate -ge $LastBackupDate}).BackupDate | Measure-Object -Maximum).Maximum
-							$LastTransactionLogBackup = $TransactionLogBackups.where({$_.BackupDate -eq $LastTransactionLogBackupDate}).FullName
-
-						} else {
-							$LastTransactionLogBackup = ''
 						}
 						#EndRegion
 
@@ -3223,10 +3220,19 @@ function Add-LogShippedDatabase {
 							'BackupFileInfo' = $SqlBackupFiles
 							'NewDatabaseName' = "$($Database)_LS"
 							'SkipLogChainCheck' = $true
+							'TimeZoneId'  = $TimeZoneInfo.Id
+							'LastDatabaseBackup' = $true
 							'NoRecovery' = $true
 						}
 
 						$DatabaseRecovery = Get-DatabaseRecovery @DatabaseRecoveryParameters
+
+						if ($SqlBackupFiles.where({$_.BackupType -eq 'log'}).Count -gt 0) {
+							$LastTransactionLogBackupDate = ($SqlBackupFiles.where({$_.BackupType -eq 'log'}).BackupDate | Measure-Object -Maximum).Maximum
+							$LastTransactionLogBackup = $SqlBackupFiles.where({$_.BackupDate -eq $LastTransactionLogBackupDate -and $_.BackupType -eq 'log'}).FullName
+						} else {
+							$LastTransactionLogBackup = ''
+						}
 
 						if ($PSBoundParameters.ContainsKey('AvailabilityGroupName')) {
 							$FormatStringArray = @(
@@ -3265,7 +3271,7 @@ function Add-LogShippedDatabase {
 						Write-Progress @ProgressParameters1
 
 						if ($TransactionLogBackups.Count -gt 0) {
-							Invoke-LogShipping -ServerInstance $SecondaryServerInstance -DatabaseName $Database -LSOperation Restore
+							Invoke-LogShipping -ServerInstance $SecondaryServerInstance -DatabaseName $Database -LSOperation Restore -VerboseLevel 2
 						}
 						#EndRegion
 					}
@@ -4137,9 +4143,9 @@ function Get-DatabaseRecovery {
 			}
 
 			if ($PSBoundParameters.ContainsKey('TimeZoneId')) {
-				$TimeZone = [System.TimeZoneInfo]::FindSystemTimeZoneById($TimeZoneId)
+				$TimeZoneInfo = [System.TimeZoneInfo]::FindSystemTimeZoneById($TimeZoneId)
 			} else{
-				$TimeZone = Get-SqlServerTimeZone -SmoServerObject $SmoServerObject
+				$TimeZoneInfo = Get-SqlServerTimeZone -SmoServerObject $SmoServerObject
 			}
 		}
 		catch {
@@ -4231,9 +4237,9 @@ function Get-DatabaseRecovery {
 			}
 
 			$RestoreOptions = [System.Collections.Generic.List[string]]@(
-				[string]::Format('FILE = {0}', $FullBackupHeader.Position)
-				'NORECOVERY',
-				[string]::Format('STATS = {0}', $Stats)
+				[string]::Format('FILE = {0}', $FullBackupHeader.Position),
+				[string]::Format('STATS = {0}', $Stats),
+				'NORECOVERY'
 			)
 
 			if ($PSBoundParameters.ContainsKey('Replace')) {
@@ -4331,8 +4337,8 @@ function Get-DatabaseRecovery {
 				'BackupDatabaseName' = $FullBackupHeader.DatabaseName
 				'DatabaseGUID' = $FullBackupHeader.BindingID
 				'BackupFileName' = $LastFullBackup
-				'BackupStartDate' = $FullBackupHeader.BackupStartDate
-				'BackupFinishDate' = $FullBackupHeader.BackupFinishDate
+				'BackupStartDate' = [DateTimeOffset]::New($FullBackupHeader.BackupStartDate, $TimeZoneInfo.GetUtcOffset($FullBackupHeader.BackupStartDate))
+				'BackupFinishDate' = [DateTimeOffset]::New($FullBackupHeader.BackupFinishDate, $TimeZoneInfo.GetUtcOffset($FullBackupHeader.BackupFinishDate))
 				'BackupPosition' = $FullBackupHeader.Position
 				'BackupType' = $FullBackupHeader.BackupTypeDescription
 				'RecoveryModel' = $FullBackupHeader.RecoveryModel
@@ -4363,7 +4369,7 @@ function Get-DatabaseRecovery {
 				$SqlBackupFileParameters.BackupType = 'diff'
 
 				$DiffBackups = Get-SqlBackupFile @SqlBackupFileParameters
-				[SqlServerMaintenance.BackupFileInfo[]]$DiffBackups = $DiffBackups.where({$_.BackupDate -gt $LastBackupHeader.BackupStartDate -and $_.BackupDate -lt $RecoveryDateTime.UtcDateTime}) | Sort-Object -Property Name -Descending
+				[SqlServerMaintenance.BackupFileInfo[]]$DiffBackups = $DiffBackups.where({$_.BackupDate -gt $([DateTimeOffset]::New($LastBackupHeader.BackupFinishDate, $TimeZoneInfo.GetUtcOffset($LastBackupHeader.BackupFinishDate))).UtcDateTime -and $_.BackupDate -lt $RecoveryDateTime.UtcDateTime}) | Sort-Object -Property Name -Descending
 			}
 
 			foreach ($DiffBackup in $DiffBackups) {
@@ -4387,21 +4393,18 @@ function Get-DatabaseRecovery {
 					$LastBackupHeader = $DiffBackupHeader
 
 					$RestoreOptions = [System.Collections.Generic.List[string]]@(
-						[string]::Format('FILE = {0}', $DiffBackupHeader.Position)
-						[string]::Format('STATS = {0}', $Stats)
+						[string]::Format('FILE = {0}', $DiffBackupHeader.Position),
+						[string]::Format('STATS = {0}', $Stats),
+						'NORECOVERY'
 					)
-
-					if (-not $LastDatabaseBackup) {
-						[void]$RestoreOptions.Add('NORECOVERY')
-					}
 
 					$RestoreList.Add($([PsCustomObject]@{
 						'DatabaseName' = $NewDatabaseName
 						'BackupDatabaseName' = $LastBackupHeader.DatabaseName
 						'DatabaseGUID' = $LastBackupHeader.BindingID
 						'BackupFileName' = $DiffBackup
-						'BackupStartDate' = $LastBackupHeader.BackupStartDate
-						'BackupFinishDate' = $LastBackupHeader.BackupFinishDate
+						'BackupStartDate' = [DateTimeOffset]::New($LastBackupHeader.BackupStartDate, $TimeZoneInfo.GetUtcOffset($LastBackupHeader.BackupStartDate))
+						'BackupFinishDate' = [DateTimeOffset]::New($LastBackupHeader.BackupFinishDate, $TimeZoneInfo.GetUtcOffset($LastBackupHeader.BackupFinishDate))
 						'BackupPosition' = $LastBackupHeader.Position
 						'BackupType' = $LastBackupHeader.BackupTypeDescription
 						'RecoveryModel' = $LastBackupHeader.RecoveryModel
@@ -4439,7 +4442,7 @@ function Get-DatabaseRecovery {
 					$SqlBackupFileParameters.BackupType = 'log'
 
 					$TrnBackups = Get-SqlBackupFile @SqlBackupFileParameters
-					[SqlServerMaintenance.BackupFileInfo[]]$TrnBackups = $TrnBackups.where({$_.BackupDate -ge $LastBackupHeader.BackupStartDate}) | Sort-Object -Property Name
+					[SqlServerMaintenance.BackupFileInfo[]]$TrnBackups = $TrnBackups.where({$_.BackupDate -ge $([DateTimeOffset]::New($LastBackupHeader.BackupStartDate, $TimeZoneInfo.GetUtcOffset($LastBackupHeader.BackupStartDate))).UtcDateTime}) | Sort-Object -Property Name
 				}
 
 				$TotalSubSteps = [Math]::Ceiling($(New-TimeSpan -Start $LastBackupHeader.BackupStartDate -End $RecoveryDateTime.UtcDateTime).TotalMinutes / 15)
@@ -4457,7 +4460,7 @@ function Get-DatabaseRecovery {
 				:ParentLoop foreach ($TrnBackup in $TrnBackups) {
 					$ProgressParameters1.Activity = 'Evaluating transaction log backups'
 					$ProgressParameters1.Status = [string]::Format('File {0} of {1}', $TrnBackups.IndexOf($TrnBackup) + 1, $TrnBackups.Count)
-					$ProgressParameters1.CurrentOperation = [string]::Format('File Name: {0}', $TrnBackup.Name)
+					$ProgressParameters1.CurrentOperation = [string]::Format('Filename: {0}', $TrnBackup.Name)
 					$ProgressParameters1.PercentComplete = $TrnBackups.IndexOf($TrnBackup) / $TrnBackups.Count * 100
 
 					Write-Verbose $ProgressParameters1.CurrentOperation
@@ -4466,7 +4469,7 @@ function Get-DatabaseRecovery {
 					$TrnBackupHeaders = Get-SmoBackupHeader -DatabaseBackupPath $TrnBackup.FullName -SmoServerObject $SmoServerObject | Sort-Object -Property Position
 
 					foreach ($TrnBackupHeader in $TrnBackupHeaders) {
-						$BackupFinishDate = [DateTimeOffset]::New($TrnBackupHeader.BackupFinishDate, $TimeZone.GetUtcOffset($TrnBackupHeader.BackupFinishDate))
+						$BackupFinishDate = [DateTimeOffset]::New($TrnBackupHeader.BackupFinishDate, $TimeZoneInfo.GetUtcOffset($TrnBackupHeader.BackupFinishDate))
 
 						$RestoreOptions = [System.Collections.Generic.List[string]]@(
 							[string]::Format('FILE = {0}', $TrnBackupHeader.Position),
@@ -4565,8 +4568,8 @@ function Get-DatabaseRecovery {
 							'BackupDatabaseName' = $LastBackupHeader.DatabaseName
 							'DatabaseGUID' = $TrnBackupHeader.BindingID
 							'BackupFileName' = $TrnBackup
-							'BackupStartDate' = $TrnBackupHeader.BackupStartDate
-							'BackupFinishDate' = $TrnBackupHeader.BackupFinishDate
+							'BackupStartDate' = [DateTimeOffset]::New($TrnBackupHeader.BackupStartDate, $TimeZoneInfo.GetUtcOffset($TrnBackupHeader.BackupStartDate))
+							'BackupFinishDate' = [DateTimeOffset]::New($TrnBackupHeader.BackupFinishDate, $TimeZoneInfo.GetUtcOffset($TrnBackupHeader.BackupFinishDate))
 							'BackupPosition' = $TrnBackupHeader.Position
 							'BackupType' = $TrnBackupHeader.BackupTypeDescription
 							'RecoveryModel' = $TrnBackupHeader.RecoveryModel
@@ -7526,6 +7529,14 @@ function Invoke-LogShipping {
 			ValueFromPipeline = $false,
 			ValueFromPipelineByPropertyName = $false
 		)]
+		[ValidateRange(0, 4)]
+		[int]$VerboseLevel = 3,
+
+		[Parameter(
+			Mandatory = $false,
+			ValueFromPipeline = $false,
+			ValueFromPipelineByPropertyName = $false
+		)]
 		[System.Management.Automation.RunSpaces.PSSession]$Session
 	)
 
@@ -7608,6 +7619,25 @@ function Invoke-LogShipping {
 				$SqlToolsPath = Get-SqlToolsPath -Session $Session
 			} else {
 				$SqlToolsPath = Get-SqlToolsPath
+
+				if ($null -eq $SqlToolsPath -or -not $(Test-Path -Path $(Join-Path -Path $SqlToolsPath -ChildPath 'SqlLogShip.exe'))) {
+					if ([Environment]::MachineName -ne $ServerName) {
+						$Session = New-PSSession -ComputerName $ServerInstance
+
+						if ($Session -isnot [System.Management.Automation.RunSpaces.PSSession]) {
+							throw [System.Management.Automation.ErrorRecord]::New(
+								[Exception]::New('Unable to create PSSession.'),
+								'1',
+								[System.Management.Automation.ErrorCategory]::ResourceUnavailable,
+								$ServerInstance
+							)
+						}
+
+						$SqlToolsPath = Get-SqlToolsPath -Session $Session
+					} else {
+						$SqlToolsPath = $null
+					}
+				}
 			}
 
 			if ($null -eq $SqlToolsPath) {
@@ -7632,7 +7662,7 @@ function Invoke-LogShipping {
 				'ArgumentList' = $SqlToolsPath
 			}
 
-			If ($PSBoundParameters.ContainsKey('Session')) {
+			if (Test-Path -Path Variable:\Session) {
 				$CommandParameters.Add('Session', $Session)
 			}
 
@@ -7703,10 +7733,11 @@ function Invoke-LogShipping {
 						$SqlLogShipExecutable,
 						$LSOperation,
 						$LogShippingDatabase.LSID,
-						$LogShippingDatabase.ServerName
+						$LogShippingDatabase.ServerName,
+						$VerboseLevel
 					)
 
-					$CommandString = [string]::Format('."{0}" -{1} {2} -Server {3}', $FormatStringArray)
+					$CommandString = [string]::Format('."{0}" -{1} {2} -Server {3} -verboselevel {4}', $FormatStringArray)
 
 					$ScriptBlock = {
 						param($CommandString)
@@ -7725,7 +7756,7 @@ function Invoke-LogShipping {
 							'ArgumentList' = $CommandString
 						}
 
-						If ($PSBoundParameters.ContainsKey('Session')) {
+						if (Test-Path -Path Variable:\Session) {
 							$CommandParameters.Add('Session', $Session)
 						}
 

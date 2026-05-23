@@ -3239,6 +3239,19 @@ This server instance becomes the target of the backup operation.</maml:para>
           <command:parameterValue required="false" variableLength="true">System.Management.Automation.Runspaces.PSSession</command:parameterValue>
         </command:parameter>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+          <maml:name>VerboseLevel</maml:name>
+          <maml:description>
+            <maml:para>Specifies the level of verbose output to display.</maml:para>
+            <maml:para>Level   Description
+0       Output no tracing and debugging messages.
+1       Output error-handling messages.
+2       Output warnings and error-handling messages.
+3       Output informational messages, warnings, and error-handling messages.
+4       Output all debugging and tracing messages.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="true">System.Int32</command:parameterValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description>
             <maml:para>Runs the command in a mode that only reports what would happen without performing the actions.</maml:para>
@@ -3283,6 +3296,19 @@ This server instance becomes the target of the backup operation.</maml:para>
             <maml:para>An open SQL Client Connection object.</maml:para>
           </maml:description>
           <command:parameterValue required="true" variableLength="true">Microsoft.Data.SqlClient.SqlConnection</command:parameterValue>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+          <maml:name>VerboseLevel</maml:name>
+          <maml:description>
+            <maml:para>Specifies the level of verbose output to display.</maml:para>
+            <maml:para>Level   Description
+0       Output no tracing and debugging messages.
+1       Output error-handling messages.
+2       Output warnings and error-handling messages.
+3       Output informational messages, warnings, and error-handling messages.
+4       Output all debugging and tracing messages.</maml:para>
+          </maml:description>
+          <command:parameterValue required="false" variableLength="true">System.Int32</command:parameterValue>
         </command:parameter>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>WhatIf</maml:name>
@@ -3336,6 +3362,19 @@ This server instance becomes the target of the backup operation.</maml:para>
           <maml:para>An open SQL Client Connection object.</maml:para>
         </maml:description>
         <command:parameterValue required="true" variableLength="true">Microsoft.Data.SqlClient.SqlConnection</command:parameterValue>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>VerboseLevel</maml:name>
+        <maml:description>
+          <maml:para>Specifies the level of verbose output to display.</maml:para>
+          <maml:para>Level   Description
+0       Output no tracing and debugging messages.
+1       Output error-handling messages.
+2       Output warnings and error-handling messages.
+3       Output informational messages, warnings, and error-handling messages.
+4       Output all debugging and tracing messages.</maml:para>
+        </maml:description>
+        <command:parameterValue required="false" variableLength="true">System.Int32</command:parameterValue>
       </command:parameter>
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
         <maml:name>WhatIf</maml:name>

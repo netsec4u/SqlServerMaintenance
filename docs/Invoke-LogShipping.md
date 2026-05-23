@@ -24,6 +24,7 @@ Invoke-LogShipping
   -ServerInstance <string>
   -LSOperation <LSOperation>
   [-DatabaseName <string[]>]
+  [-VerboseLevel <int>]
   [-Session <PSSession>]
   [-WhatIf]
   [-Confirm]
@@ -37,6 +38,7 @@ Invoke-LogShipping
   -SqlConnection <SqlConnection>
   -LSOperation <LSOperation>
   [-DatabaseName <string[]>]
+  [-VerboseLevel <int>]
   [-Session <PSSession>]
   [-WhatIf]
   [-Confirm]
@@ -209,6 +211,34 @@ ParameterSets:
 - Name: SqlConnection
   Position: Named
   IsRequired: true
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
+DontShow: false
+AcceptedValues: []
+HelpMessage: ''
+```
+
+### -VerboseLevel
+
+Specifies the level of verbose output to display.
+
+Level   Description
+0       Output no tracing and debugging messages.
+1       Output error-handling messages.
+2       Output warnings and error-handling messages.
+3       Output informational messages, warnings, and error-handling messages.
+4       Output all debugging and tracing messages.
+
+```yaml
+Type: System.Int32
+DefaultValue: 3
+SupportsWildcards: false
+Aliases: []
+ParameterSets:
+- Name: (All)
+  Position: Named
+  IsRequired: false
   ValueFromPipeline: false
   ValueFromPipelineByPropertyName: false
   ValueFromRemainingArguments: false
