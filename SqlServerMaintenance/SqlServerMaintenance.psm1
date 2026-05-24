@@ -7662,7 +7662,7 @@ function Invoke-LogShipping {
 				'ArgumentList' = $SqlToolsPath
 			}
 
-			if (Test-Path -Path Variable:\Session) {
+			if ($Session -is [System.Management.Automation.RunSpaces.PSSession]) {
 				$CommandParameters.Add('Session', $Session)
 			}
 
@@ -7756,7 +7756,7 @@ function Invoke-LogShipping {
 							'ArgumentList' = $CommandString
 						}
 
-						if (Test-Path -Path Variable:\Session) {
+						if ($Session -is [System.Management.Automation.RunSpaces.PSSession]) {
 							$CommandParameters.Add('Session', $Session)
 						}
 
@@ -10600,7 +10600,7 @@ function Invoke-SqlInstanceFullTextIndexMaintenance {
 			if ($SmoServerObject.IsFullTextInstalled -eq $false) {
 				Write-Warning 'Full-Text is not installed.'
 
-				Break
+				return
 			}
 
 			$SmoServerObject.Databases.Refresh()
