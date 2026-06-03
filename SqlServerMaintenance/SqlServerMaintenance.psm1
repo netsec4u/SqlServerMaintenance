@@ -8321,7 +8321,7 @@ function Invoke-SqlBackupVerification {
 											)
 										}
 
-										$TargetTransactionLogs = $SqlBackupFiles.where({$_.Extension -eq '.trn' -and $_.BackupDate -ge $FirstFullBackupFile.BackupDate -and $_.BackupDate -le $LastDatabaseBackupFileInfo.LastWriteTime})
+										$TargetTransactionLogs = $SqlBackupFiles.where({$_.Extension -eq '.trn' -and $_.BackupDate -ge $FirstFullBackupFile.BackupDate -and $_.BackupDate -le $LastDatabaseBackupFileInfo.LastWriteTimeUtc})
 
 										if ($TargetTransactionLogs.Count -gt 0) {
 											$BackupFileInfo.Add($($FirstFullBackupFile))
@@ -8448,7 +8448,7 @@ function Invoke-SqlBackupVerification {
 												}
 
 												$BackupFileInfo.Add($($NextBackupFile))
-												$BackupFileInfo.AddRange([SqlServerMaintenance.BackupFileInfo[]]($SqlBackupFiles.where({$_.Extension -eq '.trn' -and $_.BackupDate -gt $NextBackupFile.BackupDate -and $_.BackupDate -le $LastDatabaseBackupFileInfo.LastWriteTime})))
+												$BackupFileInfo.AddRange([SqlServerMaintenance.BackupFileInfo[]]($SqlBackupFiles.where({$_.Extension -eq '.trn' -and $_.BackupDate -gt $NextBackupFile.BackupDate -and $_.BackupDate -le $LastDatabaseBackupFileInfo.LastWriteTimeUtc})))
 												#EndRegion
 											}
 											'S' {
@@ -8558,7 +8558,7 @@ function Invoke-SqlBackupVerification {
 														$BackupFileInfo.Add($PreviousBackupFile)
 													}
 
-													$BackupFileInfo.AddRange([SqlServerMaintenance.BackupFileInfo[]]($SqlBackupFiles.where({$_.Extension -eq '.trn' -and $_.BackupDate -ge $PreviousBackupFile.BackupDate -and $_.BackupDate -le $LastDatabaseBackupFileInfo.LastWriteTime})))
+													$BackupFileInfo.AddRange([SqlServerMaintenance.BackupFileInfo[]]($SqlBackupFiles.where({$_.Extension -eq '.trn' -and $_.BackupDate -ge $PreviousBackupFile.BackupDate -and $_.BackupDate -le $LastDatabaseBackupFileInfo.LastWriteTimeUtc})))
 													#EndRegion
 												}
 											}
