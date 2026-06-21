@@ -4208,6 +4208,10 @@ function Get-DatabaseRecovery {
 			foreach ($FullBackup in $FullBackups) {
 				$FullBackupHeader = Get-SmoBackupHeader -DatabaseBackupPath $FullBackup.FullName -SmoServerObject $SmoServerObject
 
+				if ($FullBackupHeader.BackupName -eq '*** INCOMPLETE ***' -and $null -eq $FullBackupHeader.BackupTypeDescription) {
+					continue
+				}
+
 				if ($($FullBackupHeader | Measure-Object).Count -gt 1) {
 					throw [System.Management.Automation.ErrorRecord]::New(
 						[Exception]::New('Multiple backups in backup file is not supported'),
@@ -4375,6 +4379,10 @@ function Get-DatabaseRecovery {
 			foreach ($DiffBackup in $DiffBackups) {
 				$DiffBackupHeader = Get-SmoBackupHeader -DatabaseBackupPath $DiffBackup.FullName -SmoServerObject $SmoServerObject
 
+				if ($DiffBackupHeader.BackupName -eq '*** INCOMPLETE ***' -and $null -eq $DiffBackupHeader.BackupTypeDescription) {
+					continue
+				}
+
 				if ($($DiffBackupHeader | Measure-Object).Count -gt 1) {
 					throw [System.Management.Automation.ErrorRecord]::New(
 						[Exception]::New('Multiple backups in backup file is not supported'),
@@ -4469,6 +4477,10 @@ function Get-DatabaseRecovery {
 					$TrnBackupHeaders = Get-SmoBackupHeader -DatabaseBackupPath $TrnBackup.FullName -SmoServerObject $SmoServerObject | Sort-Object -Property Position
 
 					foreach ($TrnBackupHeader in $TrnBackupHeaders) {
+						if ($TrnBackupHeader.BackupName -eq '*** INCOMPLETE ***' -and $null -eq $TrnBackupHeader.BackupTypeDescription) {
+							continue
+						}
+
 						$BackupFinishDate = [DateTimeOffset]::New($TrnBackupHeader.BackupFinishDate, $TimeZoneInfo.GetUtcOffset($TrnBackupHeader.BackupFinishDate))
 
 						$RestoreOptions = [System.Collections.Generic.List[string]]@(
@@ -8303,6 +8315,10 @@ function Invoke-SqlBackupVerification {
 										foreach ($FullBackup in $FullBackups) {
 											$FullBackupHeader = Get-SmoBackupHeader -DatabaseBackupPath $FullBackup.FullName -SmoServerObject $SmoServerObject
 
+											if ($FullBackupHeader[0].BackupName -eq '*** INCOMPLETE ***' -and $null -eq $FullBackupHeader[0].BackupTypeDescription) {
+												continue
+											}
+
 											if ($FullBackupHeader[0].IsCopyOnly) {
 												$FirstFullBackupFile = $null
 											} else {
@@ -8339,6 +8355,10 @@ function Invoke-SqlBackupVerification {
 
 											foreach ($FullBackup in $FullBackups) {
 												$BackupHeader = Get-SmoBackupHeader -DatabaseBackupPath $FullBackup.FullName -SmoServerObject $SmoServerObject
+
+												if ($BackupHeader[0].BackupName -eq '*** INCOMPLETE ***' -and $null -eq $BackupHeader[0].BackupTypeDescription) {
+													continue
+												}
 
 												if ($BackupHeader[0].IsCopyOnly) {
 													$LastFullBackupFile = $null
@@ -8383,21 +8403,21 @@ function Invoke-SqlBackupVerification {
 
 										if ($null -ne $FailedTests) {
 											[SqlServerMaintenance.BackupFileInfo[]]$SqlBackupFiles = $SqlBackupFiles.where({$_.Name -NotIn $FailedTests.BackupFileName})
-										}
 
-										if ($FailedTests.where({$_.BackupType -eq 'F'}).Count -gt 0) {
-											$LastFullFailureDateTime = $FailedTests.where({$_.BackupType -eq 'F'}) | Measure-Object -Property BackupDateTime -Maximum
+											if ($FailedTests.where({$_.BackupType -eq 'F'}).Count -gt 0) {
+												$LastFullFailureDateTime = $FailedTests.where({$_.BackupType -eq 'F'}) | Measure-Object -Property BackupDateTime -Maximum
 
-											$NextFullBackup = $SqlBackupFiles.where({$_.BackupType -eq 'Full' -and $_.BackupDate -gt $LastFullFailureDateTime.Maximum}) | Sort-Object -Property BackupDate | Select-Object -First 1
+												$NextFullBackup = $SqlBackupFiles.where({$_.BackupType -eq 'Full' -and $_.BackupDate -gt $LastFullFailureDateTime.Maximum}) | Sort-Object -Property BackupDate | Select-Object -First 1
 
-											if ($null -eq $NextFullBackup) {
-												$OrphanedDiffBackups = $SqlBackupFiles.where({$_.BackupType -eq 'Diff' -and $_.BackupDate -gt $LastFullFailureDateTime.Maximum})
-											} else {
-												$OrphanedDiffBackups = $SqlBackupFiles.where({$_.BackupType -eq 'Diff' -and $_.BackupDate -gt $LastFullFailureDateTime.Maximum -and $_.BackupDate -lt $NextFullBackup.BackupDate})
-											}
+												if ($null -eq $NextFullBackup) {
+													$OrphanedDiffBackups = $SqlBackupFiles.where({$_.BackupType -eq 'Diff' -and $_.BackupDate -gt $LastFullFailureDateTime.Maximum})
+												} else {
+													$OrphanedDiffBackups = $SqlBackupFiles.where({$_.BackupType -eq 'Diff' -and $_.BackupDate -gt $LastFullFailureDateTime.Maximum -and $_.BackupDate -lt $NextFullBackup.BackupDate})
+												}
 
-											if ($OrphanedDiffBackups.Count -gt 0) {
-												[SqlServerMaintenance.BackupFileInfo[]]$SqlBackupFiles = $SqlBackupFiles.where({$_.Name -NotIn $OrphanedDiffBackups.Name})
+												if ($OrphanedDiffBackups.Count -gt 0) {
+													[SqlServerMaintenance.BackupFileInfo[]]$SqlBackupFiles = $SqlBackupFiles.where({$_.Name -NotIn $OrphanedDiffBackups.Name})
+												}
 											}
 										}
 
@@ -8423,6 +8443,10 @@ function Invoke-SqlBackupVerification {
 													} else {
 														$FullBackupHeader = Get-SmoBackupHeader -DatabaseBackupPath $NextBackup.FullName -SmoServerObject $SmoServerObject
 
+														if ($FullBackupHeader[0].BackupName -eq '*** INCOMPLETE ***' -and $null -eq $FullBackupHeader[0].BackupTypeDescription) {
+															continue
+														}
+
 														if ($FullBackupHeader[0].IsCopyOnly) {
 															$NextBackupFile = $null
 														} else {
@@ -8438,6 +8462,10 @@ function Invoke-SqlBackupVerification {
 
 													foreach ($PreviousFullBackup in $PreviousFullBackups) {
 														$FullBackupHeader = Get-SmoBackupHeader -DatabaseBackupPath $PreviousFullBackup.FullName -SmoServerObject $SmoServerObject
+
+														if ($FullBackupHeader[0].BackupName -eq '*** INCOMPLETE ***' -and $null -eq $FullBackupHeader[0].BackupTypeDescription) {
+															continue
+														}
 
 														if ($FullBackupHeader[0].IsCopyOnly -eq $false) {
 															$BackupFileInfo.Add($PreviousFullBackup)
@@ -8461,6 +8489,10 @@ function Invoke-SqlBackupVerification {
 													foreach ($NextBackup in $NextBackups) {
 														$BackupHeader = Get-SmoBackupHeader -DatabaseBackupPath $NextBackup.FullName -SmoServerObject $SmoServerObject
 
+														if ($BackupHeader[0].BackupName -eq '*** INCOMPLETE ***' -and $null -eq $BackupHeader[0].BackupTypeDescription) {
+															continue
+														}
+
 														if ($NextBackup.Extension -eq '.dif') {
 															$NextDatabaseBackupFile = $NextBackup
 
@@ -8482,6 +8514,10 @@ function Invoke-SqlBackupVerification {
 
 															foreach ($PreviousBackup in $PreviousBackups) {
 																$BackupHeader = Get-SmoBackupHeader -DatabaseBackupPath $PreviousBackup.FullName -SmoServerObject $SmoServerObject
+
+																if ($BackupHeader[0].BackupName -eq '*** INCOMPLETE ***' -and $null -eq $BackupHeader[0].BackupTypeDescription) {
+																	continue
+																}
 
 																if ($BackupHeader[0].IsCopyOnly -eq $false) {
 																	$BackupFileInfo.Add($PreviousBackup)
@@ -8508,6 +8544,10 @@ function Invoke-SqlBackupVerification {
 														foreach ($PreviousBackup in $PreviousBackups) {
 															$FullBackupHeader = Get-SmoBackupHeader -DatabaseBackupPath $PreviousBackup.FullName -SmoServerObject $SmoServerObject
 
+															if ($FullBackupHeader[0].BackupName -eq '*** INCOMPLETE ***' -and $null -eq $FullBackupHeader[0].BackupTypeDescription) {
+																continue
+															}
+
 															if ($FullBackupHeader[0].IsCopyOnly) {
 																$PreviousBackupFile = $null
 															} else {
@@ -8521,6 +8561,10 @@ function Invoke-SqlBackupVerification {
 
 														foreach ($PreviousBackup in $PreviousBackups) {
 															$FullBackupHeader = Get-SmoBackupHeader -DatabaseBackupPath $PreviousBackup.FullName -SmoServerObject $SmoServerObject
+
+															if ($FullBackupHeader[0].BackupName -eq '*** INCOMPLETE ***' -and $null -eq $FullBackupHeader[0].BackupTypeDescription) {
+																continue
+															}
 
 															if ($FullBackupHeader[0].IsCopyOnly) {
 																$PreviousBackupFile = $null
@@ -8540,6 +8584,10 @@ function Invoke-SqlBackupVerification {
 																$FullBackupHeader = Get-SmoBackupHeader -DatabaseBackupPath $PreviousFullBackup.FullName -SmoServerObject $SmoServerObject
 															}
 															catch {
+																continue
+															}
+
+															if ($FullBackupHeader[0].BackupName -eq '*** INCOMPLETE ***' -and $null -eq $FullBackupHeader[0].BackupTypeDescription) {
 																continue
 															}
 
