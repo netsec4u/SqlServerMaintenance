@@ -97,6 +97,7 @@ Set-SqlServerMaintenanceConfiguration
 Set-SqlServerMaintenanceConfiguration
 	-SettingName AdminDatabase
 	-DatabaseName <String>
+  [-SchemaName <String>]
 	[-WhatIf]
 	[-Confirm]
 	[<CommonParameters>]
@@ -367,6 +368,28 @@ ParameterSets:
   ValueFromPipelineByPropertyName: false
   ValueFromRemainingArguments: false
 - Name: SqlAgentAlerts
+  Position: Named
+  IsRequired: true
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
+DontShow: false
+AcceptedValues: []
+HelpMessage: ''
+```
+
+### -SchemaName
+
+Specifies the name of the schema to store tables for module statistics and test data.
+Dynamic parameter available when SettingName is AdminDatabase.
+
+```yaml
+Type: System.String
+DefaultValue: None
+SupportsWildcards: false
+Aliases: []
+ParameterSets:
+- Name: AdminDatabase
   Position: Named
   IsRequired: true
   ValueFromPipeline: false

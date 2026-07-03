@@ -1223,6 +1223,94 @@ function Get-DatabaseTransactionLogInfoDataSet {
 	}
 }
 
+function Get-MaintenanceDatabaseVersion {
+	<#
+	.SYNOPSIS
+	Returns the maintenance database version.
+	.DESCRIPTION
+	Returns the maintenance database version.
+	.PARAMETER SmoServerObject
+	SQL Server Management Object.
+	.EXAMPLE
+	Get-MaintenanceDatabaseVersion -SmoServerObject $SmoServerObject
+
+	Returns the database version of the maintenance database.
+	.NOTES
+	#>
+
+	[System.Diagnostics.DebuggerStepThrough()]
+
+	[CmdletBinding(
+		PositionalBinding = $false,
+		SupportsShouldProcess = $false,
+		ConfirmImpact = 'Low'
+	)]
+
+	[OutputType([version])]
+
+	param (
+		[Parameter(
+			Mandatory = $true,
+			ValueFromPipeline = $false,
+			ValueFromPipelineByPropertyName = $false,
+			ParameterSetName = 'TailLog-SmoServerObject'
+		)]
+		[Microsoft.SqlServer.Management.Smo.Server]$SmoServerObject
+	)
+
+	begin {
+		$InformationSchema_FormatString = "SELECT TABLE_NAME
+			FROM INFORMATION_SCHEMA.TABLES
+			WHERE TABLE_TYPE = N'BASE TABLE'
+				AND TABLE_SCHEMA = N'{0}'
+				AND TABLE_NAME = N'{1}';"
+		$DatabaseVersion_FormatString = 'SELECT Version FROM [{0}].[{1}];'
+
+		$StringArray = @(
+			$Script:PSMConfig.Config.AdminDatabase.SchemaName,
+			$Script:PSMConfig.Config.AdminDatabase.DatabaseVersion.TableName
+		)
+	}
+
+	process {
+		try {
+			$AdminDatabaseName = $Script:PSMConfig.Config.AdminDatabase.DatabaseName
+
+			$DatabaseObject = $SmoServerObject.Databases[$AdminDatabaseName]
+
+			if ($DatabaseObject -is [Microsoft.SqlServer.Management.Smo.Database]) {
+				$SqlClientDataSetParameters = @{
+					'SqlConnection' = $SmoServerObject.ConnectionContext.SqlConnectionObject
+					'SqlCommandText' = [string]::Format($InformationSchema_FormatString, $StringArray)
+					'OutputAs' = 'DataRow'
+				}
+
+				$SqlClientDataSet = Get-SqlClientDataSet @SqlClientDataSetParameters
+
+				if (@($SqlClientDataSet).Count -eq 0) {
+					[version]'1.0.0'
+				} else {
+					$SqlClientDataSetParameters = @{
+						'SqlConnection' = $SmoServerObject.ConnectionContext.SqlConnectionObject
+						'SqlCommandText' = [string]::Format($DatabaseVersion_FormatString, $StringArray)
+						'OutputAs' = 'DataRow'
+					}
+
+					$SqlClientDataSet = Get-SqlClientDataSet @SqlClientDataSetParameters
+
+					[version]$SqlClientDataSet.Version
+				}
+			}
+		}
+		catch {
+			throw $_
+		}
+	}
+
+	end {
+	}
+}
+
 function Get-SqlBackupFile {
 	<#
 	.SYNOPSIS
@@ -2612,6 +2700,191 @@ function Test-FolderAcl {
 	}
 }
 
+function Test-MaintenanceDatabase {
+	<#
+	.SYNOPSIS
+	Tests maintenance database.
+	.DESCRIPTION
+	Tests maintenance database for expected objects and version.
+	.PARAMETER SmoServerObject
+	SQL Server Management Object.
+	.EXAMPLE
+	Test-MaintenanceDatabase -SmoServerObject $SmoServerObject
+	.NOTES
+	#>
+
+	[System.Diagnostics.DebuggerStepThrough()]
+
+	[CmdletBinding(
+		PositionalBinding = $false,
+		SupportsShouldProcess = $false,
+		ConfirmImpact = 'Low'
+	)]
+
+	[OutputType([PSCustomObject])]
+
+	param (
+		[Parameter(
+			Mandatory = $true,
+			ValueFromPipeline = $false,
+			ValueFromPipelineByPropertyName = $false,
+			ParameterSetName = 'TailLog-SmoServerObject'
+		)]
+		[Microsoft.SqlServer.Management.Smo.Server]$SmoServerObject
+	)
+
+	begin {
+		$Output = [PSCustomObject]@{
+			AdminDatabase = $false
+			Version = $null
+			Statistics = [PSCustomObject]@{}
+			Tests = [PSCustomObject]@{}
+		}
+	}
+
+	process {
+		try {
+			$AdminDatabaseName = $Script:PSMConfig.Config.AdminDatabase.DatabaseName
+			$AdminSchemaName = $Script:PSMConfig.Config.AdminDatabase.SchemaName
+
+			$DatabaseObject = $SmoServerObject.Databases[$AdminDatabaseName]
+
+			if ($DatabaseObject -is [Microsoft.SqlServer.Management.Smo.Database]) {
+				$Output.AdminDatabase = $true
+
+				$Output.Version = Get-MaintenanceDatabaseVersion -SmoServerObject $SmoServerObject
+
+				foreach ($ChildNode in $Script:PSMConfig.SelectNodes('//Config/AdminDatabase').ChildNodes) {
+					if ($ChildNode.Name -in @('Statistics', 'Tests')) {
+						foreach ($Item in $ChildNode.ChildNodes) {
+							if ($DatabaseObject -is [Microsoft.SqlServer.Management.Smo.Database]) {
+								if ($DatabaseObject.Tables[$Item.TableName, $AdminSchemaName] -is [Microsoft.SqlServer.Management.Smo.Table]) {
+									$Value = $true
+								} else {
+									$Value = $false
+								}
+							} else {
+								$Value = $false
+							}
+
+							$Output.$($ChildNode.Name) | Add-Member -MemberType NoteProperty -Name $Item.Name -Value $Value
+						}
+					}
+				}
+			}
+
+			$Output
+		}
+		catch {
+			throw $_
+		}
+	}
+
+	end {
+	}
+}
+
+function Update-MaintenanceDatabase {
+	<#
+	.SYNOPSIS
+	Updates maintenance database to current version.
+	.DESCRIPTION
+	Updates maintenance database to current version.
+	.PARAMETER SmoServerObject
+	SQL Server Management Object.
+	.PARAMETER Version
+	Current Database Version.
+	.EXAMPLE
+	Update-MaintenanceDatabase -DatabaseObject $DatabaseObject -Version '1.0.0'
+	.NOTES
+	#>
+
+	[System.Diagnostics.DebuggerStepThrough()]
+
+	[CmdletBinding(
+		PositionalBinding = $false,
+		SupportsShouldProcess = $true,
+		ConfirmImpact = 'Low'
+	)]
+
+	[OutputType([void])]
+
+	param (
+		[Parameter(
+			Mandatory = $true,
+			ValueFromPipeline = $false,
+			ValueFromPipelineByPropertyName = $false,
+			ParameterSetName = 'TailLog-SmoServerObject'
+		)]
+		[Microsoft.SqlServer.Management.Smo.Server]$SmoServerObject,
+
+		[Parameter(
+			Mandatory = $true,
+			ValueFromPipeline = $false,
+			ValueFromPipelineByPropertyName = $false,
+			ParameterSetName = 'TailLog-SmoServerObject'
+		)]
+		[version]$Version
+	)
+
+	begin {
+		try {
+			if ($Version -gt $Script:PSMConfig.Config.Version) {
+				throw [System.Management.Automation.ErrorRecord]::New(
+					[Exception]::New('Database version is newer than module version. Please update the module.'),
+					'1',
+					[System.Management.Automation.ErrorCategory]::InvalidData,
+					$Script:ConfigurationFile
+				)
+			}
+		}
+		catch {
+			throw $_
+		}
+
+		$PSManifestFile = $PSCommandPath -replace '.psm1$', '.psd1'
+
+		$PrivateData = (Import-PowerShellDataFile -LiteralPath $PSManifestFile).PrivateData
+
+		$MaintenanceDatabaseDDL = $PrivateData.MaintenanceDatabaseDDL
+	}
+
+	process {
+		try {
+			$AdminDatabaseName = $Script:PSMConfig.Config.AdminDatabase.DatabaseName
+			$AdminSchemaName = $Script:PSMConfig.Config.AdminDatabase.SchemaName
+
+			$DatabaseObject = $SmoServerObject.Databases[$AdminDatabaseName]
+
+			if ($Version -eq [version]'1.0.0') {
+				$ParameterArray = @(
+					$AdminSchemaName,
+					$Script:PSMConfig.Config.AdminDatabase.DatabaseVersion.TableName,
+					$Script:PSMConfig.Config.AdminDatabase.Statistics.Database.TableName
+				)
+
+				$SmoNonQueryParameters = @{
+					DatabaseObject = $DatabaseObject
+					SqlCommandText = [string]::Format($MaintenanceDatabaseDDL.v300, $ParameterArray)
+					Confirm = $false
+				}
+
+				if ($PSCmdlet.ShouldProcess($AdminDatabaseName, 'Update maintenance database.')) {
+					Invoke-SmoNonQuery @SmoNonQueryParameters
+				}
+
+				$Version = [version]'3.0.0'
+			}
+		}
+		catch {
+			throw $_
+		}
+	}
+
+	end {
+	}
+}
+
 function Update-PSMConfiguration {
 	<#
 	.SYNOPSIS
@@ -2698,6 +2971,34 @@ function Update-PSMConfiguration {
 				$NewSmtpPasswordNode = $Script:PSMConfig.ImportNode($SmtpPasswordNode, $true)
 
 				[void]$Script:PSMConfig.Config.SmtpSettings.Network.SmtpAuthentication.ReplaceChild($NewSmtpPasswordNode, $OldSmtpPasswordNode)
+			}
+
+			if ([version]$Script:PSMConfig.Config.Version -eq [version]'2.1.0') {
+				$Script:PSMConfig.Config.Version = '3.0.0'
+
+				$ParentNode = $Script:PSMConfig.SelectSingleNode('//Config/AdminDatabase')
+
+				$NewNode = $Script:PSMConfig.CreateElement("DatabaseVersion")
+				$NewNode.SetAttribute("TableName", "DatabaseVersion")
+
+				[void]$ParentNode.InsertBefore($NewNode, $ParentNode.Statistics)
+				#$ParentNode.AppendChild($NewNode)
+
+				$SchemaNodes = $ParentNode.SelectNodes('//@SchemaName')
+
+				$SchemaNames = $SchemaNodes.Value | Group-Object | Sort-Object Count -Descending
+
+				if (@($SchemaNames).Count -gt 1) {
+					Write-Warning -Message 'Statistics and Test tables are located in more than one schema.  Tables will need to be moved to the same schema and configuration adjusted as necessary.'
+				}
+
+				foreach ($SchemaNode in $SchemaNodes) {
+					$SchemaNode.OwnerElement.RemoveAttribute($SchemaNode.Name)
+				}
+
+				$TargetSchemaName = $SchemaNames | Select-Object -ExpandProperty Name -First 1
+
+				$ParentNode.SetAttribute('SchemaName', $TargetSchemaName)
 			}
 
 			$XmlWriterSettings = [System.Xml.XmlWriterSettings]::new()
@@ -3796,9 +4097,9 @@ function Get-DatabasePrimaryFile {
 			$DatabaseInformation = Get-SqlClientDataSet @SqlClientDataSetParameters
 
 			$DatabasePrimaryFile = [SqlServerMaintenance.DatabasePrimaryFile]@{
-				DatabaseName = $DatabaseInformation.where({$_.property -eq 'Database name'}).value
-				DatabaseVersion = $DatabaseInformation.where({$_.property -eq 'Database version'}).value
-				Collation = $DatabaseInformation.where({$_.property -eq 'Collation'}).value
+				DatabaseName = @($DatabaseInformation).where({$_.property -eq 'Database name'}).value
+				DatabaseVersion = @($DatabaseInformation).where({$_.property -eq 'Database version'}).value
+				Collation = @($DatabaseInformation).where({$_.property -eq 'Collation'}).value
 			}
 
 			$SqlClientDataSetParameters.SqlCommandText = [string]::Format($CheckPrimaryFileFormatString, $MDFPath, 3)
@@ -5287,7 +5588,7 @@ function Get-SqlInstanceDataFileUsage {
 			$SmoServerObject.Databases.Refresh()
 
 			$StatisticsDatabaseName = $Script:PSMConfig.Config.AdminDatabase.DatabaseName
-			$StatisticsSchemaName = $Script:PSMConfig.Config.AdminDatabase.Statistics.Database.SchemaName
+			$StatisticsSchemaName = $Script:PSMConfig.Config.AdminDatabase.SchemaName
 			$StatisticsTableName = $Script:PSMConfig.Config.AdminDatabase.Statistics.Database.TableName
 		}
 		catch {
@@ -6714,13 +7015,13 @@ function Get-SqlServerMaintenanceConfiguration {
 				'AdminDatabase' {
 					[PSCustomObject][ordered]@{
 						'DatabaseName' = $Script:PSMConfig.Config.AdminDatabase.DatabaseName
+						'SchemaName' = $Script:PSMConfig.Config.AdminDatabase.SchemaName
 					}
 				}
 				'Statistics' {
 					foreach ($Statistic in $Script:PSMConfig.SelectNodes('./Config/AdminDatabase/Statistics/*')) {
 						[PSCustomObject][ordered]@{
 							'StatisticName' = $Statistic.LocalName
-							'SchemaName' = $Statistic.SchemaName
 							'TableName' = $Statistic.TableName
 							'RetentionInDays' = $Statistic.RetentionDays
 						}
@@ -6730,7 +7031,6 @@ function Get-SqlServerMaintenanceConfiguration {
 					foreach ($Test in $Script:PSMConfig.SelectNodes('./Config/AdminDatabase/Tests/*')) {
 						[PSCustomObject][ordered]@{
 							'TestName' = $Test.LocalName
-							'SchemaName' = $Test.SchemaName
 							'TableName' = $Test.TableName
 							'RetentionInDays' = $Test.RetentionDays
 						}
@@ -6738,7 +7038,6 @@ function Get-SqlServerMaintenanceConfiguration {
 				}
 				'SqlAgentAlerts' {
 					[PSCustomObject][ordered]@{
-						'SchemaName' = $Script:PSMConfig.Config.AdminDatabase.SqlAgentAlerts.SchemaName
 						'TableName' = $Script:PSMConfig.Config.AdminDatabase.SqlAgentAlerts.TableName
 						'RetentionInDays' = $Script:PSMConfig.Config.AdminDatabase.SqlAgentAlerts.RetentionDays
 					}
@@ -6834,380 +7133,38 @@ function Initialize-SqlServerMaintenanceDatabase {
 			)
 				EXEC(N'CREATE SCHEMA [{0}] AUTHORIZATION [dbo]');"
 
-		$DDL_FormatString = "IF NOT EXISTS (
-			SELECT TABLE_CATALOG
-			FROM INFORMATION_SCHEMA.TABLES
-			WHERE TABLE_TYPE = N'BASE TABLE'
-				AND TABLE_SCHEMA = N'{0}'
-				AND TABLE_NAME = N'{1}'
-		)
-		BEGIN
-			CREATE TABLE [{0}].[{1}](
-				[SQLAgentAlertEventID] [int] IDENTITY(1,1) NOT NULL,
-				[EventDateTime] [datetime2](0) NULL,
-				[ComputerName] [nvarchar](128) NULL,
-				[ServerName] [nvarchar](128) NULL,
-				[InstanceName] [nvarchar](128) NULL,
-				[SQLServerInstance] [nvarchar](128) NULL,
-				[MasterSQLServerAgentServiceName] [nvarchar](128) NULL,
-				[DatabaseName] [nvarchar](128) NULL,
-				[JobID] [uniqueidentifier] NULL,
-				[JobName] [nvarchar](128) NULL,
-				[JobStartDateTime] [datetime2](0) NULL,
-				[StepID] [int] NULL,
-				[StepName] [nvarchar](128) NULL,
-				[StepCount] [int] NULL,
-				[OSCommand] [nvarchar](128) NULL,
-				[SQLDirectory] [nvarchar](128) NULL,
-				[SQLLogDirectory] [nvarchar](128) NULL,
-				[ErrorNumber] [int] NULL,
-				[Severity] [tinyint] NULL,
-				[MessageText] [nvarchar](2048) NULL,
-				[SentDateTime] [datetimeoffset](7) NULL,
-				[ClientIPAddress] [varchar](15) NULL,
-				CONSTRAINT [PK_SQLAgentAlertEvents] PRIMARY KEY CLUSTERED
-				(
-					[SQLAgentAlertEventID] ASC
-				),
-				INDEX [IX_SentDateTime] NONCLUSTERED (
-					[SentDateTime] ASC,
-					[EventDateTime] ASC
-				)
-			);
-		END
+		$PSManifestFile = $PSCommandPath -replace '.psm1$', '.psd1'
 
-		IF NOT EXISTS (
-			SELECT TABLE_CATALOG
-			FROM INFORMATION_SCHEMA.TABLES
-			WHERE TABLE_TYPE = N'BASE TABLE'
-				AND TABLE_SCHEMA = N'{2}'
-				AND TABLE_NAME = N'{3}'
-		)
-		BEGIN
-			CREATE TABLE [{2}].[{3}](
-				[StatisticID] [int] IDENTITY(1,1) NOT NULL,
-				[CollectionDate] [datetimeoffset](0) NOT NULL,
-				[DatabaseName] [nvarchar](128) NOT NULL,
-				[DatabaseGUID] [uniqueidentifier] NOT NULL,
-				[MediaName] [nvarchar](128) NOT NULL,
-				[BackupType] [char](4) NOT NULL,
-				[Pages] [bigint] NOT NULL,
-				[Seconds] [decimal](9, 4) NOT NULL,
-				[MBPerSecond] [decimal](9, 4) NOT NULL,
-				CONSTRAINT [PK_Statistics_Backup] PRIMARY KEY CLUSTERED
-				(
-					[StatisticID] ASC
-				),
-				INDEX [IX_CollectionDate]
-				(
-					[CollectionDate] ASC
-				)
-			);
-		END
+		$PrivateData = (Import-PowerShellDataFile -LiteralPath $PSManifestFile).PrivateData
 
-		IF NOT EXISTS (
-			SELECT TABLE_CATALOG
-			FROM INFORMATION_SCHEMA.TABLES
-			WHERE TABLE_TYPE = N'BASE TABLE'
-				AND TABLE_SCHEMA = N'{4}'
-				AND TABLE_NAME = N'{5}'
-		)
-		BEGIN
-			CREATE TABLE [{4}].[{5}](
-				[StatisticID] [int] IDENTITY(1,1) NOT NULL,
-				[CollectionDate] [datetimeoffset](0) NOT NULL,
-				[DatabaseName] [nvarchar](128) NOT NULL,
-				[SchemaName] [nvarchar](128) NOT NULL,
-				[ObjectID] [int] NOT NULL,
-				[ObjectName] [nvarchar](128) NOT NULL,
-				[IndexID] [int] NOT NULL,
-				[IndexName] [nvarchar](128) NULL,
-				[IndexType] [nvarchar](60) NOT NULL,
-				[PartitionNumber] [int] NOT NULL,
-				[CountRGs] [int] NOT NULL,
-				[CountRGsResult] [int] NOT NULL,
-				[TotalRows] [bigint] NOT NULL,
-				[AvgRowsPerRG] [bigint] NOT NULL,
-				[AvgRowsPerRGResult] [bigint] NOT NULL,
-				[CountRGLessThanQualityMeasure] [int] NOT NULL,
-				[CountRGLessThanQualityMeasureResult] [int] NOT NULL,
-				[PercentageRGLessThanQualityMeasure] [decimal](5, 2) NOT NULL,
-				[PercentageRGLessThanQualityMeasureResult] [decimal](5, 2) NOT NULL,
-				[DeletedRowsPercent] [decimal](5, 2) NOT NULL,
-				[DeletedRowsPercentResult] [decimal](5, 2) NOT NULL,
-				[NumRowgroupsWithDeletedRows] [int] NOT NULL,
-				[NumRowgroupsWithDeletedRowsResult] [int] NOT NULL,
-				CONSTRAINT [PK_Statistics_ColumnStore] PRIMARY KEY CLUSTERED
-				(
-					[StatisticID] ASC
-				),
-				INDEX [IX_CollectionDate]
-				(
-					[CollectionDate] ASC
-				)
-			);
-		END
-
-		IF NOT EXISTS (
-			SELECT TABLE_CATALOG
-			FROM INFORMATION_SCHEMA.TABLES
-			WHERE TABLE_TYPE = N'BASE TABLE'
-				AND TABLE_SCHEMA = N'{6}'
-				AND TABLE_NAME = N'{7}'
-		)
-		BEGIN
-			CREATE TABLE [{6}].[{7}](
-				[StatisticID] [int] IDENTITY(1,1) NOT NULL,
-				[CollectionDate] [datetimeoffset](0) NOT NULL,
-				[DatabaseName] [nvarchar](128) NOT NULL,
-				[DatabaseGuid] [char](36) NULL,
-				[LogicalFileName] [nvarchar](128) NOT NULL,
-				[PhysicalFileName] [nvarchar](512) NOT NULL,
-				[IsPrimaryFile] [bit] NOT NULL,
-				[IsLogFile] [bit] NOT NULL,
-				[IsOffline] [bit] NOT NULL,
-				[IsReadOnly] [bit] NOT NULL,
-				[RecoveryModel] [nvarchar](16) NOT NULL,
-				[CompatibilityLevel] [char](10) NULL,
-				[FileSizeMB] [decimal](18, 2) NOT NULL,
-				[UsedSpaceMB] [decimal](18, 2) NOT NULL,
-				[GrowthMB] [decimal](18, 2) NULL,
-				CONSTRAINT [PK_Statistics_Database] PRIMARY KEY CLUSTERED
-				(
-					[StatisticID] ASC
-				),
-				INDEX [IX_CollectionDate]
-				(
-					[CollectionDate] ASC
-				)
-			);
-		END
-
-		IF NOT EXISTS (
-			SELECT TABLE_CATALOG
-			FROM INFORMATION_SCHEMA.TABLES
-			WHERE TABLE_TYPE = N'BASE TABLE'
-				AND TABLE_SCHEMA = N'{8}'
-				AND TABLE_NAME = N'{9}'
-		)
-		BEGIN
-			CREATE TABLE [{8}].[{9}](
-				[StatisticID] [int] IDENTITY(1,1) NOT NULL,
-				[CollectionDate] [datetimeoffset](0) NOT NULL,
-				[DatabaseName] [nvarchar](128) NOT NULL,
-				[SchemaName] [nvarchar](128) NOT NULL,
-				[ObjectID] [int] NOT NULL,
-				[ObjectName] [nvarchar](128) NOT NULL,
-				[CatalogId] [int] NOT NULL,
-				[CatalogName] [nvarchar](128) NOT NULL,
-				[UniqueIndexID] [int] NOT NULL,
-				[IndexSizeMb] [decimal](9, 2) NOT NULL,
-				[IndexSizeMbResult] [decimal](9, 2) NULL,
-				[FragmentsCount] [int] NOT NULL,
-				[FragmentsCountResult] [int] NULL,
-				[LargestFragmentMb] [decimal](9, 2) NOT NULL,
-				[LargestFragmentMbResult] [decimal](9, 2) NULL,
-				[IndexFragmentationSpaceMb] [decimal](9, 2) NOT NULL,
-				[IndexFragmentationSpaceMbResult] [decimal](9, 2) NULL,
-				[IndexFragmentationPct] [decimal](5, 2) NOT NULL,
-				[IndexFragmentationPctResult] [decimal](5, 2) NULL,
-				CONSTRAINT [PK_FullTextIndexStats] PRIMARY KEY CLUSTERED
-				(
-					[StatisticID] ASC
-				),
-				INDEX [IX_CollectionDate]
-				(
-					[CollectionDate] ASC
-				)
-			);
-		END
-
-		IF NOT EXISTS (
-			SELECT TABLE_CATALOG
-			FROM INFORMATION_SCHEMA.TABLES
-			WHERE TABLE_TYPE = N'BASE TABLE'
-				AND TABLE_SCHEMA = N'{10}'
-				AND TABLE_NAME = N'{11}'
-		)
-		BEGIN
-			CREATE TABLE [{10}].[{11}](
-				[StatisticID] [int] IDENTITY(1,1) NOT NULL,
-				[CollectionDate] [datetimeoffset](0) NOT NULL,
-				[DatabaseName] [nvarchar](128) NOT NULL,
-				[SchemaName] [nvarchar](128) NOT NULL,
-				[ObjectID] [int] NOT NULL,
-				[ObjectName] [nvarchar](128) NOT NULL,
-				[IndexID] [int] NOT NULL,
-				[IndexName] [nvarchar](128) NULL,
-				[IndexType] [nvarchar](60) NOT NULL,
-				[PartitionNumber] [int] NOT NULL,
-				[AllowPageLocks] [bit] NOT NULL,
-				[FillFactor] [tinyint] NOT NULL,
-				[FillFactorResult] [tinyint] NULL,
-				[PageCount] [bigint] NOT NULL,
-				[PageCountResult] [bigint] NULL,
-				[AvgFragmentation] [float] NOT NULL,
-				[AvgFragmentationResult] [float] NULL,
-				[ForwardedRecordCount] [bigint] NULL,
-				[ForwardedRecordCountResult] [bigint] NULL,
-				[AvgPageSpaceUsed] [float] NULL,
-				[AvgPageSpaceUsedResult] [float] NULL,
-				CONSTRAINT [PK_IndexStats] PRIMARY KEY CLUSTERED
-				(
-					[StatisticID] ASC
-				),
-				INDEX [IX_CollectionDate]
-				(
-					[CollectionDate] ASC
-				)
-			);
-		END
-
-		IF NOT EXISTS (
-			SELECT TABLE_CATALOG
-			FROM INFORMATION_SCHEMA.TABLES
-			WHERE TABLE_TYPE = N'BASE TABLE'
-				AND TABLE_SCHEMA = N'{12}'
-				AND TABLE_NAME = N'{13}'
-		)
-		BEGIN
-			CREATE TABLE [{12}].[{13}](
-				[StatisticID] [int] IDENTITY(1,1) NOT NULL,
-				[CollectionDate] [datetimeoffset](0) NOT NULL,
-				[DatabaseName] [nvarchar](128) NOT NULL,
-				[DesiredState] [nvarchar](60) NOT NULL,
-				[ActualState] [nvarchar](60) NOT NULL,
-				[ReadOnlyReason] [int] NOT NULL,
-				[CurrentStorageSizeInMB] [bigint] NOT NULL,
-				[MaxStorageSizeInMB] [bigint] NOT NULL,
-				CONSTRAINT [PK_Statistics_QueryStore] PRIMARY KEY CLUSTERED
-				(
-					[StatisticID] ASC
-				),
-				INDEX [IX_CollectionDate]
-				(
-					[CollectionDate] ASC
-				)
-			);
-		END
-
-		IF NOT EXISTS (
-			SELECT TABLE_CATALOG
-			FROM INFORMATION_SCHEMA.TABLES
-			WHERE TABLE_TYPE = N'BASE TABLE'
-				AND TABLE_SCHEMA = N'{14}'
-				AND TABLE_NAME = N'{15}'
-		)
-		BEGIN
-			CREATE TABLE [{14}].[{15}](
-				[StatisticID] [int] IDENTITY(1,1) NOT NULL,
-				[CollectionDate] [datetimeoffset](0) NOT NULL,
-				[DatabaseName] [nvarchar](128) NOT NULL,
-				[SchemaName] [nvarchar](128) NOT NULL,
-				[ObjectName] [nvarchar](128) NOT NULL,
-				[StatisticsName] [nvarchar](128) NOT NULL,
-				[RowCount] [bigint] NULL,
-				[RowCountResult] [bigint] NULL,
-				[RowsSampled] [bigint] NULL,
-				[RowsSampledResult] [bigint] NULL,
-				[LastUpdated] [datetime2](7) NULL,
-				[LastUpdatedResult] [datetime2](7) NULL,
-				[ModificationCount] [bigint] NULL,
-				[ModificationCountResult] [bigint] NULL,
-				CONSTRAINT [PK_Statistics_Stats] PRIMARY KEY CLUSTERED
-				(
-					[StatisticID] ASC
-				),
-				INDEX [IX_CollectionDate]
-				(
-					[CollectionDate] ASC
-				)
-			);
-		END
-
-		IF NOT EXISTS (
-			SELECT TABLE_CATALOG
-			FROM INFORMATION_SCHEMA.TABLES
-			WHERE TABLE_TYPE = N'BASE TABLE'
-				AND TABLE_SCHEMA = N'{16}'
-				AND TABLE_NAME = N'{17}'
-		)
-		BEGIN
-			CREATE TABLE [{16}].[{17}](
-				[TestID] [int] IDENTITY(1,1) NOT NULL,
-				[CollectionDate] [datetimeoffset](0) NOT NULL,
-				[BackupDateTime] [datetime2](0) NOT NULL,
-				[ServerName] [nvarchar](128) NOT NULL,
-				[BackupFolder] [nvarchar](256) NOT NULL,
-				[BackupFileName] [nvarchar](128) NOT NULL,
-				[BackupType] [char](1) NOT NULL,
-				[DatabaseName] [nvarchar](128) NULL,
-				[DatabaseGUID] [uniqueidentifier] NULL,
-				[FirstLSN] [numeric](25, 0) NULL,
-				[LastLSN] [numeric](25, 0) NULL,
-				[CheckpointLSN] [numeric](25, 0) NULL,
-				[DatabaseBackupLSN] [numeric](25, 0) NULL,
-				[TestStatus] [char](1) NULL,
-				[TestDateTime] [datetimeoffset](0) NULL,
-				[BackupPosition] [smallint] NOT NULL,
-				CONSTRAINT [PK_Tests_Backup] PRIMARY KEY CLUSTERED
-				(
-					[TestID] ASC
-				),
-				CONSTRAINT [AK_BackupFileName] UNIQUE NONCLUSTERED
-				(
-					[BackupFileName] ASC,
-					[BackupFolder] ASC,
-					[BackupPosition] ASC
-				),
-				INDEX [IX_CollectionDate]
-				(
-					[CollectionDate] ASC
-				),
-				INDEX [IX_BackupFolder]
-				(
-					[BackupFolder] ASC,
-					[BackupDateTime] ASC,
-					[BackupType] ASC,
-					[TestStatus] ASC
-				)
-			);
-		END"
+		$DDL_FormatString = $PrivateData.MaintenanceDatabaseDDL.BaseDDL
 	}
 
 	process {
 		try {
-			$NewSchemas = $AdminDatabase.SelectNodes("//*[@SchemaName]").SchemaName.where({$_ -notin $DatabaseObject.Schemas.Name}) | Select-Object -Unique
-
-			foreach ($NewSchema in $NewSchemas) {
-				if ($PSCmdlet.ShouldProcess($NewSchema, 'Create database schema')) {
-					$DatabaseObject.ExecuteNonQuery([string]::Format($SchemaDDL_FormatString, $NewSchema))
-				}
+			if ($PSCmdlet.ShouldProcess($AdminDatabase.SchemaName, 'Create database schema')) {
+				$DatabaseObject.ExecuteNonQuery([string]::Format($SchemaDDL_FormatString, $AdminDatabase.SchemaName))
 			}
 
 			$FormatStringArray = @(
-				$AdminDatabase.SqlAgentAlerts.SchemaName
+				$AdminDatabase.SchemaName
+				$AdminDatabase.DatabaseVersion.TableName
+				$Script:PSMConfig.Config.Version
 				$AdminDatabase.SqlAgentAlerts.TableName
-				$AdminDatabase.Statistics.Backup.SchemaName
 				$AdminDatabase.Statistics.Backup.TableName
-				$AdminDatabase.Statistics.ColumnStore.SchemaName
 				$AdminDatabase.Statistics.ColumnStore.TableName
-				$AdminDatabase.Statistics.Database.SchemaName
 				$AdminDatabase.Statistics.Database.TableName
-				$AdminDatabase.Statistics.FullTextIndex.SchemaName
 				$AdminDatabase.Statistics.FullTextIndex.TableName
-				$AdminDatabase.Statistics.Index.SchemaName
 				$AdminDatabase.Statistics.Index.TableName
-				$AdminDatabase.Statistics.QueryStore.SchemaName
 				$AdminDatabase.Statistics.QueryStore.TableName
-				$AdminDatabase.Statistics.TableStatistics.SchemaName
 				$AdminDatabase.Statistics.TableStatistics.TableName
-				$AdminDatabase.Tests.Backup.SchemaName
 				$AdminDatabase.Tests.Backup.TableName
 			)
 
 			if ($PSCmdlet.ShouldProcess($DatabaseObject.Name, 'Create database tables')) {
 				$DatabaseObject.ExecuteNonQuery([string]::Format($DDL_FormatString, $FormatStringArray))
+
+				Update-MaintenanceDatabase -SmoServerObject $SmoServerObject -Version '1.0.0' -Confirm:$false
 			}
 		}
 		catch {
@@ -8035,7 +7992,7 @@ function Invoke-SqlBackupVerification {
 	begin {
 		try {
 			$TestsDatabaseName = $Script:PSMConfig.Config.AdminDatabase.DatabaseName
-			$TestSchemaName = $Script:PSMConfig.Config.AdminDatabase.Tests.Backup.SchemaName
+			$TestSchemaName = $Script:PSMConfig.Config.AdminDatabase.SchemaName
 			$TestTableName = $Script:PSMConfig.Config.AdminDatabase.Tests.Backup.TableName
 
 			$ServerInstanceParameterSets = @('ByInstancePath-SqlInstance', 'ByServerInstance-SqlInstance', 'Default-SqlInstance')
@@ -8051,6 +8008,28 @@ function Invoke-SqlBackupVerification {
 
 			if ($PSBoundParameters.ContainsKey('SqlInstanceBackupPath')) {
 				[System.IO.DirectoryInfo[]]$BackupPath = $SqlInstanceBackupPath
+			}
+
+			$MaintenanceDatabaseStatus = Test-MaintenanceDatabase -SmoServerObject $SmoServerObject
+
+			if ($MaintenanceDatabaseStatus.AdminDatabase) {
+				if (-not $MaintenanceDatabaseStatus.Statistics.Backup) {
+					throw [System.Management.Automation.ErrorRecord]::New(
+						[Exception]::New('Backup Test table not found.  Initialize maintenance database.'),
+						'1',
+						[System.Management.Automation.ErrorCategory]::ObjectNotFound,
+						$TestTableName
+					)
+				}
+
+				Update-MaintenanceDatabase -SmoServerObject $SmoServerObject -Version $MaintenanceDatabaseStatus.Version -Confirm:$false
+			} else {
+				throw [System.Management.Automation.ErrorRecord]::New(
+					[Exception]::New('Maintenance database not found.  Database is required for testing backups.'),
+					'1',
+					[System.Management.Automation.ErrorCategory]::ObjectNotFound,
+					$TestsDatabaseName
+				)
 			}
 
 			if ($SmoServerObject.HostPlatform -eq 'Windows') {
@@ -8308,7 +8287,7 @@ function Invoke-SqlBackupVerification {
 
 									$LastDatabaseBackupFileInfo = [System.IO.FileInfo]$LastDatabaseBackupFile.FullName
 
-									if ($null -eq $LastLogBackupTest) {
+									if (@($LastLogBackupTest).Count -eq 0) {
 										#Region SimpleRecovery or New Untested Database
 										$FullBackups = $SqlBackupFiles.where({$_.Extension -eq '.bak'}) | Sort-Object -Property BackupDate
 
@@ -8401,10 +8380,10 @@ function Invoke-SqlBackupVerification {
 
 										$FailedTests = Get-SqlClientDataSet @SqlClientDataSetParameters
 
-										if ($null -ne $FailedTests) {
+										if (@($FailedTests).Count -gt 0) {
 											[SqlServerMaintenance.BackupFileInfo[]]$SqlBackupFiles = $SqlBackupFiles.where({$_.Name -NotIn $FailedTests.BackupFileName})
 
-											if ($FailedTests.where({$_.BackupType -eq 'F'}).Count -gt 0) {
+											if (@($FailedTests).where({$_.BackupType -eq 'F'}).Count -gt 0) {
 												$LastFullFailureDateTime = $FailedTests.where({$_.BackupType -eq 'F'}) | Measure-Object -Property BackupDateTime -Maximum
 
 												$NextFullBackup = $SqlBackupFiles.where({$_.BackupType -eq 'Full' -and $_.BackupDate -gt $LastFullFailureDateTime.Maximum}) | Sort-Object -Property BackupDate | Select-Object -First 1
@@ -8705,7 +8684,7 @@ function Invoke-SqlBackupVerification {
 
 									$TestedBackups = Get-SqlClientDataSet @SqlClientDataSetParameters
 
-									if ($null -ne $TestedBackups) {
+									if (@($TestedBackups).Count -gt 0) {
 										if ($BackupFileInfo.where({$_.Name -NotIn $TestedBackups.BackupFileName}).Count -eq 0) {
 											Write-Verbose 'No untested backups found.'
 
@@ -9207,8 +9186,25 @@ function Invoke-SqlInstanceBackup {
 			$RetainDays = $SmoServerObject.Configuration.MediaRetention.RunValue
 
 			$StatisticsDatabaseName = $Script:PSMConfig.Config.AdminDatabase.DatabaseName
-			$StatisticsSchemaName = $Script:PSMConfig.Config.AdminDatabase.Statistics.Backup.SchemaName
+			$StatisticsSchemaName = $Script:PSMConfig.Config.AdminDatabase.SchemaName
 			$StatisticsTableName = $Script:PSMConfig.Config.AdminDatabase.Statistics.Backup.TableName
+
+			$MaintenanceDatabaseStatus = Test-MaintenanceDatabase -SmoServerObject $SmoServerObject
+
+			if ($MaintenanceDatabaseStatus.AdminDatabase) {
+				if (-not $MaintenanceDatabaseStatus.Statistics.Backup) {
+					throw [System.Management.Automation.ErrorRecord]::New(
+						[Exception]::New('Backup Statistics table not found.  Initialize maintenance database.'),
+						'1',
+						[System.Management.Automation.ErrorCategory]::ObjectNotFound,
+						$StatisticsTableName
+					)
+				}
+
+				Update-MaintenanceDatabase -SmoServerObject $SmoServerObject -Version $MaintenanceDatabaseStatus.Version -Confirm:$false
+			} else {
+				Write-Warning 'Maintenance database does not exist.  Statistics will not be saved.'
+			}
 		}
 		catch {
 			$ErrorRecord = $_
@@ -9542,21 +9538,23 @@ function Invoke-SqlInstanceBackup {
 						$Backup.Seconds = $RegExMatches.Groups.Where({$_.Name -eq 'Seconds'}).Value
 						$Backup.MBPerSecond = $RegExMatches.Groups.Where({$_.Name -eq 'MBPerSecond'}).Value
 
-						$FormatStringArray = @(
-							$StatisticsSchemaName,
-							$StatisticsTableName,
-							$Backup.DatabaseName.Replace("'", "''"),
-							$Database.DatabaseGuid
-							$BackupParameters.MediaName.Replace("'", "''"),
-							$EffectiveBackupType
-							$Backup.Pages,
-							$Backup.Seconds,
-							$Backup.MBPerSecond
-						)
+						if ($MaintenanceDatabaseStatus.AdminDatabase) {
+							$FormatStringArray = @(
+								$StatisticsSchemaName,
+								$StatisticsTableName,
+								$Backup.DatabaseName.Replace("'", "''"),
+								$Database.DatabaseGuid
+								$BackupParameters.MediaName.Replace("'", "''"),
+								$EffectiveBackupType
+								$Backup.Pages,
+								$Backup.Seconds,
+								$Backup.MBPerSecond
+							)
 
-						$NonQueryString = [string]::Format($Query_BackupStatistics, $FormatStringArray)
+							$NonQueryString = [string]::Format($Query_BackupStatistics, $FormatStringArray)
 
-						$SmoServerObject.Databases[$StatisticsDatabaseName].ExecuteNonQuery($NonQueryString)
+							$SmoServerObject.Databases[$StatisticsDatabaseName].ExecuteNonQuery($NonQueryString)
+						}
 
 						$Backup
 					}
@@ -10051,8 +10049,25 @@ function Invoke-SqlInstanceColumnStoreMaintenance {
 			$SmoServerObject.Databases.Refresh()
 
 			$StatisticsDatabaseName = $Script:PSMConfig.Config.AdminDatabase.DatabaseName
-			$StatisticsSchemaName = $Script:PSMConfig.Config.AdminDatabase.Statistics.ColumnStore.SchemaName
+			$StatisticsSchemaName = $Script:PSMConfig.Config.AdminDatabase.SchemaName
 			$StatisticsTableName = $Script:PSMConfig.Config.AdminDatabase.Statistics.ColumnStore.TableName
+
+			$MaintenanceDatabaseStatus = Test-MaintenanceDatabase -SmoServerObject $SmoServerObject
+
+			if ($MaintenanceDatabaseStatus.AdminDatabase) {
+				if (-not $MaintenanceDatabaseStatus.Statistics.ColumnStore) {
+					throw [System.Management.Automation.ErrorRecord]::New(
+						[Exception]::New('ColumnStore Statistics table not found.  Initialize maintenance database.'),
+						'1',
+						[System.Management.Automation.ErrorCategory]::ObjectNotFound,
+						$StatisticsTableName
+					)
+				}
+
+				Update-MaintenanceDatabase -SmoServerObject $SmoServerObject -Version $MaintenanceDatabaseStatus.Version -Confirm:$false
+			} else {
+				Write-Warning 'Maintenance database does not exist.  Statistics will not be saved.'
+			}
 		}
 		catch {
 			$ErrorRecord = $_
@@ -10315,16 +10330,18 @@ function Invoke-SqlInstanceColumnStoreMaintenance {
 						}
 					}
 
-					if ($PSCmdlet.ShouldProcess($Database.Name, 'Bulk Copy index results')) {
-						$SmoServerObject.ConnectionContext.SqlConnectionObject.ChangeDatabase($StatisticsDatabaseName)
+					if ($MaintenanceDatabaseStatus.AdminDatabase) {
+						if ($PSCmdlet.ShouldProcess($Database.Name, 'Bulk Copy index results')) {
+							$SmoServerObject.ConnectionContext.SqlConnectionObject.ChangeDatabase($StatisticsDatabaseName)
 
-						$SqlClientBulkCopyParameters = @{
-							'SqlConnection' = $SmoServerObject.ConnectionContext.SqlConnectionObject
-							'TableName' = [string]::Format('[{0}].[{1}]', $StatisticsSchemaName, $StatisticsTableName)
-							'DataTable' = $ColumnStoreStats.Tables[0]
+							$SqlClientBulkCopyParameters = @{
+								'SqlConnection' = $SmoServerObject.ConnectionContext.SqlConnectionObject
+								'TableName' = [string]::Format('[{0}].[{1}]', $StatisticsSchemaName, $StatisticsTableName)
+								'DataTable' = $ColumnStoreStats.Tables[0]
+							}
+
+							Invoke-SqlClientBulkCopy @SqlClientBulkCopyParameters
 						}
-
-						Invoke-SqlClientBulkCopy @SqlClientBulkCopyParameters
 					}
 				}
 				catch {
@@ -10654,8 +10671,25 @@ function Invoke-SqlInstanceFullTextIndexMaintenance {
 			$SmoServerObject.Databases.Refresh()
 
 			$StatisticsDatabaseName = $Script:PSMConfig.Config.AdminDatabase.DatabaseName
-			$StatisticsSchemaName = $Script:PSMConfig.Config.AdminDatabase.Statistics.FullTextIndex.SchemaName
+			$StatisticsSchemaName = $Script:PSMConfig.Config.AdminDatabase.SchemaName
 			$StatisticsTable = $Script:PSMConfig.Config.AdminDatabase.Statistics.FullTextIndex.TableName
+
+			$MaintenanceDatabaseStatus = Test-MaintenanceDatabase -SmoServerObject $SmoServerObject
+
+			if ($MaintenanceDatabaseStatus.AdminDatabase) {
+				if (-not $MaintenanceDatabaseStatus.Statistics.FullTextIndex) {
+					throw [System.Management.Automation.ErrorRecord]::New(
+						[Exception]::New('FullTextIndex Statistics table not found.  Initialize maintenance database.'),
+						'1',
+						[System.Management.Automation.ErrorCategory]::ObjectNotFound,
+						$StatisticsTableName
+					)
+				}
+
+				Update-MaintenanceDatabase -SmoServerObject $SmoServerObject -Version $MaintenanceDatabaseStatus.Version -Confirm:$false
+			} else {
+				Write-Warning 'Maintenance database does not exist.  Statistics will not be saved.'
+			}
 		}
 		catch {
 			$ErrorRecord =  $_
@@ -10869,16 +10903,18 @@ function Invoke-SqlInstanceFullTextIndexMaintenance {
 						}
 					}
 
-					if ($PSCmdlet.ShouldProcess($Database.Name, 'Bulk Copy index results')) {
-						$SmoServerObject.ConnectionContext.SqlConnectionObject.ChangeDatabase($StatisticsDatabaseName)
+					if ($MaintenanceDatabaseStatus.AdminDatabase) {
+						if ($PSCmdlet.ShouldProcess($Database.Name, 'Bulk Copy index results')) {
+							$SmoServerObject.ConnectionContext.SqlConnectionObject.ChangeDatabase($StatisticsDatabaseName)
 
-						$SqlClientBulkCopyParameters = @{
-							'SqlConnection' = $SmoServerObject.ConnectionContext.SqlConnectionObject
-							'TableName' = [string]::Format('[{0}].[{1}]', $StatisticsSchemaName, $StatisticsTable)
-							'DataTable' = $FullTextIndexStats.Tables[0]
+							$SqlClientBulkCopyParameters = @{
+								'SqlConnection' = $SmoServerObject.ConnectionContext.SqlConnectionObject
+								'TableName' = [string]::Format('[{0}].[{1}]', $StatisticsSchemaName, $StatisticsTable)
+								'DataTable' = $FullTextIndexStats.Tables[0]
+							}
+
+							Invoke-SqlClientBulkCopy @SqlClientBulkCopyParameters
 						}
-
-						Invoke-SqlClientBulkCopy @SqlClientBulkCopyParameters
 					}
 				}
 				catch {
@@ -11061,8 +11097,25 @@ function Invoke-SqlInstanceIndexMaintenance {
 			$SmoServerObject.Databases.Refresh()
 
 			$StatisticsDatabaseName = $Script:PSMConfig.Config.AdminDatabase.DatabaseName
-			$StatisticsSchemaName = $Script:PSMConfig.Config.AdminDatabase.Statistics.Index.SchemaName
+			$StatisticsSchemaName = $Script:PSMConfig.Config.AdminDatabase.SchemaName
 			$StatisticsTableName = $Script:PSMConfig.Config.AdminDatabase.Statistics.Index.TableName
+
+			$MaintenanceDatabaseStatus = Test-MaintenanceDatabase -SmoServerObject $SmoServerObject
+
+			if ($MaintenanceDatabaseStatus.AdminDatabase) {
+				if (-not $MaintenanceDatabaseStatus.Statistics.Index) {
+					throw [System.Management.Automation.ErrorRecord]::New(
+						[Exception]::New('Index Statistics table not found.  Initialize maintenance database.'),
+						'1',
+						[System.Management.Automation.ErrorCategory]::ObjectNotFound,
+						$StatisticsTableName
+					)
+				}
+
+				Update-MaintenanceDatabase -SmoServerObject $SmoServerObject -Version $MaintenanceDatabaseStatus.Version -Confirm:$false
+			} else {
+				Write-Warning 'Maintenance database does not exist.  Statistics will not be saved.'
+			}
 		}
 		catch {
 			$ErrorRecord = $_
@@ -11472,16 +11525,18 @@ function Invoke-SqlInstanceIndexMaintenance {
 						}
 					}
 
-					if ($PSCmdlet.ShouldProcess($Database.Name, 'Bulk Copy index results')) {
-						$SmoServerObject.ConnectionContext.SqlConnectionObject.ChangeDatabase($StatisticsDatabaseName)
+					if ($MaintenanceDatabaseStatus.AdminDatabase) {
+						if ($PSCmdlet.ShouldProcess($Database.Name, 'Bulk Copy index results')) {
+							$SmoServerObject.ConnectionContext.SqlConnectionObject.ChangeDatabase($StatisticsDatabaseName)
 
-						$SqlClientBulkCopyParameters = @{
-							'SqlConnection' = $SmoServerObject.ConnectionContext.SqlConnectionObject
-							'TableName' = [string]::Format('[{0}].[{1}]', $StatisticsSchemaName, $StatisticsTableName)
-							'DataTable' = $IndexPhysicalStats.Tables[0]
+							$SqlClientBulkCopyParameters = @{
+								'SqlConnection' = $SmoServerObject.ConnectionContext.SqlConnectionObject
+								'TableName' = [string]::Format('[{0}].[{1}]', $StatisticsSchemaName, $StatisticsTableName)
+								'DataTable' = $IndexPhysicalStats.Tables[0]
+							}
+
+							Invoke-SqlClientBulkCopy @SqlClientBulkCopyParameters
 						}
-
-						Invoke-SqlClientBulkCopy @SqlClientBulkCopyParameters
 					}
 				}
 				catch {
@@ -11760,10 +11815,6 @@ function Invoke-SqlInstanceStatisticsMaintenance {
 				$StatisticsSample = $PSBoundParameters['StatisticsSample']
 			}
 
-			$StatisticsDatabaseName = $Script:PSMConfig.Config.AdminDatabase.DatabaseName
-			$StatisticsSchemaName = $Script:PSMConfig.Config.AdminDatabase.Statistics.TableStatistics.SchemaName
-			$StatisticsTableName = $Script:PSMConfig.Config.AdminDatabase.Statistics.TableStatistics.TableName
-
 			if ($PSCmdlet.ParameterSetName -in $DynamicSetArray) {
 				$RowCountThreshold = 1024
 				$ModificationCountThreshold = 0
@@ -11775,6 +11826,27 @@ function Invoke-SqlInstanceStatisticsMaintenance {
 				if (-not $PSBoundParameters.ContainsKey('ModificationCountThreshold')) {
 					$ModificationCountThreshold = 0
 				}
+			}
+
+			$StatisticsDatabaseName = $Script:PSMConfig.Config.AdminDatabase.DatabaseName
+			$StatisticsSchemaName = $Script:PSMConfig.Config.AdminDatabase.SchemaName
+			$StatisticsTableName = $Script:PSMConfig.Config.AdminDatabase.Statistics.TableStatistics.TableName
+
+			$MaintenanceDatabaseStatus = Test-MaintenanceDatabase -SmoServerObject $SmoServerObject
+
+			if ($MaintenanceDatabaseStatus.AdminDatabase) {
+				if (-not $MaintenanceDatabaseStatus.Statistics.TableStatistics) {
+					throw [System.Management.Automation.ErrorRecord]::New(
+						[Exception]::New('TableStatistics Statistics table not found.  Initialize maintenance database.'),
+						'1',
+						[System.Management.Automation.ErrorCategory]::ObjectNotFound,
+						$StatisticsTableName
+					)
+				}
+
+				Update-MaintenanceDatabase -SmoServerObject $SmoServerObject -Version $MaintenanceDatabaseStatus.Version -Confirm:$false
+			} else {
+				Write-Warning 'Maintenance database does not exist.  Statistics will not be saved.'
 			}
 		}
 		catch {
@@ -12023,16 +12095,18 @@ function Invoke-SqlInstanceStatisticsMaintenance {
 						}
 					}
 
-					if ($PSCmdlet.ShouldProcess($Database.Name, 'Bulk Copy table statistics results')) {
-						$SmoServerObject.ConnectionContext.SqlConnectionObject.ChangeDatabase($StatisticsDatabaseName)
+					if ($MaintenanceDatabaseStatus.AdminDatabase) {
+						if ($PSCmdlet.ShouldProcess($Database.Name, 'Bulk Copy table statistics results')) {
+							$SmoServerObject.ConnectionContext.SqlConnectionObject.ChangeDatabase($StatisticsDatabaseName)
 
-						$SqlClientBulkCopyParameters = @{
-							'SqlConnection' = $SmoServerObject.ConnectionContext.SqlConnectionObject
-							'TableName' = [string]::Format('[{0}].[{1}]', $StatisticsSchemaName, $StatisticsTableName)
-							'DataTable' = $StatisticsProperties.Tables[0]
+							$SqlClientBulkCopyParameters = @{
+								'SqlConnection' = $SmoServerObject.ConnectionContext.SqlConnectionObject
+								'TableName' = [string]::Format('[{0}].[{1}]', $StatisticsSchemaName, $StatisticsTableName)
+								'DataTable' = $StatisticsProperties.Tables[0]
+							}
+
+							Invoke-SqlClientBulkCopy @SqlClientBulkCopyParameters
 						}
-
-						Invoke-SqlClientBulkCopy @SqlClientBulkCopyParameters
 					}
 				}
 				catch {
@@ -12556,7 +12630,7 @@ function Read-SqlAgentAlert {
 	begin {
 		try {
 			$SqlAgentAlertsDatabaseName = $Script:PSMConfig.Config.AdminDatabase.DatabaseName
-			$SqlAgentAlertsSchemaName = $Script:PSMConfig.Config.AdminDatabase.SqlAgentAlerts.SchemaName
+			$SqlAgentAlertsSchemaName = $Script:PSMConfig.Config.AdminDatabase.SchemaName
 			$SqlAgentAlertsTableName = $Script:PSMConfig.Config.AdminDatabase.SqlAgentAlerts.TableName
 			$ServerInstanceParameterSets = @('ServerInstance')
 
@@ -12883,6 +12957,8 @@ function Remove-DbStatistic {
 	begin {
 		try {
 			$AdminDatabaseName = $Script:PSMConfig.Config.AdminDatabase.DatabaseName
+			$AdminSchemaName = $Script:PSMConfig.Config.AdminDatabase.SchemaName
+
 			$ServerInstanceParameterSets = @('ServerInstance')
 
 			if ($PSBoundParameters.ContainsKey('ServerInstance')) {
@@ -12949,11 +13025,11 @@ function Remove-DbStatistic {
 			}
 		}
 
-		$DeleteByRetention = 'DELETE FROM [dbo].[{0}]
-			WHERE [CollectionDate] < DATEADD(day, -{1}, SYSDATETIMEOFFSET());'
+		$DeleteByRetention = 'DELETE FROM [{0}].[{1}]
+			WHERE [CollectionDate] < DATEADD(day, -{2}, SYSDATETIMEOFFSET());'
 
 		$DeleteByNonExistentDatabase = 'DELETE s
-			FROM [dbo].[{0}] s
+			FROM [{0}].[{1}] s
 			WHERE NOT EXISTS (
 				SELECT 1
 				FROM sys.databases
@@ -12971,16 +13047,16 @@ function Remove-DbStatistic {
 
 			foreach ($DbStatistic in $DbStatistics) {
 				try {
-					$SqlNonQuery = [string]::Format($DeleteByNonExistentDatabase, $DbStatistic.TableName)
+					$SqlNonQuery = [string]::Format($DeleteByNonExistentDatabase, $AdminSchemaName, $DbStatistic.TableName)
 
 					if ($PSCmdlet.ShouldProcess($DbStatistic.TableName, 'Remove records where database no longer exists')) {
 						[void](Invoke-SqlClientNonQuery -SqlConnection $SqlConnection -SqlCommandText $SqlNonQuery -CommandTimeout 300)
 					}
 
 					if ($PSBoundParameters.ContainsKey('Retention')) {
-						$SqlNonQuery = [string]::Format($DeleteByRetention, $DbStatistic.TableName, $Retention)
+						$SqlNonQuery = [string]::Format($DeleteByRetention, $AdminSchemaName, $DbStatistic.TableName, $Retention)
 					} else {
-						$SqlNonQuery = [string]::Format($DeleteByRetention, $DbStatistic.TableName, $DbStatistic.RetentionDays)
+						$SqlNonQuery = [string]::Format($DeleteByRetention, $AdminSchemaName, $DbStatistic.TableName, $DbStatistic.RetentionDays)
 					}
 
 					if ($PSCmdlet.ShouldProcess($DbStatistic.TableName, 'Remove records older than retention period')) {
@@ -13133,6 +13209,8 @@ function Remove-DbTest {
 	begin {
 		try {
 			$AdminDatabaseName = $Script:PSMConfig.Config.AdminDatabase.DatabaseName
+			$AdminSchemaName = $Script:PSMConfig.Config.AdminDatabase.SchemaName
+
 			$ServerInstanceParameterSets = @('ServerInstance')
 
 			if ($PSBoundParameters.ContainsKey('ServerInstance')) {
@@ -13199,8 +13277,8 @@ function Remove-DbTest {
 			}
 		}
 
-		$DeleteByRetention = 'DELETE FROM [dbo].[{0}]
-			WHERE [CollectionDate] < DATEADD(day, -{1}, SYSDATETIMEOFFSET());'
+		$DeleteByRetention = 'DELETE FROM [{0}].[{1}]
+			WHERE [CollectionDate] < DATEADD(day, -{2}, SYSDATETIMEOFFSET());'
 	}
 
 	process {
@@ -13214,9 +13292,9 @@ function Remove-DbTest {
 			foreach ($DbTest in $DbTests) {
 				try {
 					if ($PSBoundParameters.ContainsKey('Retention')) {
-						$SqlNonQuery = [string]::Format($DeleteByRetention, $DbTest.TableName, $Retention)
+						$SqlNonQuery = [string]::Format($DeleteByRetention, $AdminSchemaName, $DbTest.TableName, $Retention)
 					} else {
-						$SqlNonQuery = [string]::Format($DeleteByRetention, $DbTest.TableName, $DbTest.RetentionDays)
+						$SqlNonQuery = [string]::Format($DeleteByRetention, $AdminSchemaName, $DbTest.TableName, $DbTest.RetentionDays)
 					}
 
 					if ($PSCmdlet.ShouldProcess($DbTest.TableName, 'Remove records older than retention period')) {
@@ -13708,7 +13786,7 @@ function Remove-SqlAgentAlertHistory {
 	begin {
 		try {
 			$AdminDatabaseName = $Script:PSMConfig.Config.AdminDatabase.DatabaseName
-			$SqlAgentAlertsSchemaName = $Script:PSMConfig.Config.AdminDatabase.SqlAgentAlerts.SchemaName
+			$SqlAgentAlertsSchemaName = $Script:PSMConfig.Config.AdminDatabase.SchemaName
 			$SqlAgentAlertsTableName = $Script:PSMConfig.Config.AdminDatabase.SqlAgentAlerts.TableName
 
 			$ServerInstanceParameterSets = @('ServerInstance')
@@ -15207,8 +15285,30 @@ function Save-SqlInstanceDatabaseStatistic {
 			$SmoServerObject.Databases.Refresh()
 
 			$StatisticsDatabaseName = $Script:PSMConfig.Config.AdminDatabase.DatabaseName
-			$StatisticsSchemaName = $Script:PSMConfig.Config.AdminDatabase.Statistics.Database.SchemaName
+			$StatisticsSchemaName = $Script:PSMConfig.Config.AdminDatabase.SchemaName
 			$StatisticsTableName = $Script:PSMConfig.Config.AdminDatabase.Statistics.Database.TableName
+
+			$MaintenanceDatabaseStatus = Test-MaintenanceDatabase -SmoServerObject $SmoServerObject
+
+			if ($MaintenanceDatabaseStatus.AdminDatabase) {
+				if (-not $MaintenanceDatabaseStatus.Statistics.Database) {
+					throw [System.Management.Automation.ErrorRecord]::New(
+						[Exception]::New('Database Statistics table not found.  Initialize maintenance database.'),
+						'1',
+						[System.Management.Automation.ErrorCategory]::ObjectNotFound,
+						$StatisticsTableName
+					)
+				}
+
+				Update-MaintenanceDatabase -SmoServerObject $SmoServerObject -Version $MaintenanceDatabaseStatus.Version -Confirm:$false
+			} else {
+				throw [System.Management.Automation.ErrorRecord]::New(
+					[Exception]::New('Maintenance database not found.  Database is required for testing backups.'),
+					'1',
+					[System.Management.Automation.ErrorCategory]::ObjectNotFound,
+					$StatisticsDatabaseName
+				)
+			}
 		}
 		catch {
 			$ErrorRecord = $_
@@ -15447,8 +15547,30 @@ function Save-SqlInstanceQueryStoreOption {
 			$SmoServerObject.Databases.Refresh()
 
 			$StatisticsDatabaseName = $Script:PSMConfig.Config.AdminDatabase.DatabaseName
-			$StatisticsSchemaName = $Script:PSMConfig.Config.AdminDatabase.Statistics.QueryStore.SchemaName
+			$StatisticsSchemaName = $Script:PSMConfig.Config.AdminDatabase.SchemaName
 			$StatisticsTableName = $Script:PSMConfig.Config.AdminDatabase.Statistics.QueryStore.TableName
+
+			$MaintenanceDatabaseStatus = Test-MaintenanceDatabase -SmoServerObject $SmoServerObject
+
+			if ($MaintenanceDatabaseStatus.AdminDatabase) {
+				if (-not $MaintenanceDatabaseStatus.Statistics.QueryStore) {
+					throw [System.Management.Automation.ErrorRecord]::New(
+						[Exception]::New('QueryStore Statistics table not found.  Initialize maintenance database.'),
+						'1',
+						[System.Management.Automation.ErrorCategory]::ObjectNotFound,
+						$StatisticsTableName
+					)
+				}
+
+				Update-MaintenanceDatabase -SmoServerObject $SmoServerObject -Version $MaintenanceDatabaseStatus.Version -Confirm:$false
+			} else {
+				throw [System.Management.Automation.ErrorRecord]::New(
+					[Exception]::New('Maintenance database not found.  Database is required for testing backups.'),
+					'1',
+					[System.Management.Automation.ErrorCategory]::ObjectNotFound,
+					$StatisticsDatabaseName
+				)
+			}
 		}
 		catch {
 			$ErrorRecord = $_
@@ -16180,6 +16302,26 @@ function Set-SqlServerMaintenanceConfiguration {
 
 				$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
 				#EndRegion
+
+				#Region SchemaName
+				$ParameterName = 'SchemaName'
+
+				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
+
+				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
+				$ParameterAttribute.Mandatory = $false
+				$ParameterAttribute.ParameterSetName = 'AdminDatabase'
+
+				$AttributeCollection.Add($ParameterAttribute)
+
+				$ValidateLengthAttribute = [System.Management.Automation.ValidateLengthAttribute]::New(1, 128)
+
+				$AttributeCollection.Add($ValidateLengthAttribute)
+
+				$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string], $AttributeCollection)
+
+				$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
+				#EndRegion
 			}
 			'Statistics' {
 				#Region StatisticName
@@ -16189,22 +16331,6 @@ function Set-SqlServerMaintenanceConfiguration {
 
 				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
 				$ParameterAttribute.Mandatory = $true
-				$ParameterAttribute.ParameterSetName = 'Statistics'
-
-				$AttributeCollection.Add($ParameterAttribute)
-
-				$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string], $AttributeCollection)
-
-				$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
-				#EndRegion
-
-				#Region SchemaName
-				$ParameterName = 'SchemaName'
-
-				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
-
-				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
-				$ParameterAttribute.Mandatory = $false
 				$ParameterAttribute.ParameterSetName = 'Statistics'
 
 				$AttributeCollection.Add($ParameterAttribute)
@@ -16224,6 +16350,10 @@ function Set-SqlServerMaintenanceConfiguration {
 				$ParameterAttribute.ParameterSetName = 'Statistics'
 
 				$AttributeCollection.Add($ParameterAttribute)
+
+				$ValidateLengthAttribute = [System.Management.Automation.ValidateLengthAttribute]::New(1, 128)
+
+				$AttributeCollection.Add($ValidateLengthAttribute)
 
 				$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string], $AttributeCollection)
 
@@ -16267,22 +16397,6 @@ function Set-SqlServerMaintenanceConfiguration {
 				$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
 				#EndRegion
 
-				#Region SchemaName
-				$ParameterName = 'SchemaName'
-
-				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
-
-				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
-				$ParameterAttribute.Mandatory = $false
-				$ParameterAttribute.ParameterSetName = 'Tests'
-
-				$AttributeCollection.Add($ParameterAttribute)
-
-				$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string], $AttributeCollection)
-
-				$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
-				#EndRegion
-
 				#Region TableName
 				$ParameterName = 'TableName'
 
@@ -16293,6 +16407,10 @@ function Set-SqlServerMaintenanceConfiguration {
 				$ParameterAttribute.ParameterSetName = 'Tests'
 
 				$AttributeCollection.Add($ParameterAttribute)
+
+				$ValidateLengthAttribute = [System.Management.Automation.ValidateLengthAttribute]::New(1, 128)
+
+				$AttributeCollection.Add($ValidateLengthAttribute)
 
 				$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string], $AttributeCollection)
 
@@ -16320,22 +16438,6 @@ function Set-SqlServerMaintenanceConfiguration {
 				#EndRegion
 			}
 			'SqlAgentAlerts' {
-				#Region SchemaName
-				$ParameterName = 'SchemaName'
-
-				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
-
-				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
-				$ParameterAttribute.Mandatory = $true
-				$ParameterAttribute.ParameterSetName = 'SqlAgentAlerts'
-
-				$AttributeCollection.Add($ParameterAttribute)
-
-				$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string], $AttributeCollection)
-
-				$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
-				#EndRegion
-
 				#Region TableName
 				$ParameterName = 'TableName'
 
@@ -16346,6 +16448,10 @@ function Set-SqlServerMaintenanceConfiguration {
 				$ParameterAttribute.ParameterSetName = 'SqlAgentAlerts'
 
 				$AttributeCollection.Add($ParameterAttribute)
+
+				$ValidateLengthAttribute = [System.Management.Automation.ValidateLengthAttribute]::New(1, 128)
+
+				$AttributeCollection.Add($ValidateLengthAttribute)
 
 				$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string], $AttributeCollection)
 
@@ -16473,12 +16579,12 @@ function Set-SqlServerMaintenanceConfiguration {
 				}
 				'AdminDatabase' {
 					$Script:PSMConfig.Config.AdminDatabase.DatabaseName = $PSBoundParameters['DatabaseName']
+
+					if ($PSBoundParameters['SchemaName']) {
+						$Script:PSMConfig.Config.AdminDatabase.SchemaName = $PSBoundParameters['SchemaName']
+					}
 				}
 				'Statistics' {
-					if ($PSBoundParameters['SchemaName']) {
-						$Script:PSMConfig.Config.AdminDatabase.Statistics."$($PSBoundParameters['StatisticName'])".SchemaName = $PSBoundParameters['SchemaName']
-					}
-
 					if ($PSBoundParameters['TableName']) {
 						$Script:PSMConfig.Config.AdminDatabase.Statistics."$($PSBoundParameters['StatisticName'])".TableName = $PSBoundParameters['TableName']
 					}
@@ -16488,10 +16594,6 @@ function Set-SqlServerMaintenanceConfiguration {
 					}
 				}
 				'Tests' {
-					if ($PSBoundParameters['SchemaName']) {
-						$Script:PSMConfig.Config.AdminDatabase.Tests."$($PSBoundParameters['TestName'])".SchemaName = $PSBoundParameters['SchemaName']
-					}
-
 					if ($PSBoundParameters['TableName']) {
 						$Script:PSMConfig.Config.AdminDatabase.Tests."$($PSBoundParameters['TestName'])".TableName = $PSBoundParameters['TableName']
 					}
@@ -16501,10 +16603,6 @@ function Set-SqlServerMaintenanceConfiguration {
 					}
 				}
 				'SqlAgentAlerts' {
-					if ($PSBoundParameters['SchemaName']) {
-						$Script:PSMConfig.Config.AdminDatabase.SqlAgentAlerts.SchemaName = $PSBoundParameters['SchemaName']
-					}
-
 					if ($PSBoundParameters['TableName']) {
 						$Script:PSMConfig.Config.AdminDatabase.SqlAgentAlerts.TableName = $PSBoundParameters['TableNames']
 					}

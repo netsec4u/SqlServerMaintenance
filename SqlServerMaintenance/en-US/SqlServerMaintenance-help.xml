@@ -10056,6 +10056,14 @@ Dynamic parameter available when SettingName is AdminDatabase.</maml:para>
           <command:parameterValue required="true" variableLength="true">System.String</command:parameterValue>
         </command:parameter>
         <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+          <maml:name>SchemaName</maml:name>
+          <maml:description>
+            <maml:para>Specifies the name of the schema to store tables for module statistics and test data.
+Dynamic parameter available when SettingName is AdminDatabase.</maml:para>
+          </maml:description>
+          <command:parameterValue required="true" variableLength="true">System.String</command:parameterValue>
+        </command:parameter>
+        <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
           <maml:name>SettingName</maml:name>
           <maml:description>
             <maml:para>Specifies setting to set configuration.</maml:para>
@@ -10241,6 +10249,14 @@ Dynamic parameter available when SettingName is EmailNotification.</maml:para>
 Dynamic parameter available when SettingName is Statistics, Tests, or SQLAgentAlerts.</maml:para>
         </maml:description>
         <command:parameterValue required="true" variableLength="true">System.Int32</command:parameterValue>
+      </command:parameter>
+      <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>SchemaName</maml:name>
+        <maml:description>
+          <maml:para>Specifies the name of the schema to store tables for module statistics and test data.
+Dynamic parameter available when SettingName is AdminDatabase.</maml:para>
+        </maml:description>
+        <command:parameterValue required="true" variableLength="true">System.String</command:parameterValue>
       </command:parameter>
       <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
         <maml:name>SenderAddress</maml:name>
