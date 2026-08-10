@@ -330,7 +330,6 @@ public class RandomPassword
 		return Password;
 	}
 
-
 	private static int RandomInt32(int fromInclusive, int toExclusive)
 	{
 		if (fromInclusive >= toExclusive)
@@ -1887,6 +1886,7 @@ function Initialize-ModuleConfiguration {
 
 	process {
 		try {
+			#Region Base Configuration
 			if ($PSVersionTable.PSEdition -eq 'Core') {
 				if ($PSVersionTable.Platform -eq 'Win32NT') {
 					$AllUsersProfile = $Env:ALLUSERSPROFILE
@@ -1947,7 +1947,9 @@ function Initialize-ModuleConfiguration {
 			}
 
 			[xml]$Script:PSMConfig = Get-Content $Script:ConfigurationFile -Raw
+			#EndRegion
 
+			#Region Update Configuration Version
 			if ($null -eq $Script:PSMConfig.SelectSingleNode('//Config/Version')) {
 				$NewElement = $Script:PSMConfig.CreateElement('Version')
 				$NewElement.InnerText = '1.0.0'
@@ -1965,10 +1967,12 @@ function Initialize-ModuleConfiguration {
 					$Script:ConfigurationFile
 				)
 			}
+			#EndRegion
 
 			if ($Mode -eq 'Interactive') {
 				$Script:OutputMethod = 'ConsoleHost'
 			} else {
+				#Region Email Configuration
 				$Script:OutputMethod = 'Email'
 
 				$Script:TemplatePath = Join-Path -Path $PSScriptRoot -ChildPath $Script:PSMConfig.Config.EMailTemplates.TemplatePath -Resolve
@@ -2041,19 +2045,28 @@ function Initialize-ModuleConfiguration {
 						)
 					}
 				}
+				#EndRegion
 
+				#Region Assemblies
 				if ($PSVersionTable.PSEdition -eq 'Core') {
-					$BinPath = Join-Path -Path $PSScriptRoot -ChildPath 'Bin\OxyPlot\2.2.0\Net8.0' -Resolve
+					if ($PSVersionTable.PSVersion -lt [version]'7.6.0') {
+						Write-Warning 'Some features may not function correctly in this version of PowerShell.'
+					}
+
+					if ($PSVersionTable.Platform -eq 'Win32NT') {
+						$BinPath = Join-Path -Path $PSScriptRoot -ChildPath 'bin\ScottPlot\5.1.59\net10\win-x64' -Resolve
+					} else {
+						$BinPath = Join-Path -Path $PSScriptRoot -ChildPath 'bin\ScottPlot\5.1.59\net10\linux-x64' -Resolve
+					}
 				} else {
-					$BinPath = Join-Path -Path $PSScriptRoot -ChildPath 'Bin\OxyPlot\2.2.0\Net462' -Resolve
+					$BinPath = Join-Path -Path $PSScriptRoot -ChildPath 'bin\ScottPlot\5.1.59\net462' -Resolve
 				}
 
-				$OxyPlotAssemblies = @(
-					'OxyPlot.dll'
-					'OxyPlot.Wpf.dll'
+				$Assemblies = @(
+					'ScottPlot.dll'
 				)
 
-				foreach ($Assembly in $OxyPlotAssemblies) {
+				foreach ($Assembly in $Assemblies) {
 					$AssemblyPath = Join-Path -Path $BinPath -ChildPath $Assembly -Resolve
 
 					if (Test-Path -LiteralPath $AssemblyPath) {
@@ -2067,6 +2080,7 @@ function Initialize-ModuleConfiguration {
 						)
 					}
 				}
+				#EdnRegion
 			}
 		}
 		catch {
@@ -2921,20 +2935,6 @@ function Update-PSMConfiguration {
 	)
 
 	begin {
-		$KnownVersions = @(
-			[version]'1.0.0'
-			[version]'2.0.0'
-			[version]'2.1.0'
-		)
-
-		if ([version]$Script:PSMConfig.Config.Version -notin $KnownVersions) {
-			throw [System.Management.Automation.ErrorRecord]::New(
-				[Exception]::New('Unknown default configuration version.'),
-				'1',
-				[System.Management.Automation.ErrorCategory]::InvalidData,
-				[version]$Script:PSMConfig.Config.Version
-			)
-		}
 	}
 
 	process {
@@ -4821,6 +4821,22 @@ function Get-DatabaseRecovery {
 										)
 									}
 								}
+
+								if ($RestoreList.where({$_.BackupType -eq 'Transaction Log'}).Count -eq 0) {
+									if ($RestoreList.where({$_.BackupType -eq 'Database Differential'}).Count -eq 0) {
+										$ReferenceHeader = $RestoreList.where({$_.BackupType -eq 'Database'})
+									} else {
+										$ReferenceHeader = $RestoreList.where({$_.BackupType -eq 'Database Differential'})
+									}
+
+									if ($TrnBackupHeader.LastLSN -lt $ReferenceHeader.LastLSN) {
+										Write-Warning -Message ([string]::Format('Transaction log too early.  Skipping file {0}.', $TrnBackup.FullName))
+
+										$LastBackupHeader = $TrnBackupHeader
+
+										continue ParentLoop
+									}
+								}
 							}
 							'DATABASE DIFFERENTIAL' {
 								if (-not $SkipLogChainCheck) {
@@ -5640,13 +5656,13 @@ function Get-SqlInstanceDataFileUsage {
 		}
 
 		$QueryString = "SELECT CollectionDate
-		,	[Day] = DATEDIFF(day, LAST_VALUE(CollectionDate) OVER (ORDER BY CollectionDate ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING), CollectionDate)
+		,	CAST(SWITCHOFFSET(CollectionDate, '+00:00') AS DateTime) AS CollectionDateUTC
 		,	[FileSizeMB]
 		,	[UsedSpaceMB]
 		FROM [{0}].[{1}]
 		WHERE DatabaseName = N'{2}'
 			AND LogicalFileName = N'{3}'
-		ORDER BY [Day];"
+		ORDER BY CollectionDateUTC;"
 
 		$DataFileProperties = @(
 			'DatabaseName',
@@ -5715,21 +5731,19 @@ function Get-SqlInstanceDataFileUsage {
 							$SampleCount = $DataSet.Tables[0].Rows.Count
 
 							if ($SampleCount -ge $MinimumSamples) {
+								$DataView = [System.Data.DataView]::New($DataSet.Tables[0])
+
 								if ($SampleCount -gt $StatisticPeriod) {
-									$DayStart = $DataSet.Tables[0].Rows[$SampleCount - $StatisticPeriod].Day
-								} else {
-									$DayStart = 0 - $SampleCount
+									$DayStart = $DataSet.Tables[0].Rows[$SampleCount - $StatisticPeriod].CollectionDateUTC.DateTime
+
+									$DataView.RowFilter = [string]::Format('CollectionDateUTC >= #{0}#', $DayStart.ToString())
 								}
 
-								$DataView = [System.Data.DataView]::New($DataSet.Tables[0])
-								$DataView.RowFilter = "Day >= $DayStart"
-
-								$LinearRegression = [Regression.Linear]::New($DataView.Day, $DataView.UsedSpaceMB)
+								$LinearRegression = [Regression.Linear]::New($DataView.CollectionDate.DateTime.ToOADate(), $DataView.UsedSpaceMB)
 
 								$MeasuredStat = [PsCustomObject][Ordered]@{
 									'FirstDateTime' = ($DataView.CollectionDate | Measure-Object -Minimum).Minimum
 									'LastDateTime' = ($DataView.CollectionDate | Measure-Object -Maximum).Maximum
-									'LastDay' = ($DataView.Day | Measure-Object -Maximum).Maximum
 									'MaxFileSizeMB' = ($DataView.FileSizeMB | Measure-Object -Maximum).Maximum
 									'MinUsedSpaceMB' = ($DataView.UsedSpaceMB | Measure-Object -Minimum).Minimum
 								}
@@ -5744,7 +5758,7 @@ function Get-SqlInstanceDataFileUsage {
 										$RecommendedAutoGrowth = $MinimumFileGrowth
 									}
 
-									[int]$RecommendedDataFileSize = $LinearRegression.CalculatePrediction($MeasuredStat.LastDay + $ProjectionPeriod) * (100 / (100 - $FreeSpaceThreshold))
+									[int]$RecommendedDataFileSize = $LinearRegression.CalculatePrediction($MeasuredStat.LastDateTime.DateTime.ToOADate() + $ProjectionPeriod) * (100 / (100 - $FreeSpaceThreshold))
 
 									if ($RecommendedDataFileSize - $SqlDataFileUsage.DataFileSize -lt $MinimumFileGrowth) {
 										[int]$RecommendedDataFileSize = $SqlDataFileUsage.DataFileSize + $MinimumFileGrowth
@@ -5817,131 +5831,169 @@ function Get-SqlInstanceDataFileUsage {
 													)
 												}
 
+												$DailyGrowRateText = [string]::Format('Daily Growth Rate: {0} {1}', $FormatStringArray)
+
 												if ([System.Double]::IsNaN($LinearRegression.Slope) -or [math]::Round($LinearRegression.Slope, 10, [MidpointRounding]::AwayFromZero) -eq 0) {
 													$DaysLeft = [math]::Round($($DataView.Count / 2), 0, [MidpointRounding]::AwayFromZero)
 												} else {
-													$DaysLeft = [int]((($SqlDataFileUsage.DataFileSize - $LinearRegression.YIntercept) / $LinearRegression.Slope) - $MeasuredStat.LastDay)
+													$DaysLeft = [int]((($SqlDataFileUsage.DataFileSize - $LinearRegression.YIntercept) / $LinearRegression.Slope) - $MeasuredStat.LastDateTime.DateTime.ToOADate())
 												}
 
 												if ($DaysLeft -le 0 -or $DaysLeft -gt $($DataView.Count / 2)) {
 													$DaysLeft = [math]::Round($($DataView.Count / 2), 0, [MidpointRounding]::AwayFromZero)
 												}
 
-												$DailyGrowRateText = [string]::Format('Daily Growth Rate: {0} {1}', $FormatStringArray)
+												$Offset_X = ($MeasuredStat.LastDateTime - $MeasuredStat.FirstDateTime).TotalDays / 20
+												$Offset_Y = ($MeasuredStat.MaxFileSizeMB - $MeasuredStat.MinUsedSpaceMB) / 8
 
-												$PlotModel = [OxyPlot.PlotModel]::New()
+												$AxisMinimum_X = [System.Math]::Floor($MeasuredStat.FirstDateTime.AddDays(-$Offset_X).DateTime.ToOADate())
+												$AxisMaximum_X = [System.Math]::Ceiling($MeasuredStat.LastDateTime.AddDays($Offset_X + $DaysLeft).DateTime.ToOADate())
 
-												$PlotModel.Background = [OxyPlot.OxyColors]::Transparent
-												$PlotModel.TextColor = [OxyPlot.OxyColor]::FromRgb(0x1E, 0x90, 0xFF)
+												$AxisMinimum_Y = [System.Math]::Floor($MeasuredStat.MinUsedSpaceMB - $Offset_Y)
 
-												$PlotModel.Title = 'Logical File Growth'
-												$PlotModel.TitleHorizontalAlignment = [OxyPlot.TitleHorizontalAlignment]::CenteredWithinPlotArea
-												$PlotModel.TitleFont = 'Arial'
-												$PlotModel.TitleFontWeight = [OxyPlot.FontWeights]::Bold
-												$PlotModel.TitleColor = [OxyPlot.OxyColor]::FromRgb(0x1E, 0x90, 0xFF)
-												$PlotModel.TitleFontSize = 16
+												if ([System.Math]::Ceiling($MeasuredStat.MaxFileSizeMB) -gt $LinearRegression.CalculatePrediction($MeasuredStat.LastDateTime.DateTime.AddDays($DaysLeft).ToOADate())) {
+													$AxisMaximum_Y = [System.Math]::Ceiling($MeasuredStat.MaxFileSizeMB + $Offset_Y)
+												} else {
+													$AxisMaximum_Y = [System.Math]::Ceiling($LinearRegression.CalculatePrediction($MeasuredStat.LastDateTime.DateTime.AddDays($DaysLeft).ToOADate()) + $Offset_Y)
+												}
 
-												$PlotModel.Subtitle = $DailyGrowRateText
-												$PlotModel.SubtitleFont = 'Arial'
-												$PlotModel.SubtitleFontWeight = [OxyPlot.FontWeights]::Normal
-												$PlotModel.SubtitleColor = [OxyPlot.OxyColor]::FromRgb(0x1E, 0x90, 0xFF)
-												$PlotModel.SubtitleFontSize = 12
+												#Region PlotModel
+												$PlotModel = [ScottPlot.Plot]::New()
 
-												$Legend = [OxyPlot.Legends.Legend]::New()
-												$Legend.LegendPosition = [OxyPlot.Legends.LegendPosition]::BottomCenter
-												$Legend.LegendPlacement = [OxyPlot.Legends.LegendPlacement]::Outside
-												$Legend.LegendOrientation = [OxyPlot.Legends.LegendOrientation]::Horizontal
-												$Legend.Font = 'Arial'
-												$Legend.FontSize = 12
-												$Legend.TextColor = [OxyPlot.OxyColor]::FromRgb(0x1E, 0x90, 0xFF)
+												$PlotModel.FigureBackground.Color = [ScottPlot.Colors]::Transparent
+												$PlotModel.Layout.Fixed([ScottPlot.PixelPadding]::New(128, 32, 160, 96))
 
-												$PlotModel.Legends.Add($Legend)
+												#Region Title
+												$TitleAxis = $PlotModel.Axes.AddTopAxis()
+												$TitleAxis.Label.Text = "Logical File Growth`n"
+												$TitleAxis.Label.ForeColor = [ScottPlot.Color]::FromHex("#1E90FF")
+												$TitleAxis.Label.FontName = 'Arial'
+												$TitleAxis.Label.FontSize = 24
+												$TitleAxis.Label.Bold = $true
+												$TitleAxis.FrameLineStyle.Width = 0
+												#EndRegion
 
-												$Axis_X = [OxyPlot.Axes.DateTimeAxis]::New()
+												#Region Subtitle
+												$SubTitleAxis = $PlotModel.Axes.AddTopAxis()
+												$SubTitleAxis.Label.Text = $DailyGrowRateText
+												$SubTitleAxis.Label.FontName = 'Arial'
+												$SubTitleAxis.Label.FontSize = 16
+												$SubTitleAxis.Label.Bold = $false
+												$SubTitleAxis.Label.ForeColor = [ScottPlot.Color]::FromHex("#1E90FF")
+												$SubTitleAxis.Label.Alignment = [ScottPlot.Alignment]::LowerCenter
+												$SubTitleAxis.FrameLineStyle.Width = 0
+												$SubTitleAxis.PaddingOutsideAxisLabels = 8
+												#EndRegion
 
-												$Axis_X.Position = [OxyPlot.Axes.AxisPosition]::Bottom
-												$Axis_X.Title = "Date"
-												$Axis_X.TitleFont = 'Arial'
-												$Axis_X.TitleFontSize = 12
-												$Axis_X.TitleColor = [OxyPlot.OxyColor]::FromRgb(0x1E, 0x90, 0xFF)
-												$Axis_X.AxisTitleDistance = 20
-												$Axis_X.Angle = -45
-												$Axis_X.IntervalType = [OxyPlot.Axes.DateTimeIntervalType]::Days
-												$Axis_X.MinorIntervalType = [OxyPlot.Axes.DateTimeIntervalType]::Days
-												$Axis_X.StringFormat = "yyyy-MM-dd"
-												$Axis_X.MajorStep = [System.Math]::Ceiling($($MeasuredStat.LastDateTime.Add($DaysLeft) - $MeasuredStat.FirstDateTime).TotalDays / 20)
-												$Axis_X.MajorGridlineStyle = [OxyPlot.LineStyle]::Dash
+												#Region Legend
+												$Legend = $PlotModel.ShowLegend([ScottPlot.Edge]::Bottom)
+												$Legend.Legend.BackgroundColor = [ScottPlot.Colors]::Transparent
+												$Legend.Legend.FontSize = 16
+												$Legend.Legend.FontName = 'Arial'
+												$Legend.Legend.FontColor = [ScottPlot.Color]::FromHex("#1E90FF")
+												$Legend.Legend.Orientation = [ScottPlot.Orientation]::Horizontal
+												$Legend.Legend.InterItemPadding = 32
+#												$Legend.Legend.Padding = [ScottPlot.PixelPadding]::New(0, 0, 0, 16)
+												#EndRegion
 
-												$PlotModel.Axes.Add($Axis_X)
+												#Region X Axes
+												$PlotModel.Grid.XAxisStyle.IsVisible = $true
+												$PlotModel.Grid.XAxisStyle.MajorLineStyle.Color = [ScottPlot.Colors]::Gray
+												$PlotModel.Grid.XAxisStyle.FillColor1 = [ScottPlot.Colors]::Gray.WithOpacity(0.05)
+												$PlotModel.Grid.XAxisStyle.FillColor2 = [ScottPlot.Colors]::Gray.WithOpacity(0.07)
+												$PlotModel.Grid.XAxisStyle.MinorLineStyle.Color = [ScottPlot.Colors]::LightGray
+												$PlotModel.Grid.XAxisStyle.MinorLineStyle.Width = 0
 
-												$Axis_Y = [OxyPlot.Axes.LinearAxis]::New()
+												$ManualTicks = [ScottPlot.TickGenerators.NumericManual]::new()
 
-												$Axis_Y.Position = [OxyPlot.Axes.AxisPosition]::Left
-												$Axis_Y.Title = "Used Space (MB)"
-												$Axis_Y.TitleFont = 'Arial'
-												$Axis_Y.TitleFontSize = 12
-												$Axis_Y.TitleColor = [OxyPlot.OxyColor]::FromRgb(0x1E, 0x90, 0xFF)
-												$Axis_Y.AxisTitleDistance = 20
-												$Axis_Y.MajorStep = [int](($MeasuredStat.MaxFileSizeMB - $MeasuredStat.MinUsedSpaceMB) / 8)
-												$Axis_Y.Minimum = [math]::Floor($MeasuredStat.MinUsedSpaceMB - (($MeasuredStat.MaxFileSizeMB - $MeasuredStat.MinUsedSpaceMB) / 8))
-												$Axis_Y.Maximum = [math]::Ceiling($MeasuredStat.MaxFileSizeMB + (($MeasuredStat.MaxFileSizeMB - $MeasuredStat.MinUsedSpaceMB) / 8))
-												$Axis_Y.MajorGridlineStyle = [OxyPlot.LineStyle]::Dash
+												$Interval = [System.Math]::Floor((($AxisMaximum_X - $AxisMinimum_X) + $DaysLeft) / 12)
 
-												$PlotModel.Axes.Add($Axis_Y)
+												for ($DayOffset = 0; $DayOffset -lt [System.Math]::Ceiling($AxisMaximum_X - $AxisMinimum_X); $DayOffset++) {
+													$CurrentDate = $AxisMinimum_X + $DayOffset
 
-												$StairStepSeries = [OxyPlot.Series.StairStepSeries]::New()
-												$StairStepSeries.Title = "Logical File Size"
-												$StairStepSeries.Color = [OxyPlot.OxyColor]::FromRgb(0x00, 0xFF, 0x85)
-
-												$ScatterSeries = [OxyPlot.Series.ScatterSeries]::New()
-												$ScatterSeries.Title = "Used Space"
-												$ScatterSeries.MarkerType = [OxyPlot.MarkerType]::Circle
-												$ScatterSeries.MarkerFill = [OxyPlot.OxyColor]::FromRgb(0xFF, 0x57, 0x22)
-												$ScatterSeries.MarkerSize = 3
-
-												$LineSeries = [OxyPlot.Series.LineSeries]::New()
-												$LineSeries.Title = "Growth Trend"
-												$LineSeries.Color = [OxyPlot.OxyColor]::FromRgb(0x1E, 0x90, 0xFF)
-												$LineSeries.StrokeThickness = 2
-
-												foreach ($Row in $DataView) {
-													$DateTimeAxisValue = [OxyPlot.Axes.DateTimeAxis]::ToDouble($Row.CollectionDate.DateTime)
-
-													$StairStepSeries.Points.Add([OxyPlot.DataPoint]::New($DateTimeAxisValue, $Row.FileSizeMB))
-													$ScatterSeries.Points.Add([OxyPlot.Series.ScatterPoint]::New($DateTimeAxisValue, $Row.UsedSpaceMB))
-
-													if (-not [System.Double]::IsNaN($LinearRegression.Slope)) {
-														$LineSeries.Points.Add([OxyPlot.DataPoint]::New($DateTimeAxisValue, $LinearRegression.CalculatePrediction($Row.Day)))
+													if ($DayOffset % $Interval -eq 0) {
+														$ManualTicks.AddMajor($CurrentDate, [datetime]::FromOADate($CurrentDate).ToString("yyyy-MM-dd"))
+													} else {
+														$ManualTicks.AddMinor($CurrentDate)
 													}
 												}
 
-												$PlotModel.Series.Add($StairStepSeries)
-												$PlotModel.Series.Add($ScatterSeries)
+												$PlotModel.Axes.Bottom.TickGenerator = $ManualTicks
+												$PlotModel.Axes.Bottom.TickLabelStyle.Rotation = -45
+												$PlotModel.Axes.Bottom.TickLabelStyle.Alignment = [ScottPlot.Alignment]::MiddleRight
+												$PlotModel.Axes.Bottom.MinimumSize = 96
+												$PlotModel.Axes.Bottom.LabelAlignment = [ScottPlot.Alignment]::LowerLeft
+												$PlotModel.Axes.Bottom.Label.ForeColor = [ScottPlot.Color]::FromHex("#1E90FF")
+												$PlotModel.Axes.Bottom.TickLabelStyle.OffsetY = 10
+												$PlotModel.Axes.Bottom.TickLabelStyle.FontSize = 16
+												#EndRegion
 
-												$DataView.Dispose()
+												#Region Y Axes
+												$PlotModel.Grid.YAxisStyle.IsVisible = $true
+												$PlotModel.Grid.YAxisStyle.MajorLineStyle.Color = [ScottPlot.Colors]::Gray
+												$PlotModel.Grid.YAxisStyle.FillColor1 = [ScottPlot.Colors]::Gray.WithOpacity(0.05)
+												$PlotModel.Grid.YAxisStyle.FillColor2 = [ScottPlot.Colors]::Gray.WithOpacity(0.07)
 
-												for ($i = 1; $i -lt $DaysLeft; $i++) {
-													$Date = $Row.CollectionDate.AddDays($i).DateTime
-													$DataPoint = [OxyPlot.DataPoint]::New([OxyPlot.Axes.DateTimeAxis]::ToDouble($Date), $LinearRegression.CalculatePrediction($MeasuredStat.LastDay + $i))
+												$PlotModel.Axes.Left.Label.Text = "Used Space (MB)"
+												$PlotModel.Axes.Left.Label.ForeColor = [ScottPlot.Color]::FromHex("#1E90FF")
+												$PlotModel.Axes.Left.Label.FontName = 'Arial'
+												$PlotModel.Axes.Left.Label.FontSize = 16
+												$PlotModel.Axes.Left.Label.Bold = $true
+												$PlotModel.Axes.Left.MinimumSize = 80
+												$PlotModel.Axes.Left.TickLabelStyle.FontSize = 16
+												#EndRegion
 
-													$LineSeries.Points.Add($DataPoint)
+												$PlotModel.Axes.SetLimitsX($AxisMinimum_X, $AxisMaximum_X)
+												$PlotModel.Axes.SetLimitsY($AxisMinimum_Y, $AxisMaximum_Y)
+												$PlotModel.Axes.Color([ScottPlot.Color]::FromHex("#1E90FF"))
+
+												#Region Scatter Plot
+												$ScatterPoints = $PlotModel.Add.ScatterPoints($DataView.CollectionDate.DateTime.ToOADate(), $DataView.UsedSpaceMB)
+												$ScatterPoints.LegendText = 'Used Space'
+												$ScatterPoints.MarkerSize = 12
+												$ScatterPoints.MarkerFillColor = [ScottPlot.Color]::FromHex("#FF5722")
+												$ScatterPoints.MarkerLineColor = [ScottPlot.Color]::FromHex("#FF5722")
+												$ScatterPoints.FillY = $true
+												$ScatterPoints.FillYColor = [ScottPlot.Colors]::Violet
+												#EndRegion
+
+												#Region Current Size Stair Step
+												$StairStepPoints = $PlotModel.Add.ScatterPoints($DataView.CollectionDate.DateTime.ToOADate(), $DataView.FileSizeMB)
+												$StairStepPoints.LegendText = "Logical File Size"
+												$StairStepPoints.ConnectStyle = [ScottPlot.ConnectStyle]::StepHorizontal
+												$StairStepPoints.Color = [ScottPlot.Color]::FromHex("#00FF85")
+												$StairStepPoints.LineStyle.Width = 2
+												$StairStepPoints.LineStyle.Pattern = [ScottPlot.LinePattern]::Solid
+												#EndRegion
+
+												if (-not [System.Double]::IsNaN($LinearRegression.Slope)) {
+													#Region Trend Line
+													$Line = $PlotModel.Add.Line($MeasuredStat.FirstDateTime.DateTime.ToOADate(), $LinearRegression.CalculatePrediction($MeasuredStat.FirstDateTime.DateTime.ToOADate()), $MeasuredStat.LastDateTime.DateTime.ToOADate(), $LinearRegression.CalculatePrediction($MeasuredStat.LastDateTime.DateTime.ToOADate()))
+													$Line.LegendText = "Growth Trend"
+													$Line.LineWidth = 3
+													$Line.LineColor = [ScottPlot.Color]::FromHex("#1E90FF")
+													#EndRegion
+
+													#Region Projection
+													$Line2 = $PlotModel.Add.Line($MeasuredStat.LastDateTime.DateTime.ToOADate(), $LinearRegression.CalculatePrediction($MeasuredStat.LastDateTime.DateTime.ToOADate()), $MeasuredStat.LastDateTime.DateTime.AddDays($DaysLeft).ToOADate(), $LinearRegression.CalculatePrediction($MeasuredStat.LastDateTime.DateTime.AddDays($DaysLeft).ToOADate()))
+													$Line2.LegendText = "Trend Projection"
+													$Line2.LineWidth = 3
+													$Line2.LinePattern = [ScottPlot.LinePattern]::Dotted
+													$Line2.LineColor = [ScottPlot.Color]::FromHex("#1E90FF")
+													#EndRegion
 												}
 
-												$PlotModel.Series.Add($LineSeries)
+												#[Void]$PlotModel.SavePng($ChartFileName, 1024, 768)
+												$ImageBytes = $PlotModel.GetImageBytes(1024, 768, [ScottPlot.ImageFormat]::Png)
+												#EndRegion
 
-												$MemoryStream = [System.IO.MemoryStream]::New()
-
-												$PngExporter = [OxyPlot.Wpf.PngExporter]::New()
-
-												$PngExporter.Width = 1024
-												$PngExporter.Height = 768
-												$PngExporter.Resolution = 96
-
-												$PngExporter.Export($PlotModel, $MemoryStream)
+												$MemoryStream = [System.IO.MemoryStream]::New($ImageBytes)
 
 												$MemoryStream.Position = 0
 											}
 											#EndRegion
+
+											$DataView.Dispose()
 
 											if ($SampleCount -ge $MinimumSamples) {
 												$MailAttachment = Format-MailAttachment -FileName 'graph.png' -FileStream $MemoryStream -Inline
@@ -7149,7 +7201,6 @@ function Initialize-SqlServerMaintenanceDatabase {
 			$FormatStringArray = @(
 				$AdminDatabase.SchemaName
 				$AdminDatabase.DatabaseVersion.TableName
-				$Script:PSMConfig.Config.Version
 				$AdminDatabase.SqlAgentAlerts.TableName
 				$AdminDatabase.Statistics.Backup.TableName
 				$AdminDatabase.Statistics.ColumnStore.TableName
@@ -8384,7 +8435,7 @@ function Invoke-SqlBackupVerification {
 											[SqlServerMaintenance.BackupFileInfo[]]$SqlBackupFiles = $SqlBackupFiles.where({$_.Name -NotIn $FailedTests.BackupFileName})
 
 											if (@($FailedTests).where({$_.BackupType -eq 'F'}).Count -gt 0) {
-												$LastFullFailureDateTime = $FailedTests.where({$_.BackupType -eq 'F'}) | Measure-Object -Property BackupDateTime -Maximum
+												$LastFullFailureDateTime = @($FailedTests).where({$_.BackupType -eq 'F'}) | Measure-Object -Property BackupDateTime -Maximum
 
 												$NextFullBackup = $SqlBackupFiles.where({$_.BackupType -eq 'Full' -and $_.BackupDate -gt $LastFullFailureDateTime.Maximum}) | Sort-Object -Property BackupDate | Select-Object -First 1
 
@@ -8760,9 +8811,11 @@ function Invoke-SqlBackupVerification {
 										catch {
 											$ErrorRecord = $_
 
-											switch ($ErrorRecord) {
-												{$_.Exception.InnerException.Errors.Number -in @(3201, 3257)} {
+											switch ($ErrorRecord.Exception.InnerException.Errors) {
+												{$_.Number -in @(3201, 3257)} {
 													$RestoreStatus = 'E'
+
+													break
 												}
 												Default {
 													$RestoreStatus = 'F'

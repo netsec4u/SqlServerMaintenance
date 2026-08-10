@@ -4,7 +4,7 @@
 RootModule = 'SqlServerMaintenance.psm1'
 
 # Version number of this module.
-ModuleVersion = '2.8.0.0'
+ModuleVersion = '3.0.0.0'
 
 # Supported PSEditions
 CompatiblePSEditions = @('Core', 'Desktop')
@@ -172,9 +172,9 @@ PrivateData = @{
 		'
 
 		ExternalReferences = '
-			OxyPlot (https://oxyplot.github.io/)
+			ScottPlot (https://scottplot.net/)
 				Licensed under the MIT License (MIT)
-				Documentation: https://docs.dndocs.com/n/OxyPlot.Core/2.1.2/api/index.html
+				Documentation: https://scottplot.net/api/5/
 		'
 
 		# Prerelease string of this module
