@@ -1637,5 +1637,75 @@
 				</TableRowEntries>
 			</TableControl>
 		</View>
+		<View>
+			<Name>TransparentDataEncryptionStatus</Name>
+			<ViewSelectedBy>
+				<TypeName>SqlServerMaintenance.TransparentDataEncryptionStatus</TypeName>
+			</ViewSelectedBy>
+			<TableControl>
+				<TableHeaders>
+					<TableColumnHeader>
+						<Label>Database Name</Label>
+						<Width>32</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>Encryption State</Label>
+						<Width>36</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>Percent Complete</Label>
+						<Width>10</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>Key Algorithm</Label>
+						<Width>10</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>Key Length</Label>
+						<Width>10</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+					<TableColumnHeader>
+						<Label>Encryptor Type</Label>
+						<Width>16</Width>
+						<Alignment>left</Alignment>
+					</TableColumnHeader>
+				</TableHeaders>
+				<TableRowEntries>
+					<TableRowEntry>
+						<TableColumnItems>
+							<TableColumnItem>
+								<PropertyName>DatabaseName</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<PropertyName>EncryptionState</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<PropertyName>PercentComplete</PropertyName>
+								<Alignment>right</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<PropertyName>KeyAlgorithm</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<PropertyName>KeyLength</PropertyName>
+								<Alignment>right</Alignment>
+							</TableColumnItem>
+							<TableColumnItem>
+								<PropertyName>EncryptorType</PropertyName>
+								<Alignment>left</Alignment>
+							</TableColumnItem>
+						</TableColumnItems>
+					</TableRowEntry>
+				</TableRowEntries>
+			</TableControl>
+		</View>
 	</ViewDefinitions>
 </Configuration>

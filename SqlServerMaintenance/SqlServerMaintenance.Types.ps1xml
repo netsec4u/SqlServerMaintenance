@@ -353,4 +353,25 @@
 			</MemberSet>
 		</Members>
 	</Type>
+	<Type>
+		<Name>SqlServerMaintenance.TransparentDataEncryptionStatus</Name>
+		<Members>
+			<MemberSet>
+				<Name>PSStandardMembers</Name>
+				<Members>
+					<PropertySet>
+						<Name>DefaultDisplayPropertySet</Name>
+						<ReferencedProperties>
+							<Name>DatabaseName</Name>
+							<Name>EncryptionState</Name>
+							<Name>PercentComplete</Name>
+							<Name>KeyAlgorithm</Name>
+							<Name>EncryptorType</Name>
+							<Name>KeyLength</Name>
+						</ReferencedProperties>
+					</PropertySet>
+				</Members>
+			</MemberSet>
+		</Members>
+	</Type>
 </Types>

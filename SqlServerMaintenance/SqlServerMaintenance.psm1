@@ -629,6 +629,17 @@ namespace SqlServerMaintenance
 		}
 	}
 
+	public class DatabaseTransactionLogInfo
+	{
+		public string DatabaseName;
+		public Int16 FileID;
+		public Int64 VlfBeginOffset;
+		public float VlfSizeMB;
+		public Int64 VlfSequenceNumber;
+		public string VlfCreateLsn;
+		public float RunningSizeMB;
+	}
+
 	public class FullTextIndex
 	{
 		public string SqlInstanceName;
@@ -931,15 +942,14 @@ namespace SqlServerMaintenance
 		}
 	}
 
-	public class DatabaseTransactionLogInfo
+	public class TransparentDataEncryptionStatus
 	{
 		public string DatabaseName;
-		public Int16 FileID;
-		public Int64 VlfBeginOffset;
-		public float VlfSizeMB;
-		public Int64 VlfSequenceNumber;
-		public string VlfCreateLsn;
-		public float RunningSizeMB;
+		public string EncryptionState;
+		public float? PercentComplete;
+		public string KeyAlgorithm;
+		public int? KeyLength;
+		public string EncryptorType;
 	}
 
 	[Serializable]
@@ -5200,7 +5210,7 @@ function Get-LSPrimaryDatabase {
 				$Output.BackupThreshold_Minutes = $Row.BackupThreshold_Minutes
 				$Output.ThresholdAlertEnabled = $Row.ThresholdAlertEnabled
 
-				if ($Row.LastBackupFile -IsNot [DBNull]) {
+				if ($Row.LastBackupFile -IsNot [System.DBNull]) {
 					$Output.LastBackupFile = $Row.LastBackupFile
 				}
 
@@ -5342,11 +5352,11 @@ function Get-LSSecondaryDatabase {
 				$Output.BufferCount = $Row.BufferCount
 				$Output.MaxTransferSize = $Row.MaxTransferSize
 
-				if ($Row.LastRestoredFile -IsNot [DBNull]) {
+				if ($Row.LastRestoredFile -IsNot [System.DBNull]) {
 					$Output.LastRestoredFile = $Row.LastRestoredFile
 				}
 
-				if ($Row.LastRestoredFile -IsNot [DBNull]) {
+				if ($Row.LastRestoredFile -IsNot [System.DBNull]) {
 					$Output.LastRestoredDate = $Row.LastRestoredDate
 				}
 
@@ -6928,8 +6938,8 @@ function Get-SqlInstanceTDEStatus {
 	)
 
 	begin {
-		$TDEStatusFormatString = "SELECT DB_NAME(database_id) AS DatabaseName
-		,	CASE encryption_state
+		$TDEStatusFormatString = "SELECT d.name AS DatabaseName
+		,	CASE k.encryption_state
 				WHEN 0 THEN 'No database encryption key present, no encryption'
 				WHEN 1 THEN 'Unencrypted'
 				WHEN 2 THEN 'Encryption in progress'
@@ -6937,12 +6947,18 @@ function Get-SqlInstanceTDEStatus {
 				WHEN 4 THEN 'Key change in progress'
 				WHEN 5 THEN 'Decryption in progress'
 				WHEN 6 THEN 'Protection change in progress'
+				ELSE
+					CASE WHEN k.encryptor_thumbprint IS NULL THEN 'No database encryption key present, no encryption' END
 			END AS EncryptionState
-		,	percent_complete AS PercentComplete
-		FROM sys.dm_database_encryption_keys{0}
+		,	k.percent_complete AS PercentComplete
+		,   k.key_algorithm AS KeyAlgorithm
+		,   k.encryptor_type AS EncryptorType
+		,	k.key_length AS KeyLength
+		FROM sys.databases d
+		LEFT JOIN sys.dm_database_encryption_keys k ON d.database_id = k.database_id{0}
 		ORDER BY DatabaseName;"
 
-		$WhereClauseFormatString = "`r`n`t`tWHERE database_id = DB_ID(N'{0}')"
+		$WhereClauseFormatString = "`r`n`t`tWHERE d.name = N'{0}'"
 	}
 
 	process {
@@ -6969,7 +6985,25 @@ function Get-SqlInstanceTDEStatus {
 
 			$TDEStatusDataTable = Get-SqlClientDataSet @SqlClientDataSetParameters
 
-			$TDEStatusDataTable
+			foreach ($Row in $TDEStatusDataTable) {
+				$Output = [SqlServerMaintenance.TransparentDataEncryptionStatus]::New()
+
+				$Output.DatabaseName = $Row.DatabaseName
+				$Output.EncryptionState = $Row.EncryptionState
+
+				if ($Row.PercentComplete -isnot [System.DBNull]) {
+					$Output.PercentComplete = $Row.PercentComplete
+				}
+
+				$Output.KeyAlgorithm = $Row.KeyAlgorithm
+				$Output.EncryptorType = $Row.EncryptorType
+
+				if ($Row.KeyLength -isnot [System.DBNull]) {
+					$Output.KeyLength = $Row.KeyLength
+				}
+
+				$Output
+			}
 		}
 		catch {
 			throw $_
@@ -9441,7 +9475,7 @@ function Invoke-SqlInstanceBackup {
 							} else {
 								$ModifiedPercent = $($Database.ExecuteWithResults($Query_Modified)).Tables[0].ModifiedPercent
 
-								if ($DatabaseRecoveryStatus.backup_set_id -is [DBNull] -or $ModifiedPercent -gt $DiffBackupThreshold -or $Database.LastBackupDate -eq '0001-01-01 00:00:00' -or $Database.Name -eq 'master') {
+								if ($DatabaseRecoveryStatus.backup_set_id -is [System.DBNull] -or $ModifiedPercent -gt $DiffBackupThreshold -or $Database.LastBackupDate -eq '0001-01-01 00:00:00' -or $Database.Name -eq 'master') {
 									[BackupType]$EffectiveBackupType = 'Full'
 								} else {
 									if ($SmoServerObject.IsHadrEnabled -and $Database.Name -in $SmoServerObject.AvailabilityGroups.AvailabilityDatabases.Name) {
@@ -9463,7 +9497,7 @@ function Invoke-SqlInstanceBackup {
 								Write-Warning 'Full backup required before log backup can be performed.  A full backup will be performed.'
 
 								[BackupType]$EffectiveBackupType = 'Full'
-							} elseif ($DatabaseRecoveryStatus.last_log_backup_lsn -is [DBNull] -or $DatabaseRecoveryStatus.backup_set_id -is [DBNull]) {
+							} elseif ($DatabaseRecoveryStatus.last_log_backup_lsn -is [System.DBNull] -or $DatabaseRecoveryStatus.backup_set_id -is [System.DBNull]) {
 								if ($TailLog) {
 									throw [System.Management.Automation.ErrorRecord]::New(
 										[Exception]::New('Tail log backup cannot be performed without a full backup of database.'),
@@ -12072,7 +12106,7 @@ function Invoke-SqlInstanceStatisticsMaintenance {
 						}
 
 						try {
-							if ($Row.ModificationCount -is [DBNull]) {
+							if ($Row.ModificationCount -is [System.DBNull]) {
 								if ($PSCmdlet.ShouldProcess($Row.ObjectName, "Execute update statistic $($Row.StatisticsName)")) {
 									$Database.ExecuteNonQuery($SqlNonQuery)
 								}
@@ -12838,7 +12872,7 @@ function Read-SqlAgentAlert {
 							$DataSet.Tables
 						}
 						Default {
-							if ($DataSet.Tables[$SqlAgentAlertsTableName].where({$_.ClientIPAddress -ne [DBNull]::Value}).Count -eq 0) {
+							if ($DataSet.Tables[$SqlAgentAlertsTableName].where({$_.ClientIPAddress -ne [System.DBNull]::Value}).Count -eq 0) {
 								$DataSet.Tables[$SqlAgentAlertsTableName].Columns.Remove('ClientIPAddress')
 							}
 
