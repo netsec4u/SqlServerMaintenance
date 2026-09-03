@@ -950,6 +950,12 @@ namespace SqlServerMaintenance
 		public string KeyAlgorithm;
 		public int? KeyLength;
 		public string EncryptorType;
+		public DateTimeOffset EncryptionKeyCreateDate;
+		public DateTimeOffset EncryptionKeyModifyDate;
+		public DateTimeOffset EncryptionKeyRegenerateDate;
+		public DateTimeOffset EncryptionDate;
+		public string EncryptionScanSate;
+		public DateTimeOffset? EncryptionScanModifyDate;
 	}
 
 	[Serializable]
@@ -2090,7 +2096,7 @@ function Initialize-ModuleConfiguration {
 						)
 					}
 				}
-				#EdnRegion
+				#EndRegion
 			}
 		}
 		catch {
@@ -3039,7 +3045,7 @@ function Update-PSMConfiguration {
 }
 #EndRegion
 
-
+#Region Functions
 function Add-LogShippedDatabase {
 	<#
 	.EXTERNALHELP
@@ -4212,6 +4218,7 @@ function Get-DatabaseRecovery {
 			ValueFromPipeline = $false,
 			ValueFromPipelineByPropertyName = $false
 		)]
+		[ArgumentCompleter({ [ArgumentCompleterResult]::GetArgumentCompleterResult($Args) })]
 		[string]$TimeZoneId,
 
 		[Parameter(
@@ -4517,9 +4524,18 @@ function Get-DatabaseRecovery {
 			}
 
 			foreach ($FullBackup in $FullBackups) {
-				$FullBackupHeader = Get-SmoBackupHeader -DatabaseBackupPath $FullBackup.FullName -SmoServerObject $SmoServerObject
+				try {
+					$FullBackupHeader = Get-SmoBackupHeader -DatabaseBackupPath $FullBackup.FullName -SmoServerObject $SmoServerObject
+				}
+				catch {
+					Write-Verbose "Unable to read backup header.  Skipping file $($FullBackup.Name)."
+
+					continue
+				}
 
 				if ($FullBackupHeader.BackupName -eq '*** INCOMPLETE ***' -and $null -eq $FullBackupHeader.BackupTypeDescription) {
+					Write-Verbose "Incomplete backup found in $($FullBackup.Name) at position $($FullBackupHeader.Position)"
+
 					continue
 				}
 
@@ -4647,13 +4663,19 @@ function Get-DatabaseRecovery {
 				}
 			}
 
+			if ($null -eq $FullBackupHeader.TimeZone) {
+				$TimeSpan = $TimeZoneInfo.GetUtcOffset($FullBackupHeader.BackupStartDate)
+			} else {
+				$TimeSpan = [System.TimeSpan]::New(0, $FullBackupHeader.TimeZone, 0)
+			}
+
 			$RestoreList.Add($([PsCustomObject]@{
 				'DatabaseName' = $NewDatabaseName
 				'BackupDatabaseName' = $FullBackupHeader.DatabaseName
 				'DatabaseGUID' = $FullBackupHeader.BindingID
 				'BackupFileName' = $LastFullBackup
-				'BackupStartDate' = [DateTimeOffset]::New($FullBackupHeader.BackupStartDate, $TimeZoneInfo.GetUtcOffset($FullBackupHeader.BackupStartDate))
-				'BackupFinishDate' = [DateTimeOffset]::New($FullBackupHeader.BackupFinishDate, $TimeZoneInfo.GetUtcOffset($FullBackupHeader.BackupFinishDate))
+				'BackupStartDate' = [DateTimeOffset]::New($FullBackupHeader.BackupStartDate, $TimeSpan)
+				'BackupFinishDate' = [DateTimeOffset]::New($FullBackupHeader.BackupFinishDate, $TimeSpan)
 				'BackupPosition' = $FullBackupHeader.Position
 				'BackupType' = $FullBackupHeader.BackupTypeDescription
 				'RecoveryModel' = $FullBackupHeader.RecoveryModel
@@ -4684,13 +4706,29 @@ function Get-DatabaseRecovery {
 				$SqlBackupFileParameters.BackupType = 'diff'
 
 				$DiffBackups = Get-SqlBackupFile @SqlBackupFileParameters
-				[SqlServerMaintenance.BackupFileInfo[]]$DiffBackups = $DiffBackups.where({$_.BackupDate -gt $([DateTimeOffset]::New($LastBackupHeader.BackupFinishDate, $TimeZoneInfo.GetUtcOffset($LastBackupHeader.BackupFinishDate))).UtcDateTime -and $_.BackupDate -lt $RecoveryDateTime.UtcDateTime}) | Sort-Object -Property Name -Descending
+
+				if ($null -eq $LastBackupHeader.TimeZone) {
+					$TimeSpan = $TimeZoneInfo.GetUtcOffset($LastBackupHeader.BackupFinishDate)
+				} else {
+					$TimeSpan = [System.TimeSpan]::New(0, $LastBackupHeader.TimeZone, 0)
+				}
+
+				[SqlServerMaintenance.BackupFileInfo[]]$DiffBackups = $DiffBackups.where({$_.BackupDate -gt $([DateTimeOffset]::New($LastBackupHeader.BackupFinishDate, $TimeSpan)).UtcDateTime -and $_.BackupDate -lt $RecoveryDateTime.UtcDateTime}) | Sort-Object -Property Name -Descending
 			}
 
 			foreach ($DiffBackup in $DiffBackups) {
-				$DiffBackupHeader = Get-SmoBackupHeader -DatabaseBackupPath $DiffBackup.FullName -SmoServerObject $SmoServerObject
+				try {
+					$DiffBackupHeader = Get-SmoBackupHeader -DatabaseBackupPath $DiffBackup.FullName -SmoServerObject $SmoServerObject
+				}
+				catch {
+					Write-Verbose "Unable to read backup header.  Skipping file $($DiffBackup.Name)."
+
+					continue
+				}
 
 				if ($DiffBackupHeader.BackupName -eq '*** INCOMPLETE ***' -and $null -eq $DiffBackupHeader.BackupTypeDescription) {
+					Write-Verbose "Incomplete backup found in $($DiffBackup.Name) at position $($DiffBackupHeader.Position)"
+
 					continue
 				}
 
@@ -4717,13 +4755,19 @@ function Get-DatabaseRecovery {
 						'NORECOVERY'
 					)
 
+					if ($null -eq $LastBackupHeader.TimeZone) {
+						$TimeSpan = $TimeZoneInfo.GetUtcOffset($LastBackupHeader.BackupStartDate)
+					} else {
+						$TimeSpan = [System.TimeSpan]::New(0, $LastBackupHeader.TimeZone, 0)
+					}
+
 					$RestoreList.Add($([PsCustomObject]@{
 						'DatabaseName' = $NewDatabaseName
 						'BackupDatabaseName' = $LastBackupHeader.DatabaseName
 						'DatabaseGUID' = $LastBackupHeader.BindingID
 						'BackupFileName' = $DiffBackup
-						'BackupStartDate' = [DateTimeOffset]::New($LastBackupHeader.BackupStartDate, $TimeZoneInfo.GetUtcOffset($LastBackupHeader.BackupStartDate))
-						'BackupFinishDate' = [DateTimeOffset]::New($LastBackupHeader.BackupFinishDate, $TimeZoneInfo.GetUtcOffset($LastBackupHeader.BackupFinishDate))
+						'BackupStartDate' = [DateTimeOffset]::New($LastBackupHeader.BackupStartDate, $TimeSpan)
+						'BackupFinishDate' = [DateTimeOffset]::New($LastBackupHeader.BackupFinishDate, $TimeSpan)
 						'BackupPosition' = $LastBackupHeader.Position
 						'BackupType' = $LastBackupHeader.BackupTypeDescription
 						'RecoveryModel' = $LastBackupHeader.RecoveryModel
@@ -4761,7 +4805,14 @@ function Get-DatabaseRecovery {
 					$SqlBackupFileParameters.BackupType = 'log'
 
 					$TrnBackups = Get-SqlBackupFile @SqlBackupFileParameters
-					[SqlServerMaintenance.BackupFileInfo[]]$TrnBackups = $TrnBackups.where({$_.BackupDate -ge $([DateTimeOffset]::New($LastBackupHeader.BackupStartDate, $TimeZoneInfo.GetUtcOffset($LastBackupHeader.BackupStartDate))).UtcDateTime}) | Sort-Object -Property Name
+
+					if ($null -eq $LastBackupHeader.TimeZone) {
+						$TimeSpan = $TimeZoneInfo.GetUtcOffset($LastBackupHeader.BackupStartDate)
+					} else {
+						$TimeSpan = [System.TimeSpan]::New(0, $LastBackupHeader.TimeZone, 0)
+					}
+
+					[SqlServerMaintenance.BackupFileInfo[]]$TrnBackups = $TrnBackups.where({$_.BackupDate -ge $([DateTimeOffset]::New($LastBackupHeader.BackupStartDate, $TimeSpan)).UtcDateTime}) | Sort-Object -Property Name
 				}
 
 				$TotalSubSteps = [Math]::Ceiling($(New-TimeSpan -Start $LastBackupHeader.BackupStartDate -End $RecoveryDateTime.UtcDateTime).TotalMinutes / 15)
@@ -4785,14 +4836,29 @@ function Get-DatabaseRecovery {
 					Write-Verbose $ProgressParameters1.CurrentOperation
 					Write-Progress @ProgressParameters1
 
-					$TrnBackupHeaders = Get-SmoBackupHeader -DatabaseBackupPath $TrnBackup.FullName -SmoServerObject $SmoServerObject | Sort-Object -Property Position
+					try {
+						$TrnBackupHeaders = Get-SmoBackupHeader -DatabaseBackupPath $TrnBackup.FullName -SmoServerObject $SmoServerObject | Sort-Object -Property Position
+					}
+					catch {
+						Write-Verbose "Unable to read backup header.  Skipping file $($TrnBackup.Name)."
+
+						continue
+					}
 
 					foreach ($TrnBackupHeader in $TrnBackupHeaders) {
 						if ($TrnBackupHeader.BackupName -eq '*** INCOMPLETE ***' -and $null -eq $TrnBackupHeader.BackupTypeDescription) {
+							Write-Verbose "Incomplete backup found in $($TrnBackup.Name) at position $($TrnBackupHeader.Position)"
+
 							continue
 						}
 
-						$BackupFinishDate = [DateTimeOffset]::New($TrnBackupHeader.BackupFinishDate, $TimeZoneInfo.GetUtcOffset($TrnBackupHeader.BackupFinishDate))
+						if ($null -eq $TrnBackupHeader.TimeZone) {
+							$TimeSpan = $TimeZoneInfo.GetUtcOffset($TrnBackupHeader.BackupFinishDate)
+						} else {
+							$TimeSpan = [System.TimeSpan]::New(0, $TrnBackupHeader.TimeZone, 0)
+						}
+
+						$BackupFinishDate = [DateTimeOffset]::New($TrnBackupHeader.BackupFinishDate, $TimeSpan)
 
 						$RestoreOptions = [System.Collections.Generic.List[string]]@(
 							[string]::Format('FILE = {0}', $TrnBackupHeader.Position),
@@ -4907,8 +4973,8 @@ function Get-DatabaseRecovery {
 							'BackupDatabaseName' = $LastBackupHeader.DatabaseName
 							'DatabaseGUID' = $TrnBackupHeader.BindingID
 							'BackupFileName' = $TrnBackup
-							'BackupStartDate' = [DateTimeOffset]::New($TrnBackupHeader.BackupStartDate, $TimeZoneInfo.GetUtcOffset($TrnBackupHeader.BackupStartDate))
-							'BackupFinishDate' = [DateTimeOffset]::New($TrnBackupHeader.BackupFinishDate, $TimeZoneInfo.GetUtcOffset($TrnBackupHeader.BackupFinishDate))
+							'BackupStartDate' = [DateTimeOffset]::New($TrnBackupHeader.BackupStartDate, $TimeSpan)
+							'BackupFinishDate' = [DateTimeOffset]::New($TrnBackupHeader.BackupFinishDate, $TimeSpan)
 							'BackupPosition' = $TrnBackupHeader.Position
 							'BackupType' = $TrnBackupHeader.BackupTypeDescription
 							'RecoveryModel' = $TrnBackupHeader.RecoveryModel
@@ -6908,7 +6974,7 @@ function Get-SqlInstanceTDEStatus {
 		DefaultParameterSetName = 'ServerInstance'
 	)]
 
-	[OutputType([System.Data.DataRow])]
+	[OutputType([SqlServerMaintenance.TransparentDataEncryptionStatus])]
 
 	param (
 		[Parameter(
@@ -6938,6 +7004,25 @@ function Get-SqlInstanceTDEStatus {
 	)
 
 	begin {
+		try {
+			$ServerInstanceParameterSets = @('ServerInstance')
+
+			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
+				$SqlConnection = Connect-SqlServerInstance -ServerInstance $ServerInstance -DatabaseName $DatabaseName
+			}
+		}
+		catch {
+			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
+				if (Test-Path -Path Variable:\SqlConnection) {
+					if ($SqlConnection -is [Microsoft.Data.SqlClient.SqlConnection]) {
+						Disconnect-SqlServerInstance -SqlConnection $SqlConnection
+					}
+				}
+			}
+
+			throw $_
+		}
+
 		$TDEStatusFormatString = "SELECT d.name AS DatabaseName
 		,	CASE k.encryption_state
 				WHEN 0 THEN 'No database encryption key present, no encryption'
@@ -6948,58 +7033,69 @@ function Get-SqlInstanceTDEStatus {
 				WHEN 5 THEN 'Decryption in progress'
 				WHEN 6 THEN 'Protection change in progress'
 				ELSE
-					CASE WHEN k.encryptor_thumbprint IS NULL THEN 'No database encryption key present, no encryption' END
+					CASE d.state
+						WHEN 0 THEN
+							CASE WHEN k.encryptor_thumbprint IS NULL THEN 'No database encryption key present, no encryption' END
+					END
 			END AS EncryptionState
 		,	k.percent_complete AS PercentComplete
 		,   k.key_algorithm AS KeyAlgorithm
 		,   k.encryptor_type AS EncryptorType
 		,	k.key_length AS KeyLength
+		,	TODATETIMEOFFSET(k.create_date, '+00:00') AS EncryptionKeyCreateDate
+		,	TODATETIMEOFFSET(k.modify_date, '+00:00') AS EncryptionKeyModifyDate
+		,	TODATETIMEOFFSET(k.regenerate_date, '+00:00') AS EncryptionKeyRegenerateDate
+		,	TODATETIMEOFFSET(k.set_date, '+00:00') AS EncryptionDate{0}
 		FROM sys.databases d
-		LEFT JOIN sys.dm_database_encryption_keys k ON d.database_id = k.database_id{0}
+		LEFT JOIN sys.dm_database_encryption_keys k ON d.database_id = k.database_id
+		WHERE d.database_id NOT IN (1, 3, 4){1}
 		ORDER BY DatabaseName;"
 
-		$WhereClauseFormatString = "`r`n`t`tWHERE d.name = N'{0}'"
+		$TDEStatus2019AdditionalColumns = "`r`n`t`t,	k.encryption_scan_state_desc AS EncryptionScanSate
+		,	TODATETIMEOFFSET(k.encryption_scan_modify_date, '+00:00') AS EncryptionScanModifyDate"
+
+		$WhereClauseFormatString = "`r`n`t`t`tAND d.name = N'{0}'"
 	}
 
 	process {
 		try {
+			$SqlClientDataSetParameters = @{
+				'SqlConnection' = $SqlConnection
+				'SqlCommandText' = "SELECT SERVERPROPERTY('ProductVersion') AS ProductVersion;"
+				'OutputAs' = 'DataRow'
+			}
+
+			$VersionDataRow = Get-SqlClientDataSet @SqlClientDataSetParameters
+
+			[version]$SqlServerVersion = $VersionDataRow.ProductVersion
+
 			if ($PSBoundParameters.ContainsKey('DatabaseName')) {
 				$WhereClause = [string]::Format($WhereClauseFormatString, $DatabaseName)
 			} else {
 				$WhereClause = ''
 			}
 
+			if ($SqlServerVersion -ge [version]'15.0.0.0') {
+				$SqlCommandText = [string]::Format($TDEStatusFormatString, $TDEStatus2019AdditionalColumns, $WhereClause)
+			} else {
+				$SqlCommandText = [string]::Format($TDEStatusFormatString, '', $WhereClause)
+			}
+
 			$SqlClientDataSetParameters = @{
-				'DatabaseName' = 'master'
-				'SqlCommandText' = [string]::Format($TDEStatusFormatString, $WhereClause)
-				'OutputAs' = 'DataRow'
-			}
-
-			if ($PSBoundParameters.ContainsKey('ServerInstance')) {
-				$SqlClientDataSetParameters.Add('ServerInstance', $ServerInstance)
-			}
-
-			if ($PSBoundParameters.ContainsKey('SqlConnection')) {
-				$SqlClientDataSetParameters.Add('SqlConnection', $SqlConnection)
+				'SqlConnection' = $SqlConnection
+				'SqlCommandText' = $SqlCommandText
+				'OutputAs' = 'DataTable'
 			}
 
 			$TDEStatusDataTable = Get-SqlClientDataSet @SqlClientDataSetParameters
 
-			foreach ($Row in $TDEStatusDataTable) {
+			foreach ($Row in $TDEStatusDataTable[0].Rows) {
 				$Output = [SqlServerMaintenance.TransparentDataEncryptionStatus]::New()
 
-				$Output.DatabaseName = $Row.DatabaseName
-				$Output.EncryptionState = $Row.EncryptionState
-
-				if ($Row.PercentComplete -isnot [System.DBNull]) {
-					$Output.PercentComplete = $Row.PercentComplete
-				}
-
-				$Output.KeyAlgorithm = $Row.KeyAlgorithm
-				$Output.EncryptorType = $Row.EncryptorType
-
-				if ($Row.KeyLength -isnot [System.DBNull]) {
-					$Output.KeyLength = $Row.KeyLength
+				foreach ($ColumnName in $TDEStatusDataTable[0].Columns.ColumnName) {
+					if ($Row.$ColumnName -isnot [System.DBNull]) {
+						$Output.$ColumnName = $Row.$ColumnName
+					}
 				}
 
 				$Output
@@ -7007,6 +7103,11 @@ function Get-SqlInstanceTDEStatus {
 		}
 		catch {
 			throw $_
+		}
+		finally {
+			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
+				Disconnect-SqlServerInstance -SqlConnection $SqlConnection
+			}
 		}
 	}
 
@@ -8071,7 +8172,15 @@ function Invoke-SqlBackupVerification {
 			ParameterSetName = 'ByServerInstance-SqlInstance'
 		)]
 		[ValidateLength(1,128)]
-		[string[]]$DatabaseName
+		[string[]]$DatabaseName,
+
+		[Parameter(
+			Mandatory = $false,
+			ValueFromPipeline = $false,
+			ValueFromPipelineByPropertyName = $false
+		)]
+		[ArgumentCompleter({ [ArgumentCompleterResult]::GetArgumentCompleterResult($Args) })]
+		[string]$TimeZoneId
 	)
 
 	begin {
@@ -8151,6 +8260,12 @@ function Invoke-SqlBackupVerification {
 			}
 
 			Remove-BackupTestDatabase -SmoServerObject $SmoServerObject -Confirm:$false
+
+			if ($PSBoundParameters.ContainsKey('TimeZoneId')) {
+				$TimeZoneInfo = [System.TimeZoneInfo]::FindSystemTimeZoneById($TimeZoneId)
+			} else{
+				$TimeZoneInfo = Get-SqlServerTimeZone -SmoServerObject $SmoServerObject
+			}
 		}
 		catch {
 			$ErrorRecord = $_
@@ -8377,9 +8492,18 @@ function Invoke-SqlBackupVerification {
 										$FullBackups = $SqlBackupFiles.where({$_.Extension -eq '.bak'}) | Sort-Object -Property BackupDate
 
 										foreach ($FullBackup in $FullBackups) {
-											$FullBackupHeader = Get-SmoBackupHeader -DatabaseBackupPath $FullBackup.FullName -SmoServerObject $SmoServerObject
+											try {
+												$FullBackupHeader = Get-SmoBackupHeader -DatabaseBackupPath $FullBackup.FullName -SmoServerObject $SmoServerObject
+											}
+											catch {
+												Write-Verbose "Unable to read backup header.  Skipping file $($FullBackup.Name)."
+
+												continue
+											}
 
 											if ($FullBackupHeader[0].BackupName -eq '*** INCOMPLETE ***' -and $null -eq $FullBackupHeader[0].BackupTypeDescription) {
+												Write-Verbose "Incomplete backup found in $($FullBackup.Name) at position $($FullBackupHeader.Position)"
+
 												continue
 											}
 
@@ -8418,9 +8542,18 @@ function Invoke-SqlBackupVerification {
 											$FullBackups = $SqlBackupFiles.where({$_.Extension -eq '.bak'}) | Sort-Object -Property BackupDate -Descending
 
 											foreach ($FullBackup in $FullBackups) {
-												$BackupHeader = Get-SmoBackupHeader -DatabaseBackupPath $FullBackup.FullName -SmoServerObject $SmoServerObject
+												try {
+													$BackupHeader = Get-SmoBackupHeader -DatabaseBackupPath $FullBackup.FullName -SmoServerObject $SmoServerObject
+												}
+												catch {
+													Write-Verbose "Unable to read backup header.  Skipping file $($FullBackup.Name)."
+
+													continue
+												}
 
 												if ($BackupHeader[0].BackupName -eq '*** INCOMPLETE ***' -and $null -eq $BackupHeader[0].BackupTypeDescription) {
+													Write-Verbose "Incomplete backup found in $($FullBackup.Name) at position $($BackupHeader.Position)"
+
 													continue
 												}
 
@@ -8505,9 +8638,18 @@ function Invoke-SqlBackupVerification {
 
 														break
 													} else {
-														$FullBackupHeader = Get-SmoBackupHeader -DatabaseBackupPath $NextBackup.FullName -SmoServerObject $SmoServerObject
+														try {
+															$FullBackupHeader = Get-SmoBackupHeader -DatabaseBackupPath $NextBackup.FullName -SmoServerObject $SmoServerObject
+														}
+														catch {
+															Write-Verbose "Unable to read backup header.  Skipping file $($NextBackup.Name)."
+
+															continue
+														}
 
 														if ($FullBackupHeader[0].BackupName -eq '*** INCOMPLETE ***' -and $null -eq $FullBackupHeader[0].BackupTypeDescription) {
+															Write-Verbose "Incomplete backup found in $($NextBackup.Name) at position $($FullBackupHeader[0].Position)"
+
 															continue
 														}
 
@@ -8525,9 +8667,18 @@ function Invoke-SqlBackupVerification {
 													$PreviousFullBackups = $SqlBackupFiles.where({$_.Extension -eq '.bak' -and $_.BackupDate -lt $NextBackupFile.BackupDate}) | Sort-Object -Property BackupDate -Descending
 
 													foreach ($PreviousFullBackup in $PreviousFullBackups) {
-														$FullBackupHeader = Get-SmoBackupHeader -DatabaseBackupPath $PreviousFullBackup.FullName -SmoServerObject $SmoServerObject
+														try {
+															$FullBackupHeader = Get-SmoBackupHeader -DatabaseBackupPath $PreviousFullBackup.FullName -SmoServerObject $SmoServerObject
+														}
+														catch {
+															Write-Verbose "Unable to read backup header.  Skipping file $($PreviousFullBackup.Name)."
+
+															continue
+														}
 
 														if ($FullBackupHeader[0].BackupName -eq '*** INCOMPLETE ***' -and $null -eq $FullBackupHeader[0].BackupTypeDescription) {
+															Write-Verbose "Incomplete backup found in $($PreviousFullBackup.Name) at position $($FullBackupHeader[0].Position)"
+
 															continue
 														}
 
@@ -8551,9 +8702,18 @@ function Invoke-SqlBackupVerification {
 													$NextBackups = $SqlBackupFiles.where({$_.Extension -In ('.bak', '.dif') -and $_.BackupDate -gt $LastLogBackupTest.BackupDateTime}) | Sort-Object -Property BackupDate
 
 													foreach ($NextBackup in $NextBackups) {
-														$BackupHeader = Get-SmoBackupHeader -DatabaseBackupPath $NextBackup.FullName -SmoServerObject $SmoServerObject
+														try {
+															$BackupHeader = Get-SmoBackupHeader -DatabaseBackupPath $NextBackup.FullName -SmoServerObject $SmoServerObject
+														}
+														catch {
+															Write-Verbose "Unable to read backup header.  Skipping file $($NextBackup.Name)."
+
+															continue
+														}
 
 														if ($BackupHeader[0].BackupName -eq '*** INCOMPLETE ***' -and $null -eq $BackupHeader[0].BackupTypeDescription) {
+															Write-Verbose "Incomplete backup found in $($NextBackup.Name) at position $($BackupHeader[0].Position)"
+
 															continue
 														}
 
@@ -8577,9 +8737,18 @@ function Invoke-SqlBackupVerification {
 															$PreviousBackups = $SqlBackupFiles.where({$_.Extension -eq '.bak' -and $_.BackupDate -lt $NextDatabaseBackupFile.BackupDate}) | Sort-Object -Property BackupDate -Descending
 
 															foreach ($PreviousBackup in $PreviousBackups) {
-																$BackupHeader = Get-SmoBackupHeader -DatabaseBackupPath $PreviousBackup.FullName -SmoServerObject $SmoServerObject
+																try {
+																	$BackupHeader = Get-SmoBackupHeader -DatabaseBackupPath $PreviousBackup.FullName -SmoServerObject $SmoServerObject
+																}
+																catch {
+																	Write-Verbose "Unable to read backup header.  Skipping file $($PreviousBackup.Name)."
+
+																	continue
+																}
 
 																if ($BackupHeader[0].BackupName -eq '*** INCOMPLETE ***' -and $null -eq $BackupHeader[0].BackupTypeDescription) {
+																	Write-Verbose "Incomplete backup found in $($NextBackup.Name) at position $($BackupHeader[0].Position)"
+
 																	continue
 																}
 
@@ -8606,9 +8775,18 @@ function Invoke-SqlBackupVerification {
 														$PreviousBackups = $SqlBackupFiles.where({$_.Extension -eq '.bak'}) | Sort-Object -Property BackupDate
 
 														foreach ($PreviousBackup in $PreviousBackups) {
-															$FullBackupHeader = Get-SmoBackupHeader -DatabaseBackupPath $PreviousBackup.FullName -SmoServerObject $SmoServerObject
+															try {
+																$FullBackupHeader = Get-SmoBackupHeader -DatabaseBackupPath $PreviousBackup.FullName -SmoServerObject $SmoServerObject
+															}
+															catch {
+																Write-Verbose "Unable to read backup header.  Skipping file $($PreviousBackup.Name)."
+
+																continue
+															}
 
 															if ($FullBackupHeader[0].BackupName -eq '*** INCOMPLETE ***' -and $null -eq $FullBackupHeader[0].BackupTypeDescription) {
+																Write-Verbose "Incomplete backup found in $($PreviousBackup.Name) at position $($FullBackupHeader[0].Position)"
+
 																continue
 															}
 
@@ -8624,9 +8802,18 @@ function Invoke-SqlBackupVerification {
 														$PreviousBackups = $PreviousBackups | Sort-Object -Property BackupDate -Descending
 
 														foreach ($PreviousBackup in $PreviousBackups) {
-															$FullBackupHeader = Get-SmoBackupHeader -DatabaseBackupPath $PreviousBackup.FullName -SmoServerObject $SmoServerObject
+															try {
+																$FullBackupHeader = Get-SmoBackupHeader -DatabaseBackupPath $PreviousBackup.FullName -SmoServerObject $SmoServerObject
+															}
+															catch {
+																Write-Verbose "Unable to read backup header.  Skipping file $($PreviousBackup.Name)."
+
+																continue
+															}
 
 															if ($FullBackupHeader[0].BackupName -eq '*** INCOMPLETE ***' -and $null -eq $FullBackupHeader[0].BackupTypeDescription) {
+																Write-Verbose "Incomplete backup found in $($PreviousBackup.Name) at position $($FullBackupHeader[0].Position)"
+
 																continue
 															}
 
@@ -8648,10 +8835,14 @@ function Invoke-SqlBackupVerification {
 																$FullBackupHeader = Get-SmoBackupHeader -DatabaseBackupPath $PreviousFullBackup.FullName -SmoServerObject $SmoServerObject
 															}
 															catch {
+																Write-Verbose "Unable to read backup header.  Skipping file $($PreviousFullBackup.Name)."
+
 																continue
 															}
 
 															if ($FullBackupHeader[0].BackupName -eq '*** INCOMPLETE ***' -and $null -eq $FullBackupHeader[0].BackupTypeDescription) {
+																Write-Verbose "Incomplete backup found in $($PreviousFullBackup.Name) at position $($FullBackupHeader[0].Position)"
+
 																continue
 															}
 
@@ -8706,7 +8897,14 @@ function Invoke-SqlBackupVerification {
 									}
 
 									foreach ($OrphanedBackup in $OrphanedBackups) {
-										$BackupHeaders = Get-SmoBackupHeader -DatabaseBackupPath $OrphanedBackup.FullName -SmoServerObject $SmoServerObject
+										try {
+											$BackupHeaders = Get-SmoBackupHeader -DatabaseBackupPath $OrphanedBackup.FullName -SmoServerObject $SmoServerObject
+										}
+										catch {
+											Write-Verbose "Unable to read backup header.  Skipping file $($OrphanedBackup.Name)."
+
+											continue
+										}
 
 										foreach ($BackupHeader in $BackupHeaders) {
 											$FormatStringArray = @(
@@ -8781,6 +8979,7 @@ function Invoke-SqlBackupVerification {
 										'SmoServerObject' = $SmoServerObject
 										'BackupFileInfo' = $BackupFileInfo
 										'NewDatabaseName' = $TestRecoveryDatabaseName
+										'TimeZoneId' = $TimeZoneInfo.Id
 									}
 
 									[SqlServerMaintenance.Restore[]]$DatabaseRecovery = Get-DatabaseRecovery @DatabaseRecoveryParameters -SkipLogChainCheck -NoRecovery
@@ -16935,6 +17134,7 @@ function Switch-SqlInstanceTDECertificate {
 	end {
 	}
 }
+#EndRegion
 
 
 if ($PSBoundParameters.ContainsKey('Mode')) {

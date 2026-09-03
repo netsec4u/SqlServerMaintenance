@@ -4,7 +4,7 @@ external help file: SqlServerMaintenance-Help.xml
 HelpUri: https://github.com/netsec4u/SqlServerMaintenance/blob/main/docs/Invoke-SqlBackupVerification.md
 Locale: en-US
 Module Name: SqlServerMaintenance
-ms.date: 05/08/2026
+ms.date: 09/01/2026
 PlatyPS schema version: 2024-05-01
 title: Invoke-SqlBackupVerification
 ---
@@ -21,6 +21,7 @@ Verify database backups through iterating through SQL instance and database fold
 
 ```
 Invoke-SqlBackupVerification
+  [-TimeZoneId <string>]
   [<CommonParameters>]
 ```
 
@@ -30,6 +31,7 @@ Invoke-SqlBackupVerification
 Invoke-SqlBackupVerification
   -BackupPath <DirectoryInfo[]>
   [-TestBackupSqlInstance <string>]
+  [-TimeZoneId <string>]
   [<CommonParameters>]
 ```
 
@@ -41,6 +43,7 @@ Invoke-SqlBackupVerification
   -ServerInstance <string>
   [-TestBackupSqlInstance <string>]
   [-DatabaseName <string[]>]
+  [-TimeZoneId <string>]
   [<CommonParameters>]
 ```
 
@@ -51,6 +54,7 @@ Invoke-SqlBackupVerification
   -SqlInstanceBackupPath <DirectoryInfo[]>
   [-TestBackupSqlInstance <string>]
   [-DatabaseName <string[]>]
+  [-TimeZoneId <string>]
   [<CommonParameters>]
 ```
 
@@ -60,6 +64,7 @@ Invoke-SqlBackupVerification
 Invoke-SqlBackupVerification
   -SqlConnection <SqlConnection>
   -BackupPath <DirectoryInfo[]>
+  [-TimeZoneId <string>]
   [<CommonParameters>]
 ```
 
@@ -71,6 +76,7 @@ Invoke-SqlBackupVerification
   -BackupPath <DirectoryInfo[]>
   -ServerInstance <string>
   [-DatabaseName <string[]>]
+  [-TimeZoneId <string>]
   [<CommonParameters>]
 ```
 
@@ -81,6 +87,7 @@ Invoke-SqlBackupVerification
   -SqlConnection <SqlConnection>
   -SqlInstanceBackupPath <DirectoryInfo[]>
   [-DatabaseName <string[]>]
+  [-TimeZoneId <string>]
   [<CommonParameters>]
 ```
 
@@ -336,6 +343,27 @@ ParameterSets:
   ValueFromPipelineByPropertyName: false
   ValueFromRemainingArguments: false
 - Name: ByInstancePath-SqlInstance
+  Position: Named
+  IsRequired: false
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
+DontShow: false
+AcceptedValues: []
+HelpMessage: ''
+```
+
+### -TimeZoneId
+
+SQL Server instance time zone id where backups were created.  For accurate recovery, TimeZoneId is necessary when the backup files are from a SQL Server instance that is different than the SQL Server being used for recovery.  Starting with SQL Server 2022, the time zone is included in the backup header.  TimeZoneId is used when the time zone is not available in the backup header.
+
+```yaml
+Type: System.String
+DefaultValue: ''
+SupportsWildcards: false
+Aliases: []
+ParameterSets:
+- Name: (All)
   Position: Named
   IsRequired: false
   ValueFromPipeline: false

@@ -4,7 +4,7 @@ external help file: SqlServerMaintenance-Help.xml
 HelpUri: https://github.com/netsec4u/SqlServerMaintenance/blob/main/docs/Get-DatabaseRecovery.md
 Locale: en-US
 Module Name: SqlServerMaintenance
-ms.date: 05/08/2026
+ms.date: 09/01/2026
 PlatyPS schema version: 2024-05-01
 title: Get-DatabaseRecovery
 ---
@@ -615,7 +615,7 @@ HelpMessage: ''
 
 ### -TimeZoneId
 
-SQL Server instance time zone id where backups were created.
+SQL Server instance time zone id where backups were created.  For accurate recovery, TimeZoneId is necessary when the backup files are from a SQL Server instance that is different than the SQL Server being used for recovery.  Starting with SQL Server 2022, the time zone is included in the backup header.  TimeZoneId is used when the time zone is not available in the backup header.
 
 ```yaml
 Type: System.String
