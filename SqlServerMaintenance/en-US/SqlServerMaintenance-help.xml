@@ -4792,6 +4792,13 @@ Invoke-SqlInstanceBackup -SmoServerObject $SmoServer -BackupType Full</dev:code>
           </dev:type>
         </command:parameter>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>IncludeInfoMessage</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description />
           <dev:type>
@@ -4856,6 +4863,13 @@ Invoke-SqlInstanceBackup -SmoServerObject $SmoServer -BackupType Full</dev:code>
           </dev:type>
         </command:parameter>
         <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
+          <maml:name>IncludeInfoMessage</maml:name>
+          <maml:description />
+          <dev:type>
+            <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+          </dev:type>
+        </command:parameter>
+        <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
           <maml:name>WhatIf</maml:name>
           <maml:description />
           <dev:type>
@@ -4896,6 +4910,15 @@ Invoke-SqlInstanceBackup -SmoServerObject $SmoServer -BackupType Full</dev:code>
         <maml:description>
           <maml:para>Returns the estimated amount of tempdb space that is required to perform CHECKDB with all the other specified options.
 The actual database check is not performed.</maml:para>
+        </maml:description>
+        <dev:type>
+          <maml:name>System.Management.Automation.SwitchParameter</maml:name>
+        </dev:type>
+      </command:parameter>
+      <command:parameter required="false" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
+        <maml:name>IncludeInfoMessage</maml:name>
+        <maml:description>
+          <maml:para>Returns informational messages from the CheckDb operation.</maml:para>
         </maml:description>
         <dev:type>
           <maml:name>System.Management.Automation.SwitchParameter</maml:name>
@@ -4964,7 +4987,15 @@ The actual database check is not performed.</maml:para>
     <command:returnValues>
       <command:returnValue>
         <dev:type>
-          <maml:name>System.Data.DataRow</maml:name>
+          <maml:name>SqlServerMaintenance.CheckDb</maml:name>
+        </dev:type>
+        <maml:description>
+          <maml:para />
+        </maml:description>
+      </command:returnValue>
+      <command:returnValue>
+        <dev:type>
+          <maml:name>SqlServerMaintenance.CheckDbResult</maml:name>
         </dev:type>
         <maml:description>
           <maml:para />
@@ -6438,7 +6469,7 @@ Parameter is available when StatisticsScanType is Percent or Rows.</maml:para>
     <command:returnValues>
       <command:returnValue>
         <dev:type>
-          <maml:name>System.Void</maml:name>
+          <maml:name>SqlServerMaintenance.TableStatistics</maml:name>
         </dev:type>
         <maml:description>
           <maml:para />
@@ -11107,7 +11138,7 @@ Send-DatabaseMail -SqlConnection $SqlConnection -MailTo 'john@contoso.com' -Subj
         <maml:name>Set-SqlServerMaintenanceConfiguration
 	-SettingName</maml:name>
         <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="named" aliases="none">
-          <maml:name>	-StatisticName</maml:name>
+          <maml:name>	-StatisticsName</maml:name>
           <maml:description />
           <command:parameterValue required="true" variableLength="false">DbStatistic</command:parameterValue>
         </command:parameter>
@@ -11294,7 +11325,7 @@ Dynamic parameter available when SettingName is SMTPSettings.</maml:para>
         </dev:type>
       </command:parameter>
       <command:parameter required="true" variableLength="false" globbing="false" pipelineInput="false" position="Named" aliases="none">
-        <maml:name>StatisticName</maml:name>
+        <maml:name>StatisticsName</maml:name>
         <maml:description>
           <maml:para>Specifies the name of the statistic to configure.
 Dynamic parameter available when SettingName is Statistics.</maml:para>
@@ -11412,7 +11443,7 @@ Dynamic parameter available when SettingName is SMTPSettings.</maml:para>
         <maml:title>--------- Example 6 ---------</maml:title>
         <maml:introduction>
         </maml:introduction>
-        <dev:code>Set-SqlServerMaintenanceConfiguration -SettingName Statistics -StatisticName Backup -RetentionInDays 45</dev:code>
+        <dev:code>Set-SqlServerMaintenanceConfiguration -SettingName Statistics -StatisticsName Backup -RetentionInDays 45</dev:code>
         <dev:remarks>
           <maml:para>Sets backup statistics retention period for module configuration.</maml:para>
         </dev:remarks>

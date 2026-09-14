@@ -61,17 +61,14 @@ enum SqlServerMaintenanceSetting {
 #EndRegion
 
 #Region Classes
-Class ArgumentCompleterResult {
-	#properties
-
-	#Method
-	static [System.Management.Automation.CompletionResult[]] GetArgumentCompleterResult([System.Array]$Arguments) {
-		#[string]$CommandName = $Arguments[0]
-		[string]$ParameterName = $Arguments[1]
-		[string]$WordToComplete = $Arguments[2]
-		#[System.Management.Automation.Language.CommandAst]$CommandAst = $Arguments[3]
-		#[Hashtable]$FakeBoundParameters = $Arguments[4]
-
+class ModuleArgumentCompleter : System.Management.Automation.IArgumentCompleter {
+	[System.Collections.Generic.IEnumerable[System.Management.Automation.CompletionResult]] CompleteArgument (
+		[string]$CommandName,
+		[string]$ParameterName,
+		[string]$WordToComplete,
+		[System.Management.Automation.Language.CommandAst]$CommandAst,
+		[System.Collections.IDictionary]$FakeBoundParameters
+	) {
 		$ParameterValueList = $null
 
 		switch ($ParameterName) {
@@ -581,6 +578,42 @@ namespace SqlServerMaintenance
 		}
 	}
 
+	public class CheckDb
+	{
+		public string DatabaseName;
+		public int Error;
+		public int Level;
+		public int State;
+		public string MessageText;
+		public string RepairLevel;
+		public int? Status;
+		public int? DbId;
+		public int? DbFragId;
+		public int? ObjectId;
+		public int? IndexId;
+		public Int64? PartitionId;
+		public Int64? AllocUnitId;
+		public int? RidDbId;
+		public int? RidPruId;
+		public int? File;
+		public int? Page;
+		public int? Slot;
+		public int? RefDbId;
+		public int? RefPruId;
+		public int? RefFile;
+		public int? RefPage;
+		public int? RefSlot;
+		public int? Allocation;
+	}
+
+	public class CheckDbResult
+	{
+		public string DatabaseName;
+		public bool IsNoIndex;
+		public string CheckDBOptions;
+		public string CheckDbStatus;
+	}
+
 	public class DatabasePrimaryFile
 	{
 		public string DatabaseName;
@@ -942,6 +975,20 @@ namespace SqlServerMaintenance
 		}
 	}
 
+	public class TableStatistics
+	{
+		public string DatabaseName;
+		public string SchemaName;
+		public string ObjectName;
+		public string StatisticsName;
+		public Int64? RowCount;
+		public Int64? ModificationCount;
+		public string Method;
+		public int? RowCountThreshold;
+		public int? ModificationCountThreshold;
+		public string StatisticsOptions;
+	}
+
 	public class TransparentDataEncryptionStatus
 	{
 		public string DatabaseName;
@@ -1169,7 +1216,7 @@ function Get-DatabaseTransactionLogInfoDataSet {
 		DefaultParameterSetName = 'ServerInstance'
 	)]
 
-	[OutputType([System.Data.DataSet])]
+	[OutputType([System.Data.DataTable])]
 
 	param (
 		[Parameter(
@@ -1199,12 +1246,12 @@ function Get-DatabaseTransactionLogInfoDataSet {
 	)
 
 	begin {
-		$Query_VLFs = 'SELECT file_id
-			,	vlf_begin_offset
-			,	vlf_size_mb
-			,	vlf_sequence_number
-			,	vlf_create_lsn
-			,	RunningSize = SUM(vlf_size_mb) OVER (PARTITION BY file_id ORDER BY vlf_begin_offset)
+		$Query_VLFs = 'SELECT file_id AS FileId
+			,	vlf_begin_offset AS VlfBeginOffset
+			,	vlf_size_mb AS VlfSizeMB
+			,	vlf_sequence_number AS VlfSequenceNumber
+			,	vlf_create_lsn AS VlfCreateLSN
+			,	SUM(vlf_size_mb) OVER (PARTITION BY file_id ORDER BY vlf_begin_offset) AS RunningSizeMB
 			FROM sys.dm_db_log_info(DEFAULT)
 			ORDER BY vlf_begin_offset;'
 	}
@@ -1213,7 +1260,7 @@ function Get-DatabaseTransactionLogInfoDataSet {
 		try {
 			$SqlClientDataSetParameters = @{
 				'SqlCommandText' = $Query_VLFs
-				'OutputAs' = 'Dataset'
+				'OutputAs' = 'DataSet'
 			}
 
 			if ($PSCmdlet.ParameterSetName -eq 'ServerInstance') {
@@ -1227,7 +1274,7 @@ function Get-DatabaseTransactionLogInfoDataSet {
 
 			$VLFDataTable = Get-SqlClientDataSet @SqlClientDataSetParameters
 
-			$VLFDataTable
+			,$VLFDataTable.Tables[0]
 		}
 		catch {
 			throw $_
@@ -1296,6 +1343,7 @@ function Get-MaintenanceDatabaseVersion {
 			if ($DatabaseObject -is [Microsoft.SqlServer.Management.Smo.Database]) {
 				$SqlClientDataSetParameters = @{
 					'SqlConnection' = $SmoServerObject.ConnectionContext.SqlConnectionObject
+					'DatabaseName' = $AdminDatabaseName
 					'SqlCommandText' = [string]::Format($InformationSchema_FormatString, $StringArray)
 					'OutputAs' = 'DataRow'
 				}
@@ -1307,6 +1355,7 @@ function Get-MaintenanceDatabaseVersion {
 				} else {
 					$SqlClientDataSetParameters = @{
 						'SqlConnection' = $SmoServerObject.ConnectionContext.SqlConnectionObject
+						'DatabaseName' = $AdminDatabaseName
 						'SqlCommandText' = [string]::Format($DatabaseVersion_FormatString, $StringArray)
 						'OutputAs' = 'DataRow'
 					}
@@ -1668,7 +1717,7 @@ function Get-TimeInTimeZone {
 			ValueFromPipelineByPropertyName = $false,
 			ParameterSetName = 'TimeZoneId'
 		)]
-		[ArgumentCompleter({ [ArgumentCompleterResult]::GetArgumentCompleterResult($Args) })]
+		[ArgumentCompleter([ModuleArgumentCompleter])]
 		[string]$TimeZoneId
 	)
 
@@ -2767,6 +2816,7 @@ function Test-MaintenanceDatabase {
 		$Output = [PSCustomObject]@{
 			AdminDatabase = $false
 			Version = $null
+			UpgradeRequired = $false
 			Statistics = [PSCustomObject]@{}
 			Tests = [PSCustomObject]@{}
 		}
@@ -2784,11 +2834,25 @@ function Test-MaintenanceDatabase {
 
 				$Output.Version = Get-MaintenanceDatabaseVersion -SmoServerObject $SmoServerObject
 
+				if ($Output.Version -lt $Script:PSMConfig.Config.Version) {
+					$Output.UpgradeRequired = $true
+				} elseif ($Output.Version -gt $Script:PSMConfig.Config.Version) {
+					throw [System.Management.Automation.ErrorRecord]::New(
+						[Exception]::New('Maintenance database version is newer than module version.  Please update the module.'),
+						'1',
+						[System.Management.Automation.ErrorCategory]::InvalidData,
+						$Output.Version
+					)
+				}
+
+				$AdminTablesFound = $false
+
 				foreach ($ChildNode in $Script:PSMConfig.SelectNodes('//Config/AdminDatabase').ChildNodes) {
 					if ($ChildNode.Name -in @('Statistics', 'Tests')) {
 						foreach ($Item in $ChildNode.ChildNodes) {
 							if ($DatabaseObject -is [Microsoft.SqlServer.Management.Smo.Database]) {
 								if ($DatabaseObject.Tables[$Item.TableName, $AdminSchemaName] -is [Microsoft.SqlServer.Management.Smo.Table]) {
+									$AdminTablesFound = $true
 									$Value = $true
 								} else {
 									$Value = $false
@@ -2800,6 +2864,15 @@ function Test-MaintenanceDatabase {
 							$Output.$($ChildNode.Name) | Add-Member -MemberType NoteProperty -Name $Item.Name -Value $Value
 						}
 					}
+				}
+
+				if (-not $AdminTablesFound) {
+					throw [System.Management.Automation.ErrorRecord]::New(
+						[Exception]::New('Maintenance tables not found.  Initialize maintenance database.'),
+						'1',
+						[System.Management.Automation.ErrorCategory]::ObjectNotFound,
+						$AdminDatabaseName
+					)
 				}
 			}
 
@@ -2904,6 +2977,26 @@ function Update-MaintenanceDatabase {
 				}
 
 				$Version = [version]'3.0.0'
+			}
+
+			if ($Version -eq [version]'3.0.0') {
+				$ParameterArray = @(
+					$AdminSchemaName,
+					$Script:PSMConfig.Config.AdminDatabase.Statistics.CheckDB.TableName,
+					$Script:PSMConfig.Config.AdminDatabase.DatabaseVersion.TableName
+				)
+
+				$SmoNonQueryParameters = @{
+					DatabaseObject = $DatabaseObject
+					SqlCommandText = [string]::Format($MaintenanceDatabaseDDL.v310, $ParameterArray)
+					Confirm = $false
+				}
+
+				if ($PSCmdlet.ShouldProcess($AdminDatabaseName, 'Update maintenance database.')) {
+					Invoke-SmoNonQuery @SmoNonQueryParameters
+				}
+
+				$Version = [version]'3.1.0'
 			}
 		}
 		catch {
@@ -3015,6 +3108,18 @@ function Update-PSMConfiguration {
 				$TargetSchemaName = $SchemaNames | Select-Object -ExpandProperty Name -First 1
 
 				$ParentNode.SetAttribute('SchemaName', $TargetSchemaName)
+			}
+
+			if ([version]$Script:PSMConfig.Config.Version -eq [version]'3.0.0') {
+				$Script:PSMConfig.Config.Version = '3.1.0'
+
+				$ParentNode = $Script:PSMConfig.SelectSingleNode('//Config/AdminDatabase/Statistics')
+
+				$NewNode = $Script:PSMConfig.CreateElement("CheckDB")
+				$NewNode.SetAttribute("TableName", "Statistics_CheckDB")
+				$NewNode.SetAttribute("RetentionDays", "90")
+
+				[void]$ParentNode.InsertBefore($NewNode, $ParentNode.ColumnStore)
 			}
 
 			$XmlWriterSettings = [System.Xml.XmlWriterSettings]::new()
@@ -4059,7 +4164,6 @@ function Get-DatabasePrimaryFile {
 			ValueFromPipeline = $false,
 			ValueFromPipelineByPropertyName = $false
 		)]
-		[ValidatePathExists('Leaf')]
 		[System.IO.FileInfo][TransformPath()]$MDFPath
 	)
 
@@ -4092,7 +4196,7 @@ function Get-DatabasePrimaryFile {
 			$SqlClientDataSetParameters = @{
 				'SqlConnection' = $SqlConnection
 				'SqlCommandText' = [string]::Format($CheckPrimaryFileFormatString, $MDFPath, 0)
-				'OutputAs' = 'DataRow'
+				'OutputAs' = 'DataTable'
 			}
 
 			$SqlClientDataSet = Get-SqlClientDataSet @SqlClientDataSetParameters
@@ -4110,27 +4214,34 @@ function Get-DatabasePrimaryFile {
 			#Region Database Information
 			$SqlClientDataSetParameters.SqlCommandText = [string]::Format($CheckPrimaryFileFormatString, $MDFPath, 2)
 
-			$DatabaseInformation = Get-SqlClientDataSet @SqlClientDataSetParameters
+			$DataTable = Get-SqlClientDataSet @SqlClientDataSetParameters
 
 			$DatabasePrimaryFile = [SqlServerMaintenance.DatabasePrimaryFile]@{
-				DatabaseName = @($DatabaseInformation).where({$_.property -eq 'Database name'}).value
-				DatabaseVersion = @($DatabaseInformation).where({$_.property -eq 'Database version'}).value
-				Collation = @($DatabaseInformation).where({$_.property -eq 'Collation'}).value
+				DatabaseName = $DataTable.Rows.where({$_.property -eq 'Database name'}).value
+				DatabaseVersion = $DataTable.Rows.where({$_.property -eq 'Database version'}).value
+				Collation = $DataTable.Rows.where({$_.property -eq 'Collation'}).value
 			}
 
 			$SqlClientDataSetParameters.SqlCommandText = [string]::Format($CheckPrimaryFileFormatString, $MDFPath, 3)
 
-			$DataFileInformation = Get-SqlClientDataSet @SqlClientDataSetParameters
+			$DataTable = Get-SqlClientDataSet @SqlClientDataSetParameters
 
 			$LogicalFiles = [System.Collections.Generic.List[SqlServerMaintenance.DatabasePrimaryLogicalFile]]::New()
 
-			foreach ($Row in $DataFileInformation) {
+			foreach ($Row in $DataTable.Rows) {
 				$LogicalFile = [SqlServerMaintenance.DatabasePrimaryLogicalFile]::New()
 
-				$LogicalFile.Status = $Row.status
-				$LogicalFile.FileID = $Row.fileid
-				$LogicalFile.LogicalFileName = $Row.name.Trim()
-				$LogicalFile.FileName = $Row.filename.Trim()
+				foreach ($ColumnName in $DataTable.Columns.ColumnName) {
+					if ($Row.$ColumnName -isnot [System.DBNull]) {
+						if ($ColumnName -eq 'name') {
+							$LogicalFile.LogicalFileName = $Row.name.Trim()
+						} elseif ($ColumnName -eq 'filename') {
+							$LogicalFile.FileName = $Row.filename.Trim()
+						} else {
+							$LogicalFile.$ColumnName = $Row.$ColumnName
+						}
+					}
+				}
 
 				$LogicalFiles.Add($LogicalFile)
 			}
@@ -4218,7 +4329,7 @@ function Get-DatabaseRecovery {
 			ValueFromPipeline = $false,
 			ValueFromPipelineByPropertyName = $false
 		)]
-		[ArgumentCompleter({ [ArgumentCompleterResult]::GetArgumentCompleterResult($Args) })]
+		[ArgumentCompleter([ModuleArgumentCompleter])]
 		[string]$TimeZoneId,
 
 		[Parameter(
@@ -5135,16 +5246,16 @@ function Get-DatabaseTransactionLogInfo {
 			try {
 				$VLFDataTable = Get-DatabaseTransactionLogInfoDataSet -SqlConnection $SqlConnection -DatabaseName $Database
 
-				foreach ($Row in $VLFDataTable.Tables.Rows) {
+				foreach ($Row in $VLFDataTable.Rows) {
 					$Output = [SqlServerMaintenance.DatabaseTransactionLogInfo]::New()
 
 					$Output.DatabaseName = $Database
-					$Output.FileID = $Row.file_id
-					$Output.VlfBeginOffset = $Row.vlf_begin_offset
-					$Output.VlfSizeMB = $Row.vlf_size_mb
-					$Output.VlfSequenceNumber = $Row.vlf_sequence_number
-					$Output.VlfCreateLsn = $Row.vlf_create_lsn
-					$Output.RunningSizeMB = $Row.RunningSize
+
+					foreach ($ColumnName in $VLFDataTable.Columns.ColumnName) {
+						if ($Row.$ColumnName -isnot [System.DBNull]) {
+							$Output.$ColumnName = $Row.$ColumnName
+						}
+					}
 
 					$Output
 				}
@@ -5264,26 +5375,11 @@ function Get-LSPrimaryDatabase {
 			foreach ($Row in $DataTable) {
 				$Output = [SqlServerMaintenance.SqlLogShippingPrimary]::New()
 
-				$Output.PrimaryID = $Row.PrimaryID
-				$Output.PrimaryDatabase = $Row.PrimaryDatabase
-				$Output.BackupDirectory = $Row.BackupDirectory
-				$Output.BackupShare = $Row.BackupShare
-				$Output.BackupRetentionPeriod_Minutes = $Row.BackupRetentionPeriod_Minutes
-				$Output.MonitorServer = $Row.MonitorServer
-				$Output.ServerSecurityMode = $Row.ServerSecurityMode
-				$Output.BackupCompression = $Row.BackupCompression
-				$Output.PrimaryServer = $Row.PrimaryServer
-				$Output.BackupThreshold_Minutes = $Row.BackupThreshold_Minutes
-				$Output.ThresholdAlertEnabled = $Row.ThresholdAlertEnabled
-
-				if ($Row.LastBackupFile -IsNot [System.DBNull]) {
-					$Output.LastBackupFile = $Row.LastBackupFile
+				foreach ($ColumnName in $DataTable.Columns.ColumnName) {
+					if ($Row.$ColumnName -isnot [System.DBNull]) {
+						$Output.$ColumnName = $Row.$ColumnName
+					}
 				}
-
-				$Output.LastBackupDate = $Row.LastBackupDate
-				$Output.HistoryRetentionPeriod_Minutes = $Row.HistoryRetentionPeriod_Minutes
-				$Output.SecondaryServer = $Row.SecondaryServer
-				$Output.SecondaryDatabase = $Row.SecondaryDatabase
 
 				$Output
 			}
@@ -5399,31 +5495,10 @@ function Get-LSSecondaryDatabase {
 			foreach ($Row in $DataTable) {
 				$Output = [SqlServerMaintenance.SqlLogShippingSecondary]::New()
 
-				$Output.SecondaryID = $Row.SecondaryID
-				$Output.PrimaryServer = $Row.PrimaryServer
-				$Output.PrimaryDatabase = $Row.PrimaryDatabase
-				$Output.BackupSourceDirectory = $Row.BackupSourceDirectory
-				$Output.BackupDestinationDirectory = $Row.BackupDestinationDirectory
-				$Output.FileRetentionPeriod_Minutes = $Row.FileRetentionPeriod_Minutes
-				$Output.MonitorServer = $Row.MonitorServer
-				$Output.MonitorServerSecurityMode = $Row.MonitorServerSecurityMode
-				$Output.LastCopiedFile = $Row.LastCopiedFile
-				$Output.LastCopiedDate = $Row.LastCopiedDate
-				$Output.SecondaryDatabase = $Row.SecondaryDatabase
-				$Output.RestoreDelay_Minutes = $Row.RestoreDelay_Minutes
-				$Output.RestoreAll = $Row.RestoreAll
-				$Output.RestoreMode = $Row.RestoreMode
-				$Output.DisconnectUsers = $Row.DisconnectUsers
-				$Output.BlockSize = $Row.BlockSize
-				$Output.BufferCount = $Row.BufferCount
-				$Output.MaxTransferSize = $Row.MaxTransferSize
-
-				if ($Row.LastRestoredFile -IsNot [System.DBNull]) {
-					$Output.LastRestoredFile = $Row.LastRestoredFile
-				}
-
-				if ($Row.LastRestoredFile -IsNot [System.DBNull]) {
-					$Output.LastRestoredDate = $Row.LastRestoredDate
+				foreach ($ColumnName in $DataTable.Columns.ColumnName) {
+					if ($Row.$ColumnName -isnot [System.DBNull]) {
+						$Output.$ColumnName = $Row.$ColumnName
+					}
 				}
 
 				$Output
@@ -6628,7 +6703,7 @@ function Get-SqlInstanceLogFileVLFCount {
 							Default {
 								$VLFDataTable = Get-DatabaseTransactionLogInfoDataSet -ServerInstance $ServerInstance -DatabaseName $Row.DatabaseName
 
-								$RecordXml = ConvertTo-RecordXML -InputObject $VLFDataTable
+								$RecordXml = ConvertTo-RecordXML -InputObject $VLFDataTable.DataSet
 
 								$EmailBody = Build-MailBody -Xml $RecordXml -SummaryItem $SummaryItem
 
@@ -7089,10 +7164,10 @@ function Get-SqlInstanceTDEStatus {
 
 			$TDEStatusDataTable = Get-SqlClientDataSet @SqlClientDataSetParameters
 
-			foreach ($Row in $TDEStatusDataTable[0].Rows) {
+			foreach ($Row in $TDEStatusDataTable.Rows) {
 				$Output = [SqlServerMaintenance.TransparentDataEncryptionStatus]::New()
 
-				foreach ($ColumnName in $TDEStatusDataTable[0].Columns.ColumnName) {
+				foreach ($ColumnName in $TDEStatusDataTable.Columns.ColumnName) {
 					if ($Row.$ColumnName -isnot [System.DBNull]) {
 						$Output.$ColumnName = $Row.$ColumnName
 					}
@@ -8179,7 +8254,7 @@ function Invoke-SqlBackupVerification {
 			ValueFromPipeline = $false,
 			ValueFromPipelineByPropertyName = $false
 		)]
-		[ArgumentCompleter({ [ArgumentCompleterResult]::GetArgumentCompleterResult($Args) })]
+		[ArgumentCompleter([ModuleArgumentCompleter])]
 		[string]$TimeZoneId
 	)
 
@@ -8207,16 +8282,11 @@ function Invoke-SqlBackupVerification {
 			$MaintenanceDatabaseStatus = Test-MaintenanceDatabase -SmoServerObject $SmoServerObject
 
 			if ($MaintenanceDatabaseStatus.AdminDatabase) {
-				if (-not $MaintenanceDatabaseStatus.Statistics.Backup) {
-					throw [System.Management.Automation.ErrorRecord]::New(
-						[Exception]::New('Backup Test table not found.  Initialize maintenance database.'),
-						'1',
-						[System.Management.Automation.ErrorCategory]::ObjectNotFound,
-						$TestTableName
-					)
-				}
+				if ($MaintenanceDatabaseStatus.UpgradeRequired) {
+					Update-MaintenanceDatabase -SmoServerObject $SmoServerObject -Version $MaintenanceDatabaseStatus.Version -Confirm:$false
 
-				Update-MaintenanceDatabase -SmoServerObject $SmoServerObject -Version $MaintenanceDatabaseStatus.Version -Confirm:$false
+					$MaintenanceDatabaseStatus = Test-MaintenanceDatabase -SmoServerObject $SmoServerObject
+				}
 			} else {
 				throw [System.Management.Automation.ErrorRecord]::New(
 					[Exception]::New('Maintenance database not found.  Database is required for testing backups.'),
@@ -9478,16 +9548,11 @@ function Invoke-SqlInstanceBackup {
 			$MaintenanceDatabaseStatus = Test-MaintenanceDatabase -SmoServerObject $SmoServerObject
 
 			if ($MaintenanceDatabaseStatus.AdminDatabase) {
-				if (-not $MaintenanceDatabaseStatus.Statistics.Backup) {
-					throw [System.Management.Automation.ErrorRecord]::New(
-						[Exception]::New('Backup Statistics table not found.  Initialize maintenance database.'),
-						'1',
-						[System.Management.Automation.ErrorCategory]::ObjectNotFound,
-						$StatisticsTableName
-					)
-				}
+				if ($MaintenanceDatabaseStatus.UpgradeRequired) {
+					Update-MaintenanceDatabase -SmoServerObject $SmoServerObject -Version $MaintenanceDatabaseStatus.Version -Confirm:$false
 
-				Update-MaintenanceDatabase -SmoServerObject $SmoServerObject -Version $MaintenanceDatabaseStatus.Version -Confirm:$false
+					$MaintenanceDatabaseStatus = Test-MaintenanceDatabase -SmoServerObject $SmoServerObject
+				}
 			} else {
 				Write-Warning 'Maintenance database does not exist.  Statistics will not be saved.'
 			}
@@ -9544,19 +9609,30 @@ function Invoke-SqlInstanceBackup {
 		$Query_Modified = 'SELECT ModifiedPercent = 100.0 * SUM(modified_extent_page_count) / SUM(allocated_extent_page_count) FROM sys.dm_db_file_space_usage;'
 		$Query_LogShippingPrimary = 'SELECT Name = primary_database FROM msdb.dbo.log_shipping_monitor_primary;'
 		$Query_DatabaseRecoveryStatus = "SELECT s.database_id
+			, DB_NAME(s.database_id) AS DatabaseName
 			,	s.database_guid
 			,	bs.backup_set_id
 			,	s.last_log_backup_lsn
+			,	CASE WHEN rh.restore_date > bs.backup_finish_date THEN 1 ELSE 0 END AS IsReplaced
 			FROM master.sys.database_recovery_status s
 			OUTER APPLY (
 				SELECT TOP(1) backup_set_id
+				,	backup_finish_date
 				FROM msdb.dbo.backupset
 				WHERE type = 'D'
 					AND is_copy_only = 0
 					AND server_name = @@SERVERNAME
 					AND database_guid = s.database_guid
-				ORDER BY backup_finish_date
-			) bs;"
+				ORDER BY backup_finish_date DESC
+			) bs
+			OUTER APPLY (
+				SELECT TOP(1) *
+				FROM msdb.dbo.restorehistory
+				WHERE restore_type = 'D'
+					AND destination_database_name = DB_NAME(s.database_id)
+					AND replace = 1
+				ORDER BY restore_date DESC
+			) rh;"
 		$Query_DifferentialBaseTime = "SELECT DB_NAME()
 			,	name
 			,	differential_base_time
@@ -9667,7 +9743,7 @@ function Invoke-SqlInstanceBackup {
 							}
 						}
 						'Diff' {
-							if ($DatabaseRecoveryStatus.Count -eq 0) {
+							if ($DatabaseRecoveryStatus.Count -eq 0 -or $DatabaseRecoveryStatus.IsReplaced -eq 1) {
 								Write-Warning 'Full backup required before Diff backup can be performed.  A full backup will be performed.'
 
 								[BackupType]$EffectiveBackupType = 'Full'
@@ -9692,7 +9768,23 @@ function Invoke-SqlInstanceBackup {
 							}
 						}
 						'Log' {
-							if ($DatabaseRecoveryStatus.Count -eq 0) {
+							if ($DatabaseRecoveryStatus.Count -eq 0 -or $DatabaseRecoveryStatus.IsReplaced -eq 1) {
+								if ($TailLog) {
+									throw [System.Management.Automation.ErrorRecord]::New(
+										[Exception]::New('Tail log backup cannot be performed without a full backup of database.'),
+										'1',
+										[System.Management.Automation.ErrorCategory]::InvalidOperation,
+										$Database
+									)
+								} elseif ($Database.ReadOnly) {
+									throw [System.Management.Automation.ErrorRecord]::New(
+										[Exception]::New("Readonly Database in $($Database.RecoveryModel) recovery model.  Transaction log cannot be backed up within a readonly database.  Readonly databases should be in simple recovery model"),
+										'1',
+										[System.Management.Automation.ErrorCategory]::InvalidOperation,
+										$Database
+									)
+								}
+
 								Write-Warning 'Full backup required before log backup can be performed.  A full backup will be performed.'
 
 								[BackupType]$EffectiveBackupType = 'Full'
@@ -9718,19 +9810,21 @@ function Invoke-SqlInstanceBackup {
 										Write-Warning 'Full backup required before transaction log backup can be performed.  A full backup will be performed.'
 
 										[BackupType]$EffectiveBackupType = 'Full'
-									} else {
-										if ($Database.LastBackupDate -ne '0001-01-01 00:00:00') {
-											Write-Warning 'Backup chain has been broken.  A full backup will be performed.'
-										}
+									} elseif ($Database.LastBackupDate -ne '0001-01-01 00:00:00') {
+										Write-Warning 'Backup chain has been broken.  A full backup will be performed.'
 
 										[BackupType]$EffectiveBackupType = 'Full'
+									} else {
+										[BackupType]$EffectiveBackupType = 'Log'
 									}
 								} else {
 									if ($Database.LastBackupDate -ne '0001-01-01 00:00:00') {
 										Write-Warning 'Backup chain has been broken.  A full backup will be performed.'
-									}
 
-									[BackupType]$EffectiveBackupType = 'Full'
+										[BackupType]$EffectiveBackupType = 'Full'
+									} else {
+										[BackupType]$EffectiveBackupType = 'Log'
+									}
 								}
 							} else {
 								[BackupType]$EffectiveBackupType = 'Log'
@@ -9930,7 +10024,10 @@ function Invoke-SqlInstanceCheckDb {
 		DefaultParameterSetName = 'ServerInstance'
 	)]
 
-	[OutputType([System.Data.DataRow])]
+	[OutputType(
+		[SqlServerMaintenance.CheckDb],
+		[SqlServerMaintenance.CheckDbResult]
+	)]
 
 	param (
 		[Parameter(
@@ -9986,7 +10083,14 @@ function Invoke-SqlInstanceCheckDb {
 			ValueFromPipeline = $false,
 			ValueFromPipelineByPropertyName = $false
 		)]
-		[switch]$EstimateOnly
+		[switch]$EstimateOnly,
+
+		[Parameter(
+			Mandatory = $false,
+			ValueFromPipeline = $false,
+			ValueFromPipelineByPropertyName = $false
+		)]
+		[switch]$IncludeInfoMessage
 	)
 
 	begin {
@@ -10004,6 +10108,22 @@ function Invoke-SqlInstanceCheckDb {
 			}
 
 			$SmoServerObject.Databases.Refresh()
+
+			$StatisticsDatabaseName = $Script:PSMConfig.Config.AdminDatabase.DatabaseName
+			$StatisticsSchemaName = $Script:PSMConfig.Config.AdminDatabase.SchemaName
+			$StatisticsTableName = $Script:PSMConfig.Config.AdminDatabase.Statistics.CheckDb.TableName
+
+			$MaintenanceDatabaseStatus = Test-MaintenanceDatabase -SmoServerObject $SmoServerObject
+
+			if ($MaintenanceDatabaseStatus.AdminDatabase) {
+				if ($MaintenanceDatabaseStatus.UpgradeRequired) {
+					Update-MaintenanceDatabase -SmoServerObject $SmoServerObject -Version $MaintenanceDatabaseStatus.Version -Confirm:$false
+
+					$MaintenanceDatabaseStatus = Test-MaintenanceDatabase -SmoServerObject $SmoServerObject
+				}
+			} else {
+				Write-Warning 'Maintenance database does not exist.  Statistics will not be saved.'
+			}
 		}
 		catch {
 			$ErrorRecord = $_
@@ -10052,6 +10172,19 @@ function Invoke-SqlInstanceCheckDb {
 				}
 			}
 		}
+
+		if ($Script:OutputMethod -ne 'ConsoleHost') {
+			if ($EstimateOnly) {
+				Write-Warning 'EstimateOnly is not supported in non-interactive sessions.  EstimateOnly is ignored.'
+			}
+
+			if ($IncludeInfoMessage) {
+				Write-Warning 'IncludeInfoMessage is not supported in non-interactive sessions.  IncludeInfoMessage is ignored.'
+			}
+		}
+
+		$Query_CheckDbStatistics = "INSERT INTO [{0}].[{1}] (CollectionDate, DatabaseName, DatabaseGUID, IsNoIndex, CheckDbOptions, Status)
+			VALUES (SYSDATETIMEOFFSET(), N'{2}', CAST('{3}' AS UNIQUEIDENTIFIER), {4}, '{5}', '{6}');"
 	}
 
 	process {
@@ -10100,7 +10233,15 @@ function Invoke-SqlInstanceCheckDb {
 						$CheckDBArgument = '0'
 					}
 
-					$CheckDBOptionsList.AddRange([string[]]@('TABLERESULTS', 'NO_INFOMSGS', 'ALL_ERRORMSGS'))
+					$CheckDBOptionsList.AddRange([string[]]@('TABLERESULTS', 'ALL_ERRORMSGS'))
+
+					if ($Script:OutputMethod -eq 'ConsoleHost') {
+						if (-not $IncludeInfoMessage) {
+							$CheckDBOptionsList.Add('NO_INFOMSGS')
+						}
+					} else {
+						$CheckDBOptionsList.Add('NO_INFOMSGS')
+					}
 
 					if ($DataSpaceUsedMB -gt $PhysicalOnlyThreshold) {
 						$CheckDBOptionsList.Add('PHYSICAL_ONLY')
@@ -10130,38 +10271,95 @@ function Invoke-SqlInstanceCheckDb {
 					$SQLCommand.CommandText = $QueryString
 					$SQLCommand.Connection.ChangeDatabase($Database.Name)
 
-					if ($PSCmdlet.ShouldProcess($Database.Name, 'Perform CheckDB')) {
-						$SqlDataReader = $SQLCommand.ExecuteReader()
-					}
+					$CheckDbStatus = $null
 
 					$Dataset = [System.Data.DataSet]::New()
 
-					try {
-						$Dataset.Load($SqlDataReader, [System.Data.LoadOption]::PreserveChanges, 'CheckDb')
+					if ($PSCmdlet.ShouldProcess($Database.Name, 'Perform CheckDB')) {
+						$SqlDataReader = $SQLCommand.ExecuteReader()
+
+						try {
+							$Dataset.Load($SqlDataReader, [System.Data.LoadOption]::PreserveChanges, 'CheckDb')
+						}
+						catch {
+							$PSCmdlet.WriteError($_)
+						}
+
+						$SqlDataReader.Dispose()
+
+						$SQLCommand.Dispose()
+
+						if ($DataSet.Tables['CheckDb'].Rows.Count -eq 0) {
+							$CheckDbStatus = 'S'
+						} else {
+							$DataView = [System.Data.DataView]::New($DataSet.Tables['CheckDb'])
+
+							$DataView.RowFilter = 'Level > 10'
+
+							if ($DataView.Count -eq 0) {
+								$CheckDbStatus = 'S'
+							} else {
+								$CheckDbStatus = 'F'
+							}
+						}
 					}
-					catch {
-						$PSCmdlet.WriteError($_)
-					}
 
-					$SqlDataReader.Dispose()
-
-					$SQLCommand.Dispose()
-
-					if ($DataSet.Tables[0].Rows.Count -gt 0) {
-						$PSCmdlet.WriteError(
-							[System.Management.Automation.ErrorRecord]::New(
-								[Exception]::New('Integrity Errors found in database.'),
-								'1',
-								[System.Management.Automation.ErrorCategory]::InvalidResult,
-								$Database.Name
-							)
+					if ($MaintenanceDatabaseStatus.AdminDatabase) {
+						$FormatStringArray = @(
+							$StatisticsSchemaName,
+							$StatisticsTableName,
+							$Database.Name,
+							$Database.DatabaseGuid,
+							[int]$($NoIndex -eq $true),
+							$CheckDBOptions,
+							$CheckDbStatus
 						)
+
+						$NonQueryString = [string]::Format($Query_CheckDbStatistics, $FormatStringArray)
+
+						if ($PSCmdlet.ShouldProcess($MaintenanceDatabaseStatus.AdminDatabase, 'Record CheckDB Results')) {
+							$SmoServerObject.Databases[$StatisticsDatabaseName].ExecuteNonQuery($NonQueryString)
+						}
+					}
+
+					if ($DataSet.Tables['CheckDb'] -is [System.Data.DataTable] -and $DataSet.Tables['CheckDb'].Rows.Count -gt 0) {
+						if ($CheckDbStatus -eq 'F') {
+							$PSCmdlet.WriteError(
+								[System.Management.Automation.ErrorRecord]::New(
+									[Exception]::New('Integrity Errors found in database.'),
+									'1',
+									[System.Management.Automation.ErrorCategory]::InvalidResult,
+									$Database.Name
+								)
+							)
+						}
 
 						switch ($Script:OutputMethod) {
 							'ConsoleHost' {
-								$DataSet.Tables[0].Rows
+								foreach ($Row in $DataSet.Tables['CheckDb'].Rows) {
+									$Output = [SqlServerMaintenance.CheckDb]::New()
+
+									$Output.DatabaseName = $Database.Name
+
+									foreach ($ColumnName in $DataSet.Tables['CheckDb'].Columns.ColumnName) {
+										if ($Row.$ColumnName -isnot [System.DBNull]) {
+											$Output.$ColumnName = $Row.$ColumnName
+										}
+									}
+
+									$Output
+								}
 							}
 							Default {
+								$Result = [SqlServerMaintenance.CheckDbResult]::New()
+
+								$Result.DatabaseName = $Database.Name
+								$Result.IsNoIndex = $NoIndex
+								$Result.CheckDBOptions = $CheckDBOptionsList
+								$Result.CheckDbStatus = $CheckDbStatus
+
+								$Result
+
 								$RecordXml = ConvertTo-RecordXML -InputObject $Dataset
 
 								$SummaryItem = [ordered]@{
@@ -10178,6 +10376,17 @@ function Invoke-SqlInstanceCheckDb {
 
 								Send-MailToolMessage @MailMessageParameters
 							}
+						}
+					} else {
+						if ($Script:OutputMethod -ne 'ConsoleHost') {
+							$Result = [SqlServerMaintenance.CheckDbResult]::New()
+
+							$Result.DatabaseName = $Database.Name
+							$Result.IsNoIndex = $NoIndex
+							$Result.CheckDBOptions = $CheckDBOptionsList
+							$Result.CheckDbStatus = $CheckDbStatus
+
+							$Result
 						}
 					}
 				}
@@ -10341,16 +10550,11 @@ function Invoke-SqlInstanceColumnStoreMaintenance {
 			$MaintenanceDatabaseStatus = Test-MaintenanceDatabase -SmoServerObject $SmoServerObject
 
 			if ($MaintenanceDatabaseStatus.AdminDatabase) {
-				if (-not $MaintenanceDatabaseStatus.Statistics.ColumnStore) {
-					throw [System.Management.Automation.ErrorRecord]::New(
-						[Exception]::New('ColumnStore Statistics table not found.  Initialize maintenance database.'),
-						'1',
-						[System.Management.Automation.ErrorCategory]::ObjectNotFound,
-						$StatisticsTableName
-					)
-				}
+				if ($MaintenanceDatabaseStatus.UpgradeRequired) {
+					Update-MaintenanceDatabase -SmoServerObject $SmoServerObject -Version $MaintenanceDatabaseStatus.Version -Confirm:$false
 
-				Update-MaintenanceDatabase -SmoServerObject $SmoServerObject -Version $MaintenanceDatabaseStatus.Version -Confirm:$false
+					$MaintenanceDatabaseStatus = Test-MaintenanceDatabase -SmoServerObject $SmoServerObject
+				}
 			} else {
 				Write-Warning 'Maintenance database does not exist.  Statistics will not be saved.'
 			}
@@ -10963,16 +11167,11 @@ function Invoke-SqlInstanceFullTextIndexMaintenance {
 			$MaintenanceDatabaseStatus = Test-MaintenanceDatabase -SmoServerObject $SmoServerObject
 
 			if ($MaintenanceDatabaseStatus.AdminDatabase) {
-				if (-not $MaintenanceDatabaseStatus.Statistics.FullTextIndex) {
-					throw [System.Management.Automation.ErrorRecord]::New(
-						[Exception]::New('FullTextIndex Statistics table not found.  Initialize maintenance database.'),
-						'1',
-						[System.Management.Automation.ErrorCategory]::ObjectNotFound,
-						$StatisticsTableName
-					)
-				}
+				if ($MaintenanceDatabaseStatus.UpgradeRequired) {
+					Update-MaintenanceDatabase -SmoServerObject $SmoServerObject -Version $MaintenanceDatabaseStatus.Version -Confirm:$false
 
-				Update-MaintenanceDatabase -SmoServerObject $SmoServerObject -Version $MaintenanceDatabaseStatus.Version -Confirm:$false
+					$MaintenanceDatabaseStatus = Test-MaintenanceDatabase -SmoServerObject $SmoServerObject
+				}
 			} else {
 				Write-Warning 'Maintenance database does not exist.  Statistics will not be saved.'
 			}
@@ -11389,16 +11588,11 @@ function Invoke-SqlInstanceIndexMaintenance {
 			$MaintenanceDatabaseStatus = Test-MaintenanceDatabase -SmoServerObject $SmoServerObject
 
 			if ($MaintenanceDatabaseStatus.AdminDatabase) {
-				if (-not $MaintenanceDatabaseStatus.Statistics.Index) {
-					throw [System.Management.Automation.ErrorRecord]::New(
-						[Exception]::New('Index Statistics table not found.  Initialize maintenance database.'),
-						'1',
-						[System.Management.Automation.ErrorCategory]::ObjectNotFound,
-						$StatisticsTableName
-					)
-				}
+				if ($MaintenanceDatabaseStatus.UpgradeRequired) {
+					Update-MaintenanceDatabase -SmoServerObject $SmoServerObject -Version $MaintenanceDatabaseStatus.Version -Confirm:$false
 
-				Update-MaintenanceDatabase -SmoServerObject $SmoServerObject -Version $MaintenanceDatabaseStatus.Version -Confirm:$false
+					$MaintenanceDatabaseStatus = Test-MaintenanceDatabase -SmoServerObject $SmoServerObject
+				}
 			} else {
 				Write-Warning 'Maintenance database does not exist.  Statistics will not be saved.'
 			}
@@ -11904,7 +12098,7 @@ function Invoke-SqlInstanceStatisticsMaintenance {
 		DefaultParameterSetName = 'Default-ServerInstance'
 	)]
 
-	[OutputType([System.Void])]
+	[OutputType([SqlServerMaintenance.TableStatistics])]
 
 	param (
 		[Parameter(
@@ -12121,16 +12315,11 @@ function Invoke-SqlInstanceStatisticsMaintenance {
 			$MaintenanceDatabaseStatus = Test-MaintenanceDatabase -SmoServerObject $SmoServerObject
 
 			if ($MaintenanceDatabaseStatus.AdminDatabase) {
-				if (-not $MaintenanceDatabaseStatus.Statistics.TableStatistics) {
-					throw [System.Management.Automation.ErrorRecord]::New(
-						[Exception]::New('TableStatistics Statistics table not found.  Initialize maintenance database.'),
-						'1',
-						[System.Management.Automation.ErrorCategory]::ObjectNotFound,
-						$StatisticsTableName
-					)
-				}
+				if ($MaintenanceDatabaseStatus.UpgradeRequired) {
+					Update-MaintenanceDatabase -SmoServerObject $SmoServerObject -Version $MaintenanceDatabaseStatus.Version -Confirm:$false
 
-				Update-MaintenanceDatabase -SmoServerObject $SmoServerObject -Version $MaintenanceDatabaseStatus.Version -Confirm:$false
+					$MaintenanceDatabaseStatus = Test-MaintenanceDatabase -SmoServerObject $SmoServerObject
+				}
 			} else {
 				Write-Warning 'Maintenance database does not exist.  Statistics will not be saved.'
 			}
@@ -12304,24 +12493,50 @@ function Invoke-SqlInstanceStatisticsMaintenance {
 							$SqlNonQuery = [string]::Format('UPDATE STATISTICS [{0}].[{1}] [{2}] WITH {3};', $Row.SchemaName, $Row.ObjectName, $Row.StatisticsName, $StatisticsOptions)
 						}
 
-						try {
-							if ($Row.ModificationCount -is [System.DBNull]) {
-								if ($PSCmdlet.ShouldProcess($Row.ObjectName, "Execute update statistic $($Row.StatisticsName)")) {
-									$Database.ExecuteNonQuery($SqlNonQuery)
+						$Output = [SqlServerMaintenance.TableStatistics]::New()
+
+						$Output.DatabaseName = $Database
+						$Output.SchemaName = $Row.SchemaName
+						$Output.ObjectName = $Row.ObjectName
+						$Output.StatisticsName = $Row.StatisticsName
+
+						if ($Row.RowCount -isnot [System.DBNull]) {
+							$Output.RowCount = $Row.RowCount
+						}
+
+						if ($Row.ModificationCount -isnot [System.DBNull]) {
+							$Output.ModificationCount = $Row.ModificationCount
+						}
+
+						$Output.StatisticsOptions = $StatisticsOptions
+
+						if ($Row.ModificationCount -is [System.DBNull]) {
+							$Output.Method = 'NullModificationCount'
+						} else {
+							if ($PSCmdlet.ParameterSetName -in $StaticSetArray) {
+								if ($Row.RowCount -ge $RowCountThreshold -and $Row.ModificationCount -ge $ModificationCountThreshold) {
+									$Output.Method = 'StaticThreshold'
+									$Output.RowCountThreshold = $RowCountThreshold
+									$Output.ModificationCountThreshold = $ModificationCountThreshold
+								} else {
+									$Output.Method = 'None'
 								}
 							} else {
-								if ($PSCmdlet.ParameterSetName -in $StaticSetArray) {
-									if ($Row.RowCount -ge $RowCountThreshold -and $Row.ModificationCount -ge $ModificationCountThreshold) {
-										if ($PSCmdlet.ShouldProcess($Row.ObjectName, "Execute update statistic $($Row.StatisticsName)")) {
-											$Database.ExecuteNonQuery($SqlNonQuery)
-										}
-									}
+								if ($Row.ModificationCount -ge $Row.DynamicThreshold) {
+									$Output.Method = 'DynamicThreshold'
+									$Output.ModificationCountThreshold = $Row.DynamicThreshold
 								} else {
-									if ($Row.ModificationCount -ge $Row.DynamicThreshold) {
-										if ($PSCmdlet.ShouldProcess($Row.ObjectName, "Execute update statistic $($Row.StatisticsName)")) {
-											$Database.ExecuteNonQuery($SqlNonQuery)
-										}
-									}
+									$Output.Method = 'None'
+								}
+							}
+						}
+
+						$Output
+
+						try {
+							if ($Output.Method -ne 'None') {
+								if ($PSCmdlet.ShouldProcess($Row.ObjectName, "Execute update statistic $($Row.StatisticsName)")) {
+									$Database.ExecuteNonQuery($SqlNonQuery)
 								}
 							}
 						}
@@ -13221,7 +13436,7 @@ function Remove-DbStatistic {
 			ValueFromPipelineByPropertyName = $false,
 			ParameterSetName = 'NamedStatistic-SqlConnection'
 		)]
-		[ArgumentCompleter({ [ArgumentCompleterResult]::GetArgumentCompleterResult($Args) })]
+		[ArgumentCompleter([ModuleArgumentCompleter])]
 		[string]$StatisticsName,
 
 		[Parameter(
@@ -13473,7 +13688,7 @@ function Remove-DbTest {
 			ValueFromPipelineByPropertyName = $false,
 			ParameterSetName = 'NamedTest-SqlConnection'
 		)]
-		[ArgumentCompleter({ [ArgumentCompleterResult]::GetArgumentCompleterResult($Args) })]
+		[ArgumentCompleter([ModuleArgumentCompleter])]
 		[string]$TestName,
 
 		[Parameter(
@@ -15577,16 +15792,11 @@ function Save-SqlInstanceDatabaseStatistic {
 			$MaintenanceDatabaseStatus = Test-MaintenanceDatabase -SmoServerObject $SmoServerObject
 
 			if ($MaintenanceDatabaseStatus.AdminDatabase) {
-				if (-not $MaintenanceDatabaseStatus.Statistics.Database) {
-					throw [System.Management.Automation.ErrorRecord]::New(
-						[Exception]::New('Database Statistics table not found.  Initialize maintenance database.'),
-						'1',
-						[System.Management.Automation.ErrorCategory]::ObjectNotFound,
-						$StatisticsTableName
-					)
-				}
+				if ($MaintenanceDatabaseStatus.UpgradeRequired) {
+					Update-MaintenanceDatabase -SmoServerObject $SmoServerObject -Version $MaintenanceDatabaseStatus.Version -Confirm:$false
 
-				Update-MaintenanceDatabase -SmoServerObject $SmoServerObject -Version $MaintenanceDatabaseStatus.Version -Confirm:$false
+					$MaintenanceDatabaseStatus = Test-MaintenanceDatabase -SmoServerObject $SmoServerObject
+				}
 			} else {
 				throw [System.Management.Automation.ErrorRecord]::New(
 					[Exception]::New('Maintenance database not found.  Database is required for testing backups.'),
@@ -15839,16 +16049,11 @@ function Save-SqlInstanceQueryStoreOption {
 			$MaintenanceDatabaseStatus = Test-MaintenanceDatabase -SmoServerObject $SmoServerObject
 
 			if ($MaintenanceDatabaseStatus.AdminDatabase) {
-				if (-not $MaintenanceDatabaseStatus.Statistics.QueryStore) {
-					throw [System.Management.Automation.ErrorRecord]::New(
-						[Exception]::New('QueryStore Statistics table not found.  Initialize maintenance database.'),
-						'1',
-						[System.Management.Automation.ErrorCategory]::ObjectNotFound,
-						$StatisticsTableName
-					)
-				}
+				if ($MaintenanceDatabaseStatus.UpgradeRequired) {
+					Update-MaintenanceDatabase -SmoServerObject $SmoServerObject -Version $MaintenanceDatabaseStatus.Version -Confirm:$false
 
-				Update-MaintenanceDatabase -SmoServerObject $SmoServerObject -Version $MaintenanceDatabaseStatus.Version -Confirm:$false
+					$MaintenanceDatabaseStatus = Test-MaintenanceDatabase -SmoServerObject $SmoServerObject
+				}
 			} else {
 				throw [System.Management.Automation.ErrorRecord]::New(
 					[Exception]::New('Maintenance database not found.  Database is required for testing backups.'),
@@ -16328,130 +16533,114 @@ function Set-SqlServerMaintenanceConfiguration {
 	DynamicParam {
 		$RuntimeDefinedParameterDictionary = [System.Management.Automation.RuntimeDefinedParameterDictionary]::New()
 
-		switch ($SettingName) {
-			'SmtpSettings' {
-				# SmtpDeliveryMethod
+		if ($PSBoundParameters.ContainsKey('SettingName')) {
+			switch ($PSBoundParameters['SettingName']) {
+				'SmtpSettings' {
+					# SmtpDeliveryMethod
 
-				#Region SmtpServer
-				$ParameterName = 'SmtpServer'
+					#Region SmtpServer
+					$ParameterName = 'SmtpServer'
 
-				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
+					$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
 
-				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
-				$ParameterAttribute.Mandatory = $true
-				$ParameterAttribute.ParameterSetName = 'Network'
+					$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
+					$ParameterAttribute.Mandatory = $true
+					$ParameterAttribute.ParameterSetName = 'Network'
 
-				$AttributeCollection.Add($ParameterAttribute)
+					$AttributeCollection.Add($ParameterAttribute)
 
-				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
-				$ParameterAttribute.Mandatory = $true
-				$ParameterAttribute.ParameterSetName = 'Network-Credential'
+					$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
+					$ParameterAttribute.Mandatory = $true
+					$ParameterAttribute.ParameterSetName = 'Network-Credential'
 
-				$AttributeCollection.Add($ParameterAttribute)
+					$AttributeCollection.Add($ParameterAttribute)
 
-				$ValidateNotNullOrEmptyAttribute = [System.Management.Automation.ValidateNotNullOrEmptyAttribute]::New()
+					$ValidateNotNullOrEmptyAttribute = [System.Management.Automation.ValidateNotNullOrEmptyAttribute]::New()
 
-				$AttributeCollection.Add($ValidateNotNullOrEmptyAttribute)
+					$AttributeCollection.Add($ValidateNotNullOrEmptyAttribute)
 
-				$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string], $AttributeCollection)
+					$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string], $AttributeCollection)
 
-				$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
-				#EndRegion
+					$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
+					#EndRegion
 
-				#Region SmtpPort
-				$ParameterName = 'SmtpPort'
+					#Region SmtpPort
+					$ParameterName = 'SmtpPort'
 
-				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
+					$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
 
-				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
-				$ParameterAttribute.Mandatory = $true
-				$ParameterAttribute.ParameterSetName = 'Network'
+					$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
+					$ParameterAttribute.Mandatory = $true
+					$ParameterAttribute.ParameterSetName = 'Network'
 
-				$AttributeCollection.Add($ParameterAttribute)
+					$AttributeCollection.Add($ParameterAttribute)
 
-				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
-				$ParameterAttribute.Mandatory = $true
-				$ParameterAttribute.ParameterSetName = 'Network-Credential'
+					$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
+					$ParameterAttribute.Mandatory = $true
+					$ParameterAttribute.ParameterSetName = 'Network-Credential'
 
-				$AttributeCollection.Add($ParameterAttribute)
+					$AttributeCollection.Add($ParameterAttribute)
 
-				$ValidateRangeAttribute = [System.Management.Automation.ValidateRangeAttribute]::New(1, 65535)
+					$ValidateRangeAttribute = [System.Management.Automation.ValidateRangeAttribute]::New(1, 65535)
 
-				$AttributeCollection.Add($ValidateRangeAttribute)
+					$AttributeCollection.Add($ValidateRangeAttribute)
 
-				$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [int], $AttributeCollection)
+					$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [int], $AttributeCollection)
 
-				$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
-				#EndRegion
+					$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
+					#EndRegion
 
-				#Region UseTls
-				$ParameterName = 'UseTls'
+					#Region UseTls
+					$ParameterName = 'UseTls'
 
-				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
+					$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
 
-				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
-				$ParameterAttribute.ParameterSetName = 'Network'
+					$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
+					$ParameterAttribute.ParameterSetName = 'Network'
 
-				$AttributeCollection.Add($ParameterAttribute)
+					$AttributeCollection.Add($ParameterAttribute)
 
-				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
-				$ParameterAttribute.Mandatory = $false
-				$ParameterAttribute.ParameterSetName = 'Network-Credential'
+					$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
+					$ParameterAttribute.Mandatory = $false
+					$ParameterAttribute.ParameterSetName = 'Network-Credential'
 
-				$AttributeCollection.Add($ParameterAttribute)
+					$AttributeCollection.Add($ParameterAttribute)
 
-				$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [switch], $AttributeCollection)
+					$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [switch], $AttributeCollection)
 
-				$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
-				#EndRegion
+					$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
+					#EndRegion
 
-				#Region SmtpAuthenticationMethod
-				$ParameterName = 'SmtpAuthenticationMethod'
+					#Region SmtpAuthenticationMethod
+					$ParameterName = 'SmtpAuthenticationMethod'
 
-				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
+					$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
 
-				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
-				$ParameterAttribute.Mandatory = $false
-				$ParameterAttribute.ParameterSetName = 'Network'
+					$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
+					$ParameterAttribute.Mandatory = $false
+					$ParameterAttribute.ParameterSetName = 'Network'
 
-				$AttributeCollection.Add($ParameterAttribute)
+					$AttributeCollection.Add($ParameterAttribute)
 
-				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
-				$ParameterAttribute.Mandatory = $true
-				$ParameterAttribute.ParameterSetName = 'Network-Credential'
+					$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
+					$ParameterAttribute.Mandatory = $true
+					$ParameterAttribute.ParameterSetName = 'Network-Credential'
 
-				$AttributeCollection.Add($ParameterAttribute)
+					$AttributeCollection.Add($ParameterAttribute)
 
-				$ValidateSetAttribute = [System.Management.Automation.ValidateSetAttribute]::new('Anonymous', 'Basic')
+					$ValidateSetAttribute = [System.Management.Automation.ValidateSetAttribute]::new('Anonymous', 'Basic')
 
-				$AttributeCollection.Add($ValidateSetAttribute)
+					$AttributeCollection.Add($ValidateSetAttribute)
 
-				$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string], $AttributeCollection)
+					$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string], $AttributeCollection)
 
-				$RuntimeDefinedParameter.Value = 'Anonymous'
+					$RuntimeDefinedParameter.Value = 'Anonymous'
 
-				$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
-				#EndRegion
+					$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
+					#EndRegion
 
-				#Region SmtpCredential
-				$ParameterName = 'SmtpCredential'
-
-				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
-
-				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
-				$ParameterAttribute.Mandatory = $true
-				$ParameterAttribute.ParameterSetName = 'Network-Credential'
-
-				$AttributeCollection.Add($ParameterAttribute)
-
-				$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [pscredential], $AttributeCollection)
-
-				$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
-				#EndRegion
-
-				#Region Thumbprint
-				if ($PSVersionTable.PSEdition -eq 'Desktop' -or $PSVersionTable.Platform -eq 'Win32NT') {
-					$ParameterName = 'Thumbprint'
+					#Region SmtpCredential
+					$ParameterName = 'SmtpCredential'
 
 					$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
 
@@ -16461,316 +16650,342 @@ function Set-SqlServerMaintenanceConfiguration {
 
 					$AttributeCollection.Add($ParameterAttribute)
 
-					$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string], $AttributeCollection)
+					$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [pscredential], $AttributeCollection)
 
 					$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
-				}
-				#EndRegion
+					#EndRegion
 
-				#Region CertificatePath
-				if ($PSVersionTable.PSEdition -eq 'Core' -and $PSVersionTable.Platform -eq 'Unix') {
-					$ParameterName = 'CertificatePath'
+					#Region Thumbprint
+					if ($PSVersionTable.PSEdition -eq 'Desktop' -or $PSVersionTable.Platform -eq 'Win32NT') {
+						$ParameterName = 'Thumbprint'
+
+						$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
+
+						$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
+						$ParameterAttribute.Mandatory = $true
+						$ParameterAttribute.ParameterSetName = 'Network-Credential'
+
+						$AttributeCollection.Add($ParameterAttribute)
+
+						$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string], $AttributeCollection)
+
+						$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
+					}
+					#EndRegion
+
+					#Region CertificatePath
+					if ($PSVersionTable.PSEdition -eq 'Core' -and $PSVersionTable.Platform -eq 'Unix') {
+						$ParameterName = 'CertificatePath'
+
+						$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
+
+						$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
+						$ParameterAttribute.Mandatory = $true
+						$ParameterAttribute.ParameterSetName = 'Network-Credential-Unix'
+
+						$AttributeCollection.Add($ParameterAttribute)
+
+						$AttributeCollection.Add([ValidatePathExists]::New('Leaf'))
+
+						$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string], $AttributeCollection)
+
+						$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
+					}
+					#EndRegion
+
+					#Region KeyPath
+					if ($PSVersionTable.PSEdition -eq 'Core' -and $PSVersionTable.Platform -eq 'Unix') {
+						$ParameterName = 'KeyPath'
+
+						$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
+
+						$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
+						$ParameterAttribute.Mandatory = $true
+						$ParameterAttribute.ParameterSetName = 'Network-Credential-Unix'
+
+						$AttributeCollection.Add($ParameterAttribute)
+
+						$AttributeCollection.Add([ValidatePathExists]::New('Leaf'))
+
+						$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string], $AttributeCollection)
+
+						$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
+					}
+					#EndRegion
+
+					#Region PickupDirectoryPath
+					$ParameterName = 'PickupDirectoryPath'
 
 					$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
 
 					$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
 					$ParameterAttribute.Mandatory = $true
-					$ParameterAttribute.ParameterSetName = 'Network-Credential-Unix'
+					$ParameterAttribute.ParameterSetName = 'SpecifiedPickupDirectory'
 
 					$AttributeCollection.Add($ParameterAttribute)
 
-					$AttributeCollection.Add([ValidatePathExists]::New('Leaf'))
+					$ValidateScriptAttribute = [System.Management.Automation.ValidateScriptAttribute]::New({Test-Path -LiteralPath $_ -PathType Container})
+
+					$AttributeCollection.Add($ValidateScriptAttribute)
 
 					$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string], $AttributeCollection)
 
 					$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
+					#EndRegion
 				}
-				#EndRegion
 
-				#Region KeyPath
-				if ($PSVersionTable.PSEdition -eq 'Core' -and $PSVersionTable.Platform -eq 'Unix') {
-					$ParameterName = 'KeyPath'
+				'EmailNotification' {
+					#Region SenderAddress
+					$ParameterName = 'SenderAddress'
+
+					$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
+
+					$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
+					$ParameterAttribute.ParameterSetName = 'EmailNotification'
+
+					$AttributeCollection.Add($ParameterAttribute)
+
+					$ValidateNotNullOrEmptyAttribute = [System.Management.Automation.ValidateNotNullOrEmptyAttribute]::New()
+
+					$AttributeCollection.Add($ValidateNotNullOrEmptyAttribute)
+
+					$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string], $AttributeCollection)
+
+					$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
+					#EndRegion
+
+					#Region RecipientAddress
+					$ParameterName = 'RecipientAddress'
+
+					$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
+
+					$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
+					$ParameterAttribute.ParameterSetName = 'EmailNotification'
+
+					$AttributeCollection.Add($ParameterAttribute)
+
+					$ValidateRangeAttribute = [System.Management.Automation.ValidateCountAttribute]::New(1, 10)
+
+					$AttributeCollection.Add($ValidateRangeAttribute)
+
+					$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string[]], $AttributeCollection)
+
+					$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
+					#EndRegion
+				}
+
+				'AdminDatabase' {
+					#Region DatabaseName
+					$ParameterName = 'DatabaseName'
 
 					$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
 
 					$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
 					$ParameterAttribute.Mandatory = $true
-					$ParameterAttribute.ParameterSetName = 'Network-Credential-Unix'
+					$ParameterAttribute.ParameterSetName = 'AdminDatabase'
 
 					$AttributeCollection.Add($ParameterAttribute)
 
-					$AttributeCollection.Add([ValidatePathExists]::New('Leaf'))
+					$ValidateLengthAttribute = [System.Management.Automation.ValidateLengthAttribute]::New(1, 128)
+
+					$AttributeCollection.Add($ValidateLengthAttribute)
 
 					$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string], $AttributeCollection)
 
 					$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
+					#EndRegion
+
+					#Region SchemaName
+					$ParameterName = 'SchemaName'
+
+					$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
+
+					$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
+					$ParameterAttribute.Mandatory = $false
+					$ParameterAttribute.ParameterSetName = 'AdminDatabase'
+
+					$AttributeCollection.Add($ParameterAttribute)
+
+					$ValidateLengthAttribute = [System.Management.Automation.ValidateLengthAttribute]::New(1, 128)
+
+					$AttributeCollection.Add($ValidateLengthAttribute)
+
+					$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string], $AttributeCollection)
+
+					$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
+					#EndRegion
 				}
-				#EndRegion
+				'Statistics' {
+					#Region StatisticName
+					$ParameterName = 'StatisticsName'
 
-				#Region PickupDirectoryPath
-				$ParameterName = 'PickupDirectoryPath'
+					$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
 
-				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
+					$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
+					$ParameterAttribute.Mandatory = $true
+					$ParameterAttribute.ParameterSetName = 'Statistics'
 
-				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
-				$ParameterAttribute.Mandatory = $true
-				$ParameterAttribute.ParameterSetName = 'SpecifiedPickupDirectory'
+					$AttributeCollection.Add($ParameterAttribute)
 
-				$AttributeCollection.Add($ParameterAttribute)
+					$ArgumentCompleterAttribute = [System.Management.Automation.ArgumentCompleterAttribute]::New([ModuleArgumentCompleter])
 
-				$ValidateScriptAttribute = [System.Management.Automation.ValidateScriptAttribute]::New({Test-Path -LiteralPath $_ -PathType Container})
+					$attributeCollection.Add($ArgumentCompleterAttribute)
 
-				$AttributeCollection.Add($ValidateScriptAttribute)
+					$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string], $AttributeCollection)
 
-				$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string], $AttributeCollection)
+					$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
+					#EndRegion
 
-				$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
-				#EndRegion
-			}
+					#Region TableName
+					$ParameterName = 'TableName'
 
-			'EmailNotification' {
-				#Region SenderAddress
-				$ParameterName = 'SenderAddress'
+					$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
 
-				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
+					$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
+					$ParameterAttribute.Mandatory = $false
+					$ParameterAttribute.ParameterSetName = 'Statistics'
 
-				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
-				$ParameterAttribute.ParameterSetName = 'EmailNotification'
+					$AttributeCollection.Add($ParameterAttribute)
 
-				$AttributeCollection.Add($ParameterAttribute)
+					$ValidateLengthAttribute = [System.Management.Automation.ValidateLengthAttribute]::New(1, 128)
 
-				$ValidateNotNullOrEmptyAttribute = [System.Management.Automation.ValidateNotNullOrEmptyAttribute]::New()
+					$AttributeCollection.Add($ValidateLengthAttribute)
 
-				$AttributeCollection.Add($ValidateNotNullOrEmptyAttribute)
+					$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string], $AttributeCollection)
 
-				$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string], $AttributeCollection)
+					$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
+					#EndRegion
 
-				$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
-				#EndRegion
+					#Region RetentionInDays
+					$ParameterName = 'RetentionInDays'
 
-				#Region RecipientAddress
-				$ParameterName = 'RecipientAddress'
+					$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
 
-				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
+					$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
+					$ParameterAttribute.Mandatory = $false
+					$ParameterAttribute.ParameterSetName = 'Statistics'
 
-				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
-				$ParameterAttribute.ParameterSetName = 'EmailNotification'
+					$AttributeCollection.Add($ParameterAttribute)
 
-				$AttributeCollection.Add($ParameterAttribute)
+					$ValidateRangeAttribute = [System.Management.Automation.ValidateRangeAttribute]::New([System.Management.Automation.ValidateRangeKind]::Positive)
 
-				$ValidateRangeAttribute = [System.Management.Automation.ValidateCountAttribute]::New(1, 10)
+					$AttributeCollection.Add($ValidateRangeAttribute)
 
-				$AttributeCollection.Add($ValidateRangeAttribute)
+					$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [int], $AttributeCollection)
 
-				$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string[]], $AttributeCollection)
+					$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
+					#EndRegion
+				}
+				'Tests' {
+					#Region TestName
+					$ParameterName = 'TestName'
 
-				$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
-				#EndRegion
-			}
+					$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
 
-			'AdminDatabase' {
-				#Region DatabaseName
-				$ParameterName = 'DatabaseName'
+					$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
+					$ParameterAttribute.Mandatory = $true
+					$ParameterAttribute.ParameterSetName = 'Tests'
 
-				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
+					$AttributeCollection.Add($ParameterAttribute)
 
-				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
-				$ParameterAttribute.Mandatory = $true
-				$ParameterAttribute.ParameterSetName = 'AdminDatabase'
+					$ArgumentCompleterAttribute = [System.Management.Automation.ArgumentCompleterAttribute]::New([ModuleArgumentCompleter])
 
-				$AttributeCollection.Add($ParameterAttribute)
+					$attributeCollection.Add($ArgumentCompleterAttribute)
 
-				$ValidateLengthAttribute = [System.Management.Automation.ValidateLengthAttribute]::New(1, 128)
+					$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string], $AttributeCollection)
 
-				$AttributeCollection.Add($ValidateLengthAttribute)
+					$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
+					#EndRegion
 
-				$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string], $AttributeCollection)
+					#Region TableName
+					$ParameterName = 'TableName'
 
-				$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
-				#EndRegion
+					$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
 
-				#Region SchemaName
-				$ParameterName = 'SchemaName'
+					$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
+					$ParameterAttribute.Mandatory = $false
+					$ParameterAttribute.ParameterSetName = 'Tests'
 
-				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
+					$AttributeCollection.Add($ParameterAttribute)
 
-				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
-				$ParameterAttribute.Mandatory = $false
-				$ParameterAttribute.ParameterSetName = 'AdminDatabase'
+					$ValidateLengthAttribute = [System.Management.Automation.ValidateLengthAttribute]::New(1, 128)
 
-				$AttributeCollection.Add($ParameterAttribute)
+					$AttributeCollection.Add($ValidateLengthAttribute)
 
-				$ValidateLengthAttribute = [System.Management.Automation.ValidateLengthAttribute]::New(1, 128)
+					$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string], $AttributeCollection)
 
-				$AttributeCollection.Add($ValidateLengthAttribute)
+					$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
+					#EndRegion
 
-				$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string], $AttributeCollection)
+					#Region RetentionInDays
+					$ParameterName = 'RetentionInDays'
 
-				$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
-				#EndRegion
-			}
-			'Statistics' {
-				#Region StatisticName
-				$ParameterName = 'StatisticName'
+					$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
 
-				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
+					$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
+					$ParameterAttribute.Mandatory = $false
+					$ParameterAttribute.ParameterSetName = 'Tests'
 
-				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
-				$ParameterAttribute.Mandatory = $true
-				$ParameterAttribute.ParameterSetName = 'Statistics'
+					$AttributeCollection.Add($ParameterAttribute)
 
-				$AttributeCollection.Add($ParameterAttribute)
+					$ValidateRangeAttribute = [System.Management.Automation.ValidateRangeAttribute]::New([System.Management.Automation.ValidateRangeKind]::Positive)
 
-				$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string], $AttributeCollection)
+					$AttributeCollection.Add($ValidateRangeAttribute)
 
-				$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
-				#EndRegion
+					$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [int], $AttributeCollection)
 
-				#Region TableName
-				$ParameterName = 'TableName'
+					$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
+					#EndRegion
+				}
+				'SqlAgentAlerts' {
+					#Region TableName
+					$ParameterName = 'TableName'
 
-				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
+					$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
 
-				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
-				$ParameterAttribute.Mandatory = $false
-				$ParameterAttribute.ParameterSetName = 'Statistics'
+					$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
+					$ParameterAttribute.Mandatory = $true
+					$ParameterAttribute.ParameterSetName = 'SqlAgentAlerts'
 
-				$AttributeCollection.Add($ParameterAttribute)
+					$AttributeCollection.Add($ParameterAttribute)
 
-				$ValidateLengthAttribute = [System.Management.Automation.ValidateLengthAttribute]::New(1, 128)
+					$ValidateLengthAttribute = [System.Management.Automation.ValidateLengthAttribute]::New(1, 128)
 
-				$AttributeCollection.Add($ValidateLengthAttribute)
+					$AttributeCollection.Add($ValidateLengthAttribute)
 
-				$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string], $AttributeCollection)
+					$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string], $AttributeCollection)
 
-				$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
-				#EndRegion
+					$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
+					#EndRegion
 
-				#Region RetentionInDays
-				$ParameterName = 'RetentionInDays'
+					#Region RetentionInDays
+					$ParameterName = 'RetentionInDays'
 
-				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
+					$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
 
-				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
-				$ParameterAttribute.Mandatory = $false
-				$ParameterAttribute.ParameterSetName = 'Statistics'
+					$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
+					$ParameterAttribute.Mandatory = $true
+					$ParameterAttribute.ParameterSetName = 'SqlAgentAlerts'
 
-				$AttributeCollection.Add($ParameterAttribute)
+					$AttributeCollection.Add($ParameterAttribute)
 
-				$ValidateRangeAttribute = [System.Management.Automation.ValidateRangeAttribute]::New([System.Management.Automation.ValidateRangeKind]::Positive)
+					$ValidateRangeAttribute = [System.Management.Automation.ValidateRangeAttribute]::New([System.Management.Automation.ValidateRangeKind]::Positive)
 
-				$AttributeCollection.Add($ValidateRangeAttribute)
+					$AttributeCollection.Add($ValidateRangeAttribute)
 
-				$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [int], $AttributeCollection)
+					$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [int], $AttributeCollection)
 
-				$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
-				#EndRegion
-			}
-			'Tests' {
-				#Region TestName
-				$ParameterName = 'TestName'
-
-				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
-
-				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
-				$ParameterAttribute.Mandatory = $true
-				$ParameterAttribute.ParameterSetName = 'Tests'
-
-				$AttributeCollection.Add($ParameterAttribute)
-
-				$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string], $AttributeCollection)
-
-				$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
-				#EndRegion
-
-				#Region TableName
-				$ParameterName = 'TableName'
-
-				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
-
-				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
-				$ParameterAttribute.Mandatory = $false
-				$ParameterAttribute.ParameterSetName = 'Tests'
-
-				$AttributeCollection.Add($ParameterAttribute)
-
-				$ValidateLengthAttribute = [System.Management.Automation.ValidateLengthAttribute]::New(1, 128)
-
-				$AttributeCollection.Add($ValidateLengthAttribute)
-
-				$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string], $AttributeCollection)
-
-				$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
-				#EndRegion
-
-				#Region RetentionInDays
-				$ParameterName = 'RetentionInDays'
-
-				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
-
-				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
-				$ParameterAttribute.Mandatory = $false
-				$ParameterAttribute.ParameterSetName = 'Tests'
-
-				$AttributeCollection.Add($ParameterAttribute)
-
-				$ValidateRangeAttribute = [System.Management.Automation.ValidateRangeAttribute]::New([System.Management.Automation.ValidateRangeKind]::Positive)
-
-				$AttributeCollection.Add($ValidateRangeAttribute)
-
-				$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [int], $AttributeCollection)
-
-				$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
-				#EndRegion
-			}
-			'SqlAgentAlerts' {
-				#Region TableName
-				$ParameterName = 'TableName'
-
-				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
-
-				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
-				$ParameterAttribute.Mandatory = $true
-				$ParameterAttribute.ParameterSetName = 'SqlAgentAlerts'
-
-				$AttributeCollection.Add($ParameterAttribute)
-
-				$ValidateLengthAttribute = [System.Management.Automation.ValidateLengthAttribute]::New(1, 128)
-
-				$AttributeCollection.Add($ValidateLengthAttribute)
-
-				$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [string], $AttributeCollection)
-
-				$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
-				#EndRegion
-
-				#Region RetentionInDays
-				$ParameterName = 'RetentionInDays'
-
-				$AttributeCollection = [System.Collections.ObjectModel.Collection[System.Attribute]]::New()
-
-				$ParameterAttribute = [System.Management.Automation.ParameterAttribute]::New()
-				$ParameterAttribute.Mandatory = $true
-				$ParameterAttribute.ParameterSetName = 'SqlAgentAlerts'
-
-				$AttributeCollection.Add($ParameterAttribute)
-
-				$ValidateRangeAttribute = [System.Management.Automation.ValidateRangeAttribute]::New([System.Management.Automation.ValidateRangeKind]::Positive)
-
-				$AttributeCollection.Add($ValidateRangeAttribute)
-
-				$RuntimeDefinedParameter = [System.Management.Automation.RuntimeDefinedParameter]::New($ParameterName, [int], $AttributeCollection)
-
-				$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
-				#EndRegion
-			}
-			Default {
-				throw [System.Management.Automation.ErrorRecord]::New(
-					[Exception]::New('Unknown setting.'),
-					'1',
-					[System.Management.Automation.ErrorCategory]::InvalidType,
-					$SettingName
-				)
+					$RuntimeDefinedParameterDictionary.Add($ParameterName, $RuntimeDefinedParameter)
+					#EndRegion
+				}
+				Default {
+					throw [System.Management.Automation.ErrorRecord]::New(
+						[Exception]::New('Unknown setting.'),
+						'1',
+						[System.Management.Automation.ErrorCategory]::InvalidType,
+						$PSBoundParameters['SettingName']
+					)
+				}
 			}
 		}
 
@@ -17153,3 +17368,219 @@ New-Alias -Name New-SqlDatabaseSnapshot -Value Checkpoint-SqlDatabaseSnapshot
 #Region Export Module Members
 Export-ModuleMember	-Alias New-SqlDatabaseSnapshot
 #EndRegion
+
+# SIG # Begin signature block
+# MIInywYJKoZIhvcNAQcCoIInvDCCJ7gCAQExDzANBglghkgBZQMEAgEFADB5Bgor
+# BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCydZdmmCpyULPn
+# il2hUS/yTNWJpQRztB6aVak9/ZdGo6CCINswggWNMIIEdaADAgECAhAOmxiO+dAt
+# 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
+# EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
+# BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
+# Fw0zMTExMDkyMzU5NTlaMGIxCzAJBgNVBAYTAlVTMRUwEwYDVQQKEwxEaWdpQ2Vy
+# dCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xITAfBgNVBAMTGERpZ2lD
+# ZXJ0IFRydXN0ZWQgUm9vdCBHNDCCAiIwDQYJKoZIhvcNAQEBBQADggIPADCCAgoC
+# ggIBAL/mkHNo3rvkXUo8MCIwaTPswqclLskhPfKK2FnC4SmnPVirdprNrnsbhA3E
+# MB/zG6Q4FutWxpdtHauyefLKEdLkX9YFPFIPUh/GnhWlfr6fqVcWWVVyr2iTcMKy
+# unWZanMylNEQRBAu34LzB4TmdDttceItDBvuINXJIB1jKS3O7F5OyJP4IWGbNOsF
+# xl7sWxq868nPzaw0QF+xembud8hIqGZXV59UWI4MK7dPpzDZVu7Ke13jrclPXuU1
+# 5zHL2pNe3I6PgNq2kZhAkHnDeMe2scS1ahg4AxCN2NQ3pC4FfYj1gj4QkXCrVYJB
+# MtfbBHMqbpEBfCFM1LyuGwN1XXhm2ToxRJozQL8I11pJpMLmqaBn3aQnvKFPObUR
+# WBf3JFxGj2T3wWmIdph2PVldQnaHiZdpekjw4KISG2aadMreSx7nDmOu5tTvkpI6
+# nj3cAORFJYm2mkQZK37AlLTSYW3rM9nF30sEAMx9HJXDj/chsrIRt7t/8tWMcCxB
+# YKqxYxhElRp2Yn72gLD76GSmM9GJB+G9t+ZDpBi4pncB4Q+UDCEdslQpJYls5Q5S
+# UUd0viastkF13nqsX40/ybzTQRESW+UQUOsxxcpyFiIJ33xMdT9j7CFfxCBRa2+x
+# q4aLT8LWRV+dIPyhHsXAj6KxfgommfXkaS+YHS312amyHeUbAgMBAAGjggE6MIIB
+# NjAPBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQWBBTs1+OC0nFdZEzfLmc/57qYrhwP
+# TzAfBgNVHSMEGDAWgBRF66Kv9JLLgjEtUYunpyGd823IDzAOBgNVHQ8BAf8EBAMC
+# AYYweQYIKwYBBQUHAQEEbTBrMCQGCCsGAQUFBzABhhhodHRwOi8vb2NzcC5kaWdp
+# Y2VydC5jb20wQwYIKwYBBQUHMAKGN2h0dHA6Ly9jYWNlcnRzLmRpZ2ljZXJ0LmNv
+# bS9EaWdpQ2VydEFzc3VyZWRJRFJvb3RDQS5jcnQwRQYDVR0fBD4wPDA6oDigNoY0
+# aHR0cDovL2NybDMuZGlnaWNlcnQuY29tL0RpZ2lDZXJ0QXNzdXJlZElEUm9vdENB
+# LmNybDARBgNVHSAECjAIMAYGBFUdIAAwDQYJKoZIhvcNAQEMBQADggEBAHCgv0Nc
+# Vec4X6CjdBs9thbX979XB72arKGHLOyFXqkauyL4hxppVCLtpIh3bb0aFPQTSnov
+# Lbc47/T/gLn4offyct4kvFIDyE7QKt76LVbP+fT3rDB6mouyXtTP0UNEm0Mh65Zy
+# oUi0mcudT6cGAxN3J0TU53/oWajwvy8LpunyNDzs9wPHh6jSTEAZNUZqaVSwuKFW
+# juyk1T3osdz9HNj0d1pcVIxv76FQPfx2CWiEn2/K2yCNNWAcAgPLILCsWKAOQGPF
+# mCLBsln1VWvPJ6tsds5vIy30fnFqI2si/xK4VC0nftg62fC2h5b9W9FcrBjDTZ9z
+# twGpn1eqXijiuZQwgga0MIIEnKADAgECAhANx6xXBf8hmS5AQyIMOkmGMA0GCSqG
+# SIb3DQEBCwUAMGIxCzAJBgNVBAYTAlVTMRUwEwYDVQQKEwxEaWdpQ2VydCBJbmMx
+# GTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xITAfBgNVBAMTGERpZ2lDZXJ0IFRy
+# dXN0ZWQgUm9vdCBHNDAeFw0yNTA1MDcwMDAwMDBaFw0zODAxMTQyMzU5NTlaMGkx
+# CzAJBgNVBAYTAlVTMRcwFQYDVQQKEw5EaWdpQ2VydCwgSW5jLjFBMD8GA1UEAxM4
+# RGlnaUNlcnQgVHJ1c3RlZCBHNCBUaW1lU3RhbXBpbmcgUlNBNDA5NiBTSEEyNTYg
+# MjAyNSBDQTEwggIiMA0GCSqGSIb3DQEBAQUAA4ICDwAwggIKAoICAQC0eDHTCphB
+# cr48RsAcrHXbo0ZodLRRF51NrY0NlLWZloMsVO1DahGPNRcybEKq+RuwOnPhof6p
+# vF4uGjwjqNjfEvUi6wuim5bap+0lgloM2zX4kftn5B1IpYzTqpyFQ/4Bt0mAxAHe
+# HYNnQxqXmRinvuNgxVBdJkf77S2uPoCj7GH8BLuxBG5AvftBdsOECS1UkxBvMgEd
+# gkFiDNYiOTx4OtiFcMSkqTtF2hfQz3zQSku2Ws3IfDReb6e3mmdglTcaarps0wjU
+# jsZvkgFkriK9tUKJm/s80FiocSk1VYLZlDwFt+cVFBURJg6zMUjZa/zbCclF83bR
+# VFLeGkuAhHiGPMvSGmhgaTzVyhYn4p0+8y9oHRaQT/aofEnS5xLrfxnGpTXiUOeS
+# LsJygoLPp66bkDX1ZlAeSpQl92QOMeRxykvq6gbylsXQskBBBnGy3tW/AMOMCZIV
+# NSaz7BX8VtYGqLt9MmeOreGPRdtBx3yGOP+rx3rKWDEJlIqLXvJWnY0v5ydPpOjL
+# 6s36czwzsucuoKs7Yk/ehb//Wx+5kMqIMRvUBDx6z1ev+7psNOdgJMoiwOrUG2Zd
+# SoQbU2rMkpLiQ6bGRinZbI4OLu9BMIFm1UUl9VnePs6BaaeEWvjJSjNm2qA+sdFU
+# eEY0qVjPKOWug/G6X5uAiynM7Bu2ayBjUwIDAQABo4IBXTCCAVkwEgYDVR0TAQH/
+# BAgwBgEB/wIBADAdBgNVHQ4EFgQU729TSunkBnx6yuKQVvYv1Ensy04wHwYDVR0j
+# BBgwFoAU7NfjgtJxXWRM3y5nP+e6mK4cD08wDgYDVR0PAQH/BAQDAgGGMBMGA1Ud
+# JQQMMAoGCCsGAQUFBwMIMHcGCCsGAQUFBwEBBGswaTAkBggrBgEFBQcwAYYYaHR0
+# cDovL29jc3AuZGlnaWNlcnQuY29tMEEGCCsGAQUFBzAChjVodHRwOi8vY2FjZXJ0
+# cy5kaWdpY2VydC5jb20vRGlnaUNlcnRUcnVzdGVkUm9vdEc0LmNydDBDBgNVHR8E
+# PDA6MDigNqA0hjJodHRwOi8vY3JsMy5kaWdpY2VydC5jb20vRGlnaUNlcnRUcnVz
+# dGVkUm9vdEc0LmNybDAgBgNVHSAEGTAXMAgGBmeBDAEEAjALBglghkgBhv1sBwEw
+# DQYJKoZIhvcNAQELBQADggIBABfO+xaAHP4HPRF2cTC9vgvItTSmf83Qh8WIGjB/
+# T8ObXAZz8OjuhUxjaaFdleMM0lBryPTQM2qEJPe36zwbSI/mS83afsl3YTj+IQhQ
+# E7jU/kXjjytJgnn0hvrV6hqWGd3rLAUt6vJy9lMDPjTLxLgXf9r5nWMQwr8Myb9r
+# EVKChHyfpzee5kH0F8HABBgr0UdqirZ7bowe9Vj2AIMD8liyrukZ2iA/wdG2th9y
+# 1IsA0QF8dTXqvcnTmpfeQh35k5zOCPmSNq1UH410ANVko43+Cdmu4y81hjajV/gx
+# dEkMx1NKU4uHQcKfZxAvBAKqMVuqte69M9J6A47OvgRaPs+2ykgcGV00TYr2Lr3t
+# y9qIijanrUR3anzEwlvzZiiyfTPjLbnFRsjsYg39OlV8cipDoq7+qNNjqFzeGxcy
+# tL5TTLL4ZaoBdqbhOhZ3ZRDUphPvSRmMThi0vw9vODRzW6AxnJll38F0cuJG7uEB
+# YTptMSbhdhGQDpOXgpIUsWTjd6xpR6oaQf/DJbg3s6KCLPAlZ66RzIg9sC+NJpud
+# /v4+7RWsWCiKi9EOLLHfMR2ZyJ/+xhCx9yHbxtl5TPau1j/1MIDpMPx0LckTetiS
+# uEtQvLsNz3Qbp7wGWqbIiOWCnb5WqxL3/BAPvIXKUjPSxyZsq8WhbaM2tszWkPZP
+# ubdcMIIGuTCCBKGgAwIBAgIRAJmjgAomVTtlq9xuhKaz6jkwDQYJKoZIhvcNAQEM
+# BQAwgYAxCzAJBgNVBAYTAlBMMSIwIAYDVQQKExlVbml6ZXRvIFRlY2hub2xvZ2ll
+# cyBTLkEuMScwJQYDVQQLEx5DZXJ0dW0gQ2VydGlmaWNhdGlvbiBBdXRob3JpdHkx
+# JDAiBgNVBAMTG0NlcnR1bSBUcnVzdGVkIE5ldHdvcmsgQ0EgMjAeFw0yMTA1MTkw
+# NTMyMThaFw0zNjA1MTgwNTMyMThaMFYxCzAJBgNVBAYTAlBMMSEwHwYDVQQKExhB
+# c3NlY28gRGF0YSBTeXN0ZW1zIFMuQS4xJDAiBgNVBAMTG0NlcnR1bSBDb2RlIFNp
+# Z25pbmcgMjAyMSBDQTCCAiIwDQYJKoZIhvcNAQEBBQADggIPADCCAgoCggIBAJ0j
+# zwQwIzvBRiznM3M+Y116dbq+XE26vest+L7k5n5TeJkgH4Cyk74IL9uP61olRsxs
+# U/WBAElTMNQI/HsE0uCJ3VPLO1UufnY0qDHG7yCnJOvoSNbIbMpT+Cci75scCx7U
+# sKK1fcJo4TXetu4du2vEXa09Tx/bndCBfp47zJNsamzUyD7J1rcNxOw5g6FJg0Im
+# Iv7nCeNn3B6gZG28WAwe0mDqLrvU49chyKIc7gvCjan3GH+2eP4mYJASflBTQ3HO
+# s6JGdriSMVoD1lzBJobtYDF4L/GhlLEXWgrVQ9m0pW37KuwYqpY42grp/kSYE4BU
+# QrbLgBMNKRvfhQPskDfZ/5GbTCyvlqPN+0OEDmYGKlVkOMenDO/xtMrMINRJS5SY
+# +jWCi8PRHAVxO0xdx8m2bWL4/ZQ1dp0/JhUpHEpABMc3eKax8GI1F03mSJVV6o/n
+# mmKqDE6TK34eTAgDiBuZJzeEPyR7rq30yOVw2DvetlmWssewAhX+cnSaaBKMEj9O
+# 2GgYkPJ16Q5Da1APYO6n/6wpCm1qUOW6Ln1J6tVImDyAB5Xs3+JriasaiJ7P5KpX
+# eiVV/HIsW3ej85A6cGaOEpQA2gotiUqZSkoQUjQ9+hPxDVb/Lqz0tMjp6RuLSKAR
+# sVQgETwoNQZ8jCeKwSQHDkpwFndfCceZ/OfCUqjxAgMBAAGjggFVMIIBUTAPBgNV
+# HRMBAf8EBTADAQH/MB0GA1UdDgQWBBTddF1MANt7n6B0yrFu9zzAMsBwzTAfBgNV
+# HSMEGDAWgBS2oVQ5AsOgP46KvPrU+Bym0ToO/TAOBgNVHQ8BAf8EBAMCAQYwEwYD
+# VR0lBAwwCgYIKwYBBQUHAwMwMAYDVR0fBCkwJzAloCOgIYYfaHR0cDovL2NybC5j
+# ZXJ0dW0ucGwvY3RuY2EyLmNybDBsBggrBgEFBQcBAQRgMF4wKAYIKwYBBQUHMAGG
+# HGh0dHA6Ly9zdWJjYS5vY3NwLWNlcnR1bS5jb20wMgYIKwYBBQUHMAKGJmh0dHA6
+# Ly9yZXBvc2l0b3J5LmNlcnR1bS5wbC9jdG5jYTIuY2VyMDkGA1UdIAQyMDAwLgYE
+# VR0gADAmMCQGCCsGAQUFBwIBFhhodHRwOi8vd3d3LmNlcnR1bS5wbC9DUFMwDQYJ
+# KoZIhvcNAQEMBQADggIBAHWIWA/lj1AomlOfEOxD/PQ7bcmahmJ9l0Q4SZC+j/v0
+# 9CD2csX8Yl7pmJQETIMEcy0VErSZePdC/eAvSxhd7488x/Cat4ke+AUZZDtfCd8y
+# HZgikGuS8mePCHyAiU2VSXgoQ1MrkMuqxg8S1FALDtHqnizYS1bIMOv8znyJjZQE
+# Sp9RT+6NH024/IqTRsRwSLrYkbFq4VjNn/KV3Xd8dpmyQiirZdrONoPSlCRxCIi5
+# 4vQcqKiFLpeBm5S0IoDtLoIe21kSw5tAnWPazS6sgN2oXvFpcVVpMcq0C4x/CLSN
+# e0XckmmGsl9z4UUguAJtf+5gE8GVsEg/ge3jHGTYaZ/MyfujE8hOmKBAUkVa7NMx
+# RSB1EdPFpNIpEn/pSHuSL+kWN/2xQBJaDFPr1AX0qLgkXmcEi6PFnaw5T17UdIIn
+# A58rTu3mefNuzUtse4AgYmxEmJDodf8NbVcU6VdjWtz0e58WFZT7tST6EWQmx/Oo
+# HPelE77lojq7lpsjhDCzhhp4kfsfszxf9g2hoCtltXhCX6NqsqwTT7xe8LgMkH4h
+# Vy8L1h2pqGLT2aNCx7h/F95/QvsTeGGjY7dssMzq/rSshFQKLZ8lPb8hFTmiGDJN
+# yHga5hZ59IGynk08mHhBFM/0MLeBzlAQq1utNjQprztZ5vv/NJy8ua9AGbwkMWkO
+# MIIG4DCCBMigAwIBAgIQQ7s0QZ8qUnHOP66HyvajHjANBgkqhkiG9w0BAQsFADBW
+# MQswCQYDVQQGEwJQTDEhMB8GA1UEChMYQXNzZWNvIERhdGEgU3lzdGVtcyBTLkEu
+# MSQwIgYDVQQDExtDZXJ0dW0gQ29kZSBTaWduaW5nIDIwMjEgQ0EwHhcNMjYwOTEy
+# MjEzNTQ3WhcNMjcwOTEyMjEzNTQ2WjCBhTELMAkGA1UEBhMCVVMxFzAVBgNVBAgM
+# DlNvdXRoIENhcm9saW5hMREwDwYDVQQHDAhOZXdiZXJyeTEeMBwGA1UECgwVT3Bl
+# biBTb3VyY2UgRGV2ZWxvcGVyMSowKAYDVQQDDCFPcGVuIFNvdXJjZSBEZXZlbG9w
+# ZXIgUm9iZXJ0IEVkZXIwggIiMA0GCSqGSIb3DQEBAQUAA4ICDwAwggIKAoICAQC6
+# 72ybkWUB620cgb49nkhI4VvtWKABeSD8277f0Jww+/5fKUxoX2vC77QjmaSXU+I9
+# LB2YTj8yCSTDVlxIwJoS7KgsIN9P2EC6ehJe9FRI0n2Rt33/VlRY8kuSh2XsIVGg
+# i6Y3RooWVjVmYCAOXuV5zrqjGY1P72nrSIekxcGCTo1Y0nmRwsECCIYn7b3ZM065
+# u9b3AtYf3oI4grblWhtY0kbuHNCSeDjpp+qExQgeIs6OpFACJSDASFiDnF8+L+bB
+# V+UtUcFbvlu0WpQyblXw9vdN7BEIdqZ/1fxyhjHxqpSuOoTqoZcyDjilXtnMOfWp
+# gfgdKPFRc6NHwrmxUyNLAYHOsqBC+bMxamurB1qCJ/16lFbW/YWJRrJsaeA2WaPw
+# 8ulkUnZUoP9JgyVE1nwZbhZOgE3YwlVLmBBsAKsRiyJWBYqG1VdaMpfzLYJVNTc8
+# 4F/90uC2BvIoafcFfNyc8dIpdd7Ni17JmYuD0+/u1gqUi3p+Qdlk/y+Vgsb1x+0z
+# kaMA6CzjFA83szdzwRLFDDnaUOVngyRR8+JLnSNuEw9nNM3G5WWRGBDOkLbwq+NO
+# H1gWWAaJJYOlTARrg7ea2JHLl66CBJaaledp2u8hBl1Y5yQTpIkVYx0VPt1Oa7Nq
+# kOkXlNjmmlYsZm5pe3fSTBPx5YdUOeIl1sAWXGH/+QIDAQABo4IBeDCCAXQwDAYD
+# VR0TAQH/BAIwADA9BgNVHR8ENjA0MDKgMKAuhixodHRwOi8vY2NzY2EyMDIxLmNy
+# bC5jZXJ0dW0ucGwvY2NzY2EyMDIxLmNybDBzBggrBgEFBQcBAQRnMGUwLAYIKwYB
+# BQUHMAGGIGh0dHA6Ly9jY3NjYTIwMjEub2NzcC1jZXJ0dW0uY29tMDUGCCsGAQUF
+# BzAChilodHRwOi8vcmVwb3NpdG9yeS5jZXJ0dW0ucGwvY2NzY2EyMDIxLmNlcjAf
+# BgNVHSMEGDAWgBTddF1MANt7n6B0yrFu9zzAMsBwzTAdBgNVHQ4EFgQUCdHvF5Qw
+# xL78QY6vfJNPC89uTWEwSwYDVR0gBEQwQjAIBgZngQwBBAEwNgYLKoRoAYb2dwIF
+# AQQwJzAlBggrBgEFBQcCARYZaHR0cHM6Ly93d3cuY2VydHVtLnBsL0NQUzATBgNV
+# HSUEDDAKBggrBgEFBQcDAzAOBgNVHQ8BAf8EBAMCB4AwDQYJKoZIhvcNAQELBQAD
+# ggIBADGvhUwApFlOiMwxr4muEgH+EK8xGwyw7qZGQZYdHQZV7E6ev+4i0u2ywMbF
+# H0XcYpaB4xubprYIGbltJhIXoIM+BmIB6mgzgAtKMJBIWMECnACZKPAWPJ5vp3Xu
+# GLCg0gwQGZEKJInwEFLzplH3G5g8hTO8KSLmWLVWoWHTTA3WI4LgTf/XRs3QYqur
+# bB1gWRWa+vx8J/4I6znbpnpRDxy/jCYh9qtv21Dk3BovIPnfaj50JOWJhWeongQ6
+# Dgd4/FZhM/U1Fj/g1W7WDMal9q43MABwmrHPbxrIEK1V5vXwAhK1m9eSaZ8bqbeA
+# SId0wOYzIyEziquoO5TCdf/lSi8nD4BIm2E+h738pLQXWvr6tYWyvqaUN0uk5f27
+# NsXlVRYp8EUZPP83BJMaQJFgTsYPMeZejAndk3nuqPVGeCL6WW90M7eK5sPbTAmW
+# WrSnYFx4pgnMR3X3s14074ytJ3o3ycKa0bxjhMcoCTfMDmV7jUUhATpW8iZ2/E4b
+# +0s7DmbN37VsBngsj04vMyVxhcNLSwdFDTQEgkEwHccChlw0anfoZJ7Xui4x5RSr
+# j3rOyyrf7mFYIpsbDYjVxBo5/JVJuu5h2+BRxY9MLoSMknm391tCI7aVC/XTl/zW
+# rX1kJeCx0nYBnZnmjWCRrCXWOX5V8QaLAnK/R6durGeXnlo3MIIG7TCCBNWgAwIB
+# AgIQCE/cM09+RU7bww+P+ZIYNTANBgkqhkiG9w0BAQsFADBpMQswCQYDVQQGEwJV
+# UzEXMBUGA1UEChMORGlnaUNlcnQsIEluYy4xQTA/BgNVBAMTOERpZ2lDZXJ0IFRy
+# dXN0ZWQgRzQgVGltZVN0YW1waW5nIFJTQTQwOTYgU0hBMjU2IDIwMjUgQ0ExMB4X
+# DTI2MDgwNTAwMDAwMFoXDTM3MTEwNDIzNTk1OVowYzELMAkGA1UEBhMCVVMxFzAV
+# BgNVBAoTDkRpZ2lDZXJ0LCBJbmMuMTswOQYDVQQDEzJEaWdpQ2VydCBTSEEyNTYg
+# UlNBNDA5NiBUaW1lc3RhbXAgUmVzcG9uZGVyIDIwMjYgMTCCAiIwDQYJKoZIhvcN
+# AQEBBQADggIPADCCAgoCggIBALZ7pvLJ/s1K+NSbTGWz/TjGMPh8CQ6RucZCLv5a
+# nHzWJjF/NWJrFIhy24fcpKXlgRiky4WAawDfU3YP0BMxt9l3Dm5oCG5Z69AqEN1k
+# gHg2epx+l+lZBcmJCcN0ASURML5uFIS80sZsDwO3BSkUxDjLJhBI+qiZP3aixAC/
+# qEGLjsBNlLol9VZ7pfGEXiMlneJIC5/YKuizVzNFKZZEeoy/0B8Zm+nzKBgSWG52
+# lCO1w+nCg6XpCtklTJXeIg283hw7TmmsZXR+SMbjbrEOvZ3fP2VxIgeR28Y90ZSt
+# d3F9VuA5RVynb/whITPAo9b75Zr4Ta6Mj3URm26QZYMn/FnbuTegcoRcFEZ9FOqM
+# 5T6MTdtr/n74lIT/ug0eeOzmZ6QTFg33otX+bFRsIolvykE1jive4PuESaT8zzVe
+# FWDAMDtozNgLctkGD1ZjkEyZtJrLl5ya0m5doH/ScpaZCZVl6pNUOCybMc/kxC6E
+# AmSJY24L0yYKD1Nkddsnb/ItVKi/2nXpQNMu1PT5prW83vV8d67WowuUs0HdY4H8
+# AMLGvdL/WHEj3ZnqMqAQQP9u3Ai9t+5eQ02GDwy0ODjdzi0xlp70W+ow63/0++YD
+# EX1M0iwgUHwbrJvfpklkZQvw3+kv3vUPItdwroczk9icflf55W1zOEKAcJVAIXpc
+# MCU9AgMBAAGjggGVMIIBkTAMBgNVHRMBAf8EAjAAMB0GA1UdDgQWBBQUyWOKMC7U
+# SvtulPPm40B+9ezN4jAfBgNVHSMEGDAWgBTvb1NK6eQGfHrK4pBW9i/USezLTjAO
+# BgNVHQ8BAf8EBAMCB4AwFgYDVR0lAQH/BAwwCgYIKwYBBQUHAwgwgZUGCCsGAQUF
+# BwEBBIGIMIGFMCQGCCsGAQUFBzABhhhodHRwOi8vb2NzcC5kaWdpY2VydC5jb20w
+# XQYIKwYBBQUHMAKGUWh0dHA6Ly9jYWNlcnRzLmRpZ2ljZXJ0LmNvbS9EaWdpQ2Vy
+# dFRydXN0ZWRHNFRpbWVTdGFtcGluZ1JTQTQwOTZTSEEyNTYyMDI1Q0ExLmNydDBf
+# BgNVHR8EWDBWMFSgUqBQhk5odHRwOi8vY3JsMy5kaWdpY2VydC5jb20vRGlnaUNl
+# cnRUcnVzdGVkRzRUaW1lU3RhbXBpbmdSU0E0MDk2U0hBMjU2MjAyNUNBMS5jcmww
+# IAYDVR0gBBkwFzAIBgZngQwBBAIwCwYJYIZIAYb9bAcBMA0GCSqGSIb3DQEBCwUA
+# A4ICAQCNxTphHp1SCt+ZrAmAfn0oQLFr0mLywSLaDXQIENoyKqxrFbJblzCVP/pk
+# XmwXOdrOpWygLzlT12os5ipDCy35RBCg2UMeApEtrfGhz45F4Wt4WGdNdIbRWt3Y
+# TYJmpR+b7lr4d7Uwn+H600u4D7RnOGf8Wj4UNgAdZkfHhHv1mx9EVh71SJelcEN/
+# oORSjXzdjfw1iZH9d8Nh/thn6hH23d+VsPAr6GAYyzSA02nXD1nYLI7Ijmiv+xLC
+# iYC41DSFYL3GhTiy0PxpawPtGRyaBVGzq+UiTfM8pD7KVyF5aQyWP4KhVGUUTnmm
+# /RlYJoW3TiXA/+t0YcT2oRVBm3JETjajHug2AL+v5jhtKVnd3D0rbHXEu27o+Q8p
+# 4sEWPMqKDB+qbceb6T/6WcwTwXmQ9lOCLLYcsQeSWmvKqzpAec9etE14jOQAzLKW
+# dE3w/TCaKtLRaRT7LCkRYVnhA2D73FLje1O5b3HR5eHs0NzU/+xX7NbEdcofy0W3
+# Wdwd1XOqtlpg/JgwtKfZM5dqO94lbUveOiJBI+xZEbGRsMNbXmMREUTgu+Oca7Y7
+# 3MPWcslIx2VhkSKSXjDbD6rgg39H5Mh7QfieAIjWagkJNt68Yfim6cjEzVSiLSeZ
+# fdkr5dtFPTW6jATlWJdYeeDRGCyatf8R1hSjzSvdN8yWQPT9gzGCBkYwggZCAgEB
+# MGowVjELMAkGA1UEBhMCUEwxITAfBgNVBAoTGEFzc2VjbyBEYXRhIFN5c3RlbXMg
+# Uy5BLjEkMCIGA1UEAxMbQ2VydHVtIENvZGUgU2lnbmluZyAyMDIxIENBAhBDuzRB
+# nypScc4/rofK9qMeMA0GCWCGSAFlAwQCAQUAoIGEMBgGCisGAQQBgjcCAQwxCjAI
+# oAKAAKECgAAwGQYJKoZIhvcNAQkDMQwGCisGAQQBgjcCAQQwHAYKKwYBBAGCNwIB
+# CzEOMAwGCisGAQQBgjcCARUwLwYJKoZIhvcNAQkEMSIEII1QD/8ckBYdweFUFVhT
+# MZNkcg+C5/2zUHQrANO34RO9MA0GCSqGSIb3DQEBAQUABIICAGDIPUho5R2gt0p3
+# 6dCwyxlt/0fCGQhw1v0r9j2BrJRWv/mW2g7FpcFy9Um0RERiasT4rsln52nCUUWx
+# 4MXv8uLyLS0bvZzEZn8e4Q6N/5w/RRwVwsMmZ15DiN8QBOxNoGEe/RjemsYSfUVJ
+# jdvxm4LsWnlPZw/L/ZCRR4HdqC6x7zlIrf09/KiaXJ/ohZR3JqD53tDpQ5rUKyZG
+# 7BeO7y6qK9yQwiUXo0JhRuTm+Q277XBwS9gm/t/zYQp7kydKfQ5j2DQVf9rYWDtP
+# +lqcMPEJq/ZIHiuLFMsuFhD0WSgyF+sZ8Kw7EviPCB1j18C+ewLy0qoYhq/5KxmK
+# RubrWhhBPKX85akpTU1XjATEx6NrQGcmygg/hoN8gF4jVRbS7GcfSNwvTLiAL82R
+# 4My8ed+fTw84hYKEJPP5xJDD9sNksDK//x2Gd1z/oXAufuC1rdYbm8FUMM1CHNId
+# kEZw6uCd1yaFc8qQrJ3QbomC6KQVXu7npOZcFE6IQpuqdoCLCkSCe7SGWA2kI+Sc
+# O9ZnbHyXFM1F9xsd8QjlkEk1URs/gPviTNjjuptRXkg7YfURox5iIJ9yWdWxfzz5
+# o+9oCcDEF9RIuYNlL1wkN8ARlMWSqzjxr9NCE+JCVp7pDmsGh4UpS3AE97HCAPZE
+# FqvtbMKijgPb12bX20qnZaIt+ou4oYIDJjCCAyIGCSqGSIb3DQEJBjGCAxMwggMP
+# AgEBMH0waTELMAkGA1UEBhMCVVMxFzAVBgNVBAoTDkRpZ2lDZXJ0LCBJbmMuMUEw
+# PwYDVQQDEzhEaWdpQ2VydCBUcnVzdGVkIEc0IFRpbWVTdGFtcGluZyBSU0E0MDk2
+# IFNIQTI1NiAyMDI1IENBMQIQCE/cM09+RU7bww+P+ZIYNTANBglghkgBZQMEAgEF
+# AKBpMBgGCSqGSIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTI2
+# MDkxMzE5MzYyNFowLwYJKoZIhvcNAQkEMSIEIKZHR/N+w9GBDqZtXXwiIjbz1AzW
+# pP+QtaSg2XgEAt6fMA0GCSqGSIb3DQEBAQUABIICAGZeWgyRoemmbVI0132nKXlt
+# 3+VO8Mnoy7WJptKAz8gKdWwlCaB0sReYgwK2MJ4bWCYPKhjv42bUxWjDNkCG81M2
+# 0ufppy6TeWyQaCmx53Exc2EdeRpC1AnhZV7+MMIB1Cc0leAm2H2GZXYVzaRUUzKH
+# pQVtynvOdVBcS9hQ7UsDCFSmz/fchKB3rwxQqkcpwd0OAaucLOKbVt3533jNyl5U
+# eid0UQ6wGksOslOjZ9k05ZiCGJHb9M+ilW+Pp/IEr5vlzOp+ZZ69cwFkA1z9tEYD
+# DUXodpT/zB7vkOMctm7PEeBzkw0rzYyipqjTiTdnT1q0zFzZ/+5DVYgJl6SfD3bI
+# 1Qv8VacWqIT963x9TGQ3FUkFm2Jwhnd0mOTmKwBMsFYyuIVBzbaLSDHXMbjcugSr
+# 434vsMUqRWzTghfCC5m87363UlilnT4I7DiJKbRz38OxIqYY/PF7RvuDYCyuHPP8
+# 9wWZNISUWKCFmsRhCYkwjlyZXeSMQICv3nj0tB2X+fCX7ftaH0DBUcDvAbaTb6US
+# D5yyUoqKoOOPZ5/v2Q3kerIUNlutn2jrcjtmsrwobXdjX6kErEKxOetNC8OBk5ya
+# Re8119fc2a6CfxDI4Rpevb5GppXLt4IxL82iVMIEqpTECemHLLU/iw+IDNr2P1Ye
+# Shxl3zA3nyMqzoYHNGwg
+# SIG # End signature block

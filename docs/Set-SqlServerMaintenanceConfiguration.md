@@ -107,7 +107,7 @@ Set-SqlServerMaintenanceConfiguration
 ```
 Set-SqlServerMaintenanceConfiguration
 	-SettingName Statistics
-	-StatisticName <DbStatistic>
+	-StatisticsName <DbStatistic>
 	-RetentionInDays <Int32>
 	[-WhatIf]
 	[-Confirm]
@@ -189,7 +189,7 @@ Sets admin database name for module configuration.
 ### Example 6
 
 ```powershell
-Set-SqlServerMaintenanceConfiguration -SettingName Statistics -StatisticName Backup -RetentionInDays 45
+Set-SqlServerMaintenanceConfiguration -SettingName Statistics -StatisticsName Backup -RetentionInDays 45
 ```
 
 Sets backup statistics retention period for module configuration.
@@ -547,7 +547,7 @@ AcceptedValues: []
 HelpMessage: ''
 ```
 
-### -StatisticName
+### -StatisticsName
 
 Specifies the name of the statistic to configure.
 Dynamic parameter available when SettingName is Statistics.

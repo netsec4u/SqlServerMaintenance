@@ -27,6 +27,7 @@ Invoke-SqlInstanceCheckDb
   [-PhysicalOnlyThreshold <int>]
   [-NoIndex]
   [-EstimateOnly]
+  [-IncludeInfoMessage]
   [-WhatIf]
   [-Confirm]
   [<CommonParameters>]
@@ -42,6 +43,7 @@ Invoke-SqlInstanceCheckDb
   [-PhysicalOnlyThreshold <int>]
   [-NoIndex]
   [-EstimateOnly]
+  [-IncludeInfoMessage]
   [-WhatIf]
   [-Confirm]
   [<CommonParameters>]
@@ -136,6 +138,27 @@ The actual database check is not performed.
 ```yaml
 Type: System.Management.Automation.SwitchParameter
 DefaultValue: False
+SupportsWildcards: false
+Aliases: []
+ParameterSets:
+- Name: (All)
+  Position: Named
+  IsRequired: false
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
+DontShow: false
+AcceptedValues: []
+HelpMessage: ''
+```
+
+### -IncludeInfoMessage
+
+Returns informational messages from the CheckDb operation.
+
+```yaml
+Type: System.Management.Automation.SwitchParameter
+DefaultValue: None
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -288,7 +311,11 @@ This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable
 
 ## OUTPUTS
 
-### System.Data.DataRow
+### SqlServerMaintenance.CheckDb
+
+
+
+### SqlServerMaintenance.CheckDbResult
 
 
 
