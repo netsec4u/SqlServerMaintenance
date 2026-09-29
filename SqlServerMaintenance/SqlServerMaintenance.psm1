@@ -1216,7 +1216,10 @@ function Get-DatabaseTransactionLogInfoDataSet {
 		DefaultParameterSetName = 'ServerInstance'
 	)]
 
-	[OutputType([System.Data.DataTable])]
+	[OutputType(
+		[System.Data.DataTable],
+		[System.Array]
+	)]
 
 	param (
 		[Parameter(
@@ -4081,7 +4084,14 @@ function Find-OrphanedDatabaseUser {
 				$DatabaseObject.Refresh()
 
 				if ($DatabaseObject.Status -ne 'Normal') {
-					Write-Error "Database $Database is not online."
+					$PSCmdlet.WriteError(
+						[System.Management.Automation.ErrorRecord]::New(
+							[Exception]::New('Database is not online.'),
+							'1',
+							[System.Management.Automation.ErrorCategory]::InvalidOperation,
+							$Database
+						)
+					)
 
 					continue
 				}
@@ -4568,7 +4578,7 @@ function Get-DatabaseRecovery {
 					'ErrorAction' = 'Stop'
 				}
 
-				$DatabaseBackupPath = (Resolve-Path -Path (Join-Path @PathParameters)).ProviderPath
+				$DatabaseBackupPath = (Resolve-Path -Path (Join-Path2 @PathParameters)).ProviderPath
 			}
 
 			if ($PSBoundParameters.ContainsKey('TimeZoneId')) {
@@ -4761,7 +4771,7 @@ function Get-DatabaseRecovery {
 							}
 						}
 
-						$NewPhysicalFileName = Join-Path @JoinPathParameters
+						$NewPhysicalFileName = Join-Path2 @JoinPathParameters
 
 						[void]$RestoreOptions.Add([string]::Format("MOVE '{0}' TO '{1}'", $LogicalFile.LogicalName, $NewPhysicalFileName))
 					}
@@ -7083,7 +7093,7 @@ function Get-SqlInstanceTDEStatus {
 			$ServerInstanceParameterSets = @('ServerInstance')
 
 			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
-				$SqlConnection = Connect-SqlServerInstance -ServerInstance $ServerInstance -DatabaseName $DatabaseName
+				$SqlConnection = Connect-SqlServerInstance -ServerInstance $ServerInstance -DatabaseName 'master'
 			}
 		}
 		catch {
@@ -9708,7 +9718,7 @@ function Invoke-SqlInstanceBackup {
 						$BackupChildPath = Invoke-ReplaceInvalidCharacter -InputString $Database.name
 					}
 
-					$DatabaseBackupPath = Join-Path -Path $BackupPath -ChildPath $BackupChildPath
+					$DatabaseBackupPath = Join-Path2 -Path $BackupPath -ChildPath $BackupChildPath
 
 					if ($PSCmdlet.ShouldProcess($DatabaseBackupPath, 'Create folder')) {
 						[void][System.IO.Directory]::CreateDirectory($DatabaseBackupPath)
@@ -9834,7 +9844,7 @@ function Invoke-SqlInstanceBackup {
 
 					$BackupFileBaseName = Invoke-ReplaceInvalidCharacter -InputString $([string]::Format('{0}_{1}', $Database.Name, $BackupTimestamp))
 
-					if ($(Join-Path -Path $DatabaseBackupPath -ChildPath "$BackupFileBaseName.xxx").Length -gt 259) {
+					if ($(Join-Path2 -Path $DatabaseBackupPath -ChildPath "$BackupFileBaseName.xxx").Length -gt 259) {
 						$AdjustedLength = 259 - ($DatabaseBackupPath.Length + 20)
 
 						if ($AdjustedLength -lt 0) {
@@ -9854,20 +9864,20 @@ function Invoke-SqlInstanceBackup {
 							$BackupParameters.Add('BackupAction', 'Database')
 							$BackupParameters.Add('MediaName', "$($BackupFileBaseName).bak")
 							$BackupParameters.Add('BackupSetDescription', "Full backup of $($Database.Name)")
-							$BackupParameters.Add('BackupFile', $(Join-Path -Path $DatabaseBackupPath -ChildPath "$BackupFileBaseName.bak"))
+							$BackupParameters.Add('BackupFile', $(Join-Path2 -Path $DatabaseBackupPath -ChildPath "$BackupFileBaseName.bak"))
 						}
 						'Diff' {
 							$BackupParameters.Add('BackupAction', 'Database')
 							$BackupParameters.Add('Incremental', $true)
 							$BackupParameters.Add('MediaName', "$($BackupFileBaseName).dif")
 							$BackupParameters.Add('BackupSetDescription', "Differential backup of $($Database.Name)")
-							$BackupParameters.Add('BackupFile', $(Join-Path -Path $DatabaseBackupPath -ChildPath "$BackupFileBaseName.dif"))
+							$BackupParameters.Add('BackupFile', $(Join-Path2 -Path $DatabaseBackupPath -ChildPath "$BackupFileBaseName.dif"))
 						}
 						'Log' {
 							$BackupParameters.Add('BackupAction', 'Log')
 							$BackupParameters.Add('MediaName', "$($BackupFileBaseName).trn")
 							$BackupParameters.Add('BackupSetDescription', "Log backup of $($Database.Name)")
-							$BackupParameters.Add('BackupFile', $(Join-Path -Path $DatabaseBackupPath -ChildPath "$BackupFileBaseName.trn"))
+							$BackupParameters.Add('BackupFile', $(Join-Path2 -Path $DatabaseBackupPath -ChildPath "$BackupFileBaseName.trn"))
 							$BackupParameters.Add('NoRecovery', $TailLog)
 						}
 					}
@@ -9895,7 +9905,14 @@ function Invoke-SqlInstanceBackup {
 							#2025
 						}
 						Default {
-							Write-Error 'Unrecognized SQL Server version.'
+							$PSCmdlet.WriteError(
+								[System.Management.Automation.ErrorRecord]::New(
+									[Exception]::New('Unrecognized SQL Server version.'),
+									'1',
+									[System.Management.Automation.ErrorCategory]::NotImplemented,
+									$PSItem
+								)
+							)
 						}
 					}
 
@@ -12989,42 +13006,66 @@ function Move-SqlDatabaseTable {
 				Write-Verbose $ProgressParameters.CurrentOperation
 				Write-Progress @ProgressParameters
 
-				if ($Table.HasClusteredIndex -eq $false -and -not $PSBoundParameters.ContainsKey('IndexName')) {
-					if ($Table.FileGroup -ne $FileGroupName) {
-						$Columns = $Table.Columns.Where({$_.DataType.MaximumLength -ne -1})
+				try {
+					if ($Table.Columns.Where({$_.DataType.MaximumLength -eq -1}).Count -gt 0) {
+						Write-Warning "Table $($Table.Name) contains LOB columns. LOB column data are not moved and will remain in their current location."
+					}
 
-						if ($Columns.Count -eq 0) {
-							$PSCmdlet.WriteError(
-								[System.Management.Automation.ErrorRecord]::New(
-									[Exception]::New('Hashtable does not have indexable column.'),
-									'1',
-									[System.Management.Automation.ErrorCategory]::InvalidOperation,
-									$Table.Name
-								)
-							)
-
-							Continue
+					#Region Move Hash Table
+					if ($Table.HasClusteredIndex -eq $false -and -not $PSBoundParameters.ContainsKey('IndexName')) {
+						$ProgressParameters1 = @{
+							'Id' = 1
+							'ParentID' = 0
+							'Activity' = 'Moving hash table'
+							'Status' = [string]::Format('Step {0} of {1}', 0, 1)
+							'CurrentOperation' = ''
+							'PercentComplete' = 0
 						}
 
-						if ($PSCmdlet.ShouldProcess($Table.Name, 'Move heap table.')) {
-							$SmoIndex = [Microsoft.SqlServer.Management.SMO.Index]::New($Table, $TempIndexName)
-							$SmoIndex.IsClustered = $true
+						if ($Table.FileGroup -ne $FileGroupName) {
+							try {
+								Write-Verbose $ProgressParameters1.CurrentOperation
+								Write-Progress @ProgressParameters1
 
-							$IndexedColumn = [Microsoft.SqlServer.Management.SMO.IndexedColumn]::New($SmoIndex, $Columns[0].Name, $true)
+								$Columns = $Table.Columns.Where({$_.DataType.MaximumLength -ne -1})
 
-							$SmoIndex.IndexedColumns.Add($IndexedColumn)
+								if ($Columns.Count -eq 0) {
+									$PSCmdlet.WriteError(
+										[System.Management.Automation.ErrorRecord]::New(
+											[Exception]::New('Hashtable does not have indexable column.'),
+											'1',
+											[System.Management.Automation.ErrorCategory]::InvalidOperation,
+											$Table.Name
+										)
+									)
 
-							$SmoIndex.Create()
-							$SmoIndex.DropAndMove($FileGroupName)
+									Continue
+								}
+
+								if ($PSCmdlet.ShouldProcess($Table.Name, 'Move heap table.')) {
+									$SmoIndex = [Microsoft.SqlServer.Management.SMO.Index]::New($Table, $TempIndexName)
+									$SmoIndex.IsClustered = $true
+
+									$IndexedColumn = [Microsoft.SqlServer.Management.SMO.IndexedColumn]::New($SmoIndex, $Columns[0].Name, $true)
+
+									$SmoIndex.IndexedColumns.Add($IndexedColumn)
+
+									$SmoIndex.Create()
+									$SmoIndex.DropAndMove($FileGroupName)
+								}
+							}
+							catch {
+								$PSCmdlet.WriteError($_)
+							}
 						}
 					}
-				}
+					#EndRegion
 
-				try {
+					#Region Move Indexes
 					if ($PSBoundParameters.ContainsKey('IndexName')) {
-						$Indexes = $Table.Indexes.Where({$_.name -in $IndexName -and $_.IndexType -in @('ClusteredIndex', 'NonClusteredIndex')})
+						$Indexes = $Table.Indexes.Where({$_.name -in $IndexName -and $_.IndexType -ne 'HeapIndex'})
 					} else {
-						$Indexes = $Table.Indexes.Where({$_.IndexType -in @('ClusteredIndex', 'NonClusteredIndex')})
+						$Indexes = $Table.Indexes.Where({$_.IndexType -ne 'HeapIndex'})
 					}
 
 					$ProgressParameters1 = @{
@@ -13057,6 +13098,7 @@ function Move-SqlDatabaseTable {
 							$PSCmdlet.WriteError($_)
 						}
 					}
+					#EndRegion
 				}
 				catch {
 					$PSCmdlet.WriteError($_)
@@ -15136,7 +15178,7 @@ function Resize-DatabaseLogicalFile {
 
 	[CmdletBinding(
 		PositionalBinding = $false,
-		SupportsShouldProcess = $false,
+		SupportsShouldProcess = $true,
 		ConfirmImpact = 'Low',
 		DefaultParameterSetName = 'LogicalFile-ServerInstance'
 	)]
@@ -15311,32 +15353,52 @@ function Resize-DatabaseLogicalFile {
 				}
 			}
 
+			if ($LogicalFiles.where({$_.Size -gt $LogicalFileSize * 1024}).Count -gt 0) {
+				$LargerUsedLogicalFiles = $LogicalFiles.where({$_.UsedSpace -gt $LogicalFileSize * 1024})
+
+				if ($LargerUsedLogicalFiles.Count -gt 0) {
+					$LargestUsedLogicalFile = 0
+
+					foreach ($LogicalFile in $LargerUsedLogicalFiles) {
+						$LargestUsedLogicalFile = [System.Math]::Max($LargestUsedLogicalFile, $LogicalFile.UsedSpace)
+					}
+
+					$LogicalFileSize = [System.Math]::Ceiling($LargestUsedLogicalFile / 1024)
+
+					Write-Warning "Adjusted logical file size to $LogicalFileSize MB based on the largest used logical file."
+				}
+			}
+
+			if ($LogicalFiles.where({$_.Size -eq $LogicalFileSize * 1024}).Count -eq $LogicalFiles.Count) {
+				throw [System.Management.Automation.ErrorRecord]::New(
+					[Exception]::New('The new size must greater than or less than one or more logical files.'),
+					'1',
+					[System.Management.Automation.ErrorCategory]::InvalidOperation,
+					$LogicalFileSize
+				)
+			}
+
 			foreach ($LogicalFile in $LogicalFiles) {
 				switch ($LogicalFile.Size / 1024) {
 					{$_ -lt $LogicalFileSize} {
 						$LogicalFile.Size = $LogicalFileSize * 1024
+
+						if ($PSCmdlet.ShouldProcess($LogicalFile.Name, 'Resize logical file')) {
+							$LogicalFile.Alter()
+						}
 					}
 
 					{$_ -gt $LogicalFileSize} {
-						if ($LogicalFile.UsedSpace -gt $LogicalFileSize * 1024) {
-							Write-Warning 'Logical file cannot be shrunk below used space.'
+						if ($PSCmdlet.ShouldProcess($LogicalFile.Name, 'Resize logical file')) {
+							$LogicalFile.Shrink($LogicalFileSize, $ShrinkMethod)
 						}
-
-						$LogicalFile.Shrink($LogicalFileSize, $ShrinkMethod)
 					}
 
 					Default {
-						throw [System.Management.Automation.ErrorRecord]::New(
-							[Exception]::New('The new size must greater than or less than the current file size size.'),
-							'1',
-							[System.Management.Automation.ErrorCategory]::InvalidOperation,
-							$LogicalFile.Name
-						)
+						Write-Verbose 'The size is already the desired size.'
 					}
 				}
 			}
-
-			$LogicalFile.Alter()
 		}
 		catch {
 			throw $_
@@ -15362,7 +15424,7 @@ function Resize-DatabaseTransactionLog {
 
 	[CmdletBinding(
 		PositionalBinding = $false,
-		SupportsShouldProcess = $false,
+		SupportsShouldProcess = $true,
 		ConfirmImpact = 'Low',
 		DefaultParameterSetName = 'ServerInstance'
 	)]
@@ -15537,50 +15599,58 @@ function Resize-DatabaseTransactionLog {
 						$LastLogBackupDate = $SmoDatabaseObject.LastLogBackupDate
 					}
 
-					for ($i = 0; $i -lt $TotalRetries; $i++) {
-						$SmoDatabaseObject.Checkpoint()
+					if ($PSCmdlet.ShouldProcess($LogFileObject.Name, 'Resize transaction log file')) {
+						for ($i = 0; $i -lt $TotalRetries; $i++) {
+							$SmoDatabaseObject.Checkpoint()
 
-						$LogFileObject.Shrink($LogFileAdjustedSize - 1, $ShrinkMethod)
-						$LogFileObject.Refresh()
+							$LogFileObject.Shrink($LogFileAdjustedSize - 1, $ShrinkMethod)
+							$LogFileObject.Refresh()
 
-						if ($LogFileAdjustedSize -eq [Math]::Ceiling($LogFileObject.Size / 1024)) {
-							break
+							if ($LogFileAdjustedSize -eq [Math]::Ceiling($LogFileObject.Size / 1024)) {
+								break
+							}
+
+							$EndDelay = (Get-Date).AddSeconds($RetryDelay)
+
+							:RetryDelay Do {
+								try {
+									$ProgressParameters = @{
+										'Id' = 0
+										'Activity' = [string]::Format('Retry {0} of {1}', ($i + 1), $TotalRetries)
+										'Status' = $ProgressStatus
+										'PercentComplete' = 100 - ((New-TimeSpan -Start (Get-Date) -End $EndDelay).TotalSeconds / $RetryDelay * 100)
+										'SecondsRemaining' = (New-TimeSpan -Start (Get-Date) -End $EndDelay).TotalSeconds
+									}
+
+									Write-Progress @ProgressParameters
+
+									if ($SmoDatabaseObject.RecoveryModel -ne 'Simple') {
+										$SmoDatabaseObject.Refresh()
+
+										if ($SmoDatabaseObject.LastLogBackupDate -gt $LastLogBackupDate) {
+											$LastLogBackupDate = $SmoDatabaseObject.LastLogBackupDate
+
+											break RetryDelay
+										}
+									}
+								}
+								catch {
+									throw $_
+								}
+								finally {
+									Write-Progress -Id 0 -Completed
+								}
+							} Until ((Get-Date) -ge $EndDelay)
 						}
 
-						$EndDelay = (Get-Date).AddSeconds($RetryDelay)
-
-						:RetryDelay Do {
-							$ProgressParameters = @{
-								'Id' = 0
-								'Activity' = [string]::Format('Retry {0} of {1}', ($i + 1), $TotalRetries)
-								'Status' = $ProgressStatus
-								'PercentComplete' = 100 - ((New-TimeSpan -Start (Get-Date) -End $EndDelay).TotalSeconds / $RetryDelay * 100)
-								'SecondsRemaining' = (New-TimeSpan -Start (Get-Date) -End $EndDelay).TotalSeconds
-							}
-
-							Write-Progress @ProgressParameters
-
-							if ($SmoDatabaseObject.RecoveryModel -ne 'Simple') {
-								$SmoDatabaseObject.Refresh()
-
-								if ($SmoDatabaseObject.LastLogBackupDate -gt $LastLogBackupDate) {
-									$LastLogBackupDate = $SmoDatabaseObject.LastLogBackupDate
-
-									break RetryDelay
-								}
-							}
-						} Until ((Get-Date) -ge $EndDelay)
-					}
-
-					Write-Progress -Id 0 -Completed
-
-					if ($LogFileAdjustedSize -ne [Math]::Ceiling($LogFileObject.Size / 1024)) {
-						throw [System.Management.Automation.ErrorRecord]::New(
-							[Exception]::New('Unable to resize transaction log to requested size.'),
-							'2',
-							[System.Management.Automation.ErrorCategory]::InvalidResult,
-							$LogFileObject.Name
-						)
+						if ($LogFileAdjustedSize -ne [Math]::Ceiling($LogFileObject.Size / 1024)) {
+							throw [System.Management.Automation.ErrorRecord]::New(
+								[Exception]::New('Unable to resize transaction log to requested size.'),
+								'2',
+								[System.Management.Automation.ErrorCategory]::InvalidResult,
+								$LogFileObject.Name
+							)
+						}
 					}
 				}
 
@@ -17159,6 +17229,18 @@ function Switch-SqlInstanceTDECertificate {
 			ValueFromPipelineByPropertyName = $false,
 			ParameterSetName = 'ServerInstance'
 		)]
+		[Parameter(
+			Mandatory = $true,
+			ValueFromPipeline = $false,
+			ValueFromPipelineByPropertyName = $false,
+			ParameterSetName = 'ServerInstance_CertificateName'
+		)]
+		[Parameter(
+			Mandatory = $true,
+			ValueFromPipeline = $false,
+			ValueFromPipelineByPropertyName = $false,
+			ParameterSetName = 'ServerInstance_NewCertificate'
+		)]
 		[ValidateLength(1,128)]
 		[string]$ServerInstance,
 
@@ -17167,6 +17249,18 @@ function Switch-SqlInstanceTDECertificate {
 			ValueFromPipeline = $false,
 			ValueFromPipelineByPropertyName = $false,
 			ParameterSetName = 'SmoServerObject'
+		)]
+		[Parameter(
+			Mandatory = $true,
+			ValueFromPipeline = $false,
+			ValueFromPipelineByPropertyName = $false,
+			ParameterSetName = 'SmoServerObject_CertificateName'
+		)]
+		[Parameter(
+			Mandatory = $true,
+			ValueFromPipeline = $false,
+			ValueFromPipelineByPropertyName = $false,
+			ParameterSetName = 'SmoServerObject_NewCertificate'
 		)]
 		[Microsoft.SqlServer.Management.Smo.Server]$SmoServerObject,
 
@@ -17181,14 +17275,35 @@ function Switch-SqlInstanceTDECertificate {
 		[Parameter(
 			Mandatory = $false,
 			ValueFromPipeline = $false,
-			ValueFromPipelineByPropertyName = $false
+			ValueFromPipelineByPropertyName = $false,
+			ParameterSetName = 'ServerInstance_CertificateName'
 		)]
-		[string]$CertificateName
+		[Parameter(
+			Mandatory = $false,
+			ValueFromPipeline = $false,
+			ValueFromPipelineByPropertyName = $false,
+			ParameterSetName = 'SmoServerObject_CertificateName'
+		)]
+		[string]$CertificateName,
+
+		[Parameter(
+			Mandatory = $false,
+			ValueFromPipeline = $false,
+			ValueFromPipelineByPropertyName = $false,
+			ParameterSetName = 'ServerInstance_NewCertificate'
+		)]
+		[Parameter(
+			Mandatory = $false,
+			ValueFromPipeline = $false,
+			ValueFromPipelineByPropertyName = $false,
+			ParameterSetName = 'SmoServerObject_NewCertificate'
+		)]
+		[switch]$NewCertificate
 	)
 
 	begin {
 		try {
-			$ServerInstanceParameterSets = @('ServerInstance')
+			$ServerInstanceParameterSets = @('ServerInstance', 'ServerInstance_CertificateName', 'ServerInstance_NewCertificate')
 
 			if ($PSCmdlet.ParameterSetName -in $ServerInstanceParameterSets) {
 				$SmoServerParameters = @{
@@ -17202,7 +17317,15 @@ function Switch-SqlInstanceTDECertificate {
 			$AGReplicaList = [System.Collections.Generic.List[string]]::New()
 
 			if (-not [string]::IsNullOrEmpty($SmoServerObject.ClusterName)) {
-				$AGReplicaList.AddRange([string[]]$($SmoServerObject.AvailabilityGroups.Where({$_.IsDistributedAvailabilityGroup -eq $false}).AvailabilityReplicas.Name | Select-Object -Unique))
+				$AvailabilityGroups = $SmoServerObject.AvailabilityGroups.where({$_.IsDistributedAvailabilityGroup -eq $false})
+
+				foreach ($Replica in $AvailabilityGroups.AvailabilityReplicas) {
+					if ($AGReplicaList.Contains($Replica.EndpointUrl)) {
+						continue
+					}
+
+					$AGReplicaList.Add([System.Text.RegularExpressions.Regex]::Match($Replica.EndpointUrl, '(?<=:\/\/)[^:\/]+').Value)
+				}
 			}
 
 			$DatabaseObject = Get-SmoDatabaseObject -SmoServerObject $SmoServerObject -DatabaseName 'master'
@@ -17221,7 +17344,7 @@ function Switch-SqlInstanceTDECertificate {
 			} else {
 				$Certificates = $(Get-SmoDatabaseCertificate -DatabaseObject $DatabaseObject).where({$_.Subject -eq 'TDE Certificate' -and $_.ExpirationDate -gt $(Get-Date)})
 
-				if ($Certificates.Count -eq 0) {
+				if ($Certificates.Count -eq 0 -or $NewCertificate) {
 					$Timestamp = $(Get-Date).ToUniversalTime().ToString('yyyyMMddHHmmss')
 
 					if ([string]::IsNullOrEmpty($SmoServerObject.ClusterName)) {
@@ -17372,8 +17495,8 @@ Export-ModuleMember	-Alias New-SqlDatabaseSnapshot
 # SIG # Begin signature block
 # MIInywYJKoZIhvcNAQcCoIInvDCCJ7gCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCydZdmmCpyULPn
-# il2hUS/yTNWJpQRztB6aVak9/ZdGo6CCINswggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDjxyUE25n7/oB3
+# ATssv0sGlziwLeLgqSdWcb9OBZsuaaCCINswggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -17553,34 +17676,34 @@ Export-ModuleMember	-Alias New-SqlDatabaseSnapshot
 # Uy5BLjEkMCIGA1UEAxMbQ2VydHVtIENvZGUgU2lnbmluZyAyMDIxIENBAhBDuzRB
 # nypScc4/rofK9qMeMA0GCWCGSAFlAwQCAQUAoIGEMBgGCisGAQQBgjcCAQwxCjAI
 # oAKAAKECgAAwGQYJKoZIhvcNAQkDMQwGCisGAQQBgjcCAQQwHAYKKwYBBAGCNwIB
-# CzEOMAwGCisGAQQBgjcCARUwLwYJKoZIhvcNAQkEMSIEII1QD/8ckBYdweFUFVhT
-# MZNkcg+C5/2zUHQrANO34RO9MA0GCSqGSIb3DQEBAQUABIICAGDIPUho5R2gt0p3
-# 6dCwyxlt/0fCGQhw1v0r9j2BrJRWv/mW2g7FpcFy9Um0RERiasT4rsln52nCUUWx
-# 4MXv8uLyLS0bvZzEZn8e4Q6N/5w/RRwVwsMmZ15DiN8QBOxNoGEe/RjemsYSfUVJ
-# jdvxm4LsWnlPZw/L/ZCRR4HdqC6x7zlIrf09/KiaXJ/ohZR3JqD53tDpQ5rUKyZG
-# 7BeO7y6qK9yQwiUXo0JhRuTm+Q277XBwS9gm/t/zYQp7kydKfQ5j2DQVf9rYWDtP
-# +lqcMPEJq/ZIHiuLFMsuFhD0WSgyF+sZ8Kw7EviPCB1j18C+ewLy0qoYhq/5KxmK
-# RubrWhhBPKX85akpTU1XjATEx6NrQGcmygg/hoN8gF4jVRbS7GcfSNwvTLiAL82R
-# 4My8ed+fTw84hYKEJPP5xJDD9sNksDK//x2Gd1z/oXAufuC1rdYbm8FUMM1CHNId
-# kEZw6uCd1yaFc8qQrJ3QbomC6KQVXu7npOZcFE6IQpuqdoCLCkSCe7SGWA2kI+Sc
-# O9ZnbHyXFM1F9xsd8QjlkEk1URs/gPviTNjjuptRXkg7YfURox5iIJ9yWdWxfzz5
-# o+9oCcDEF9RIuYNlL1wkN8ARlMWSqzjxr9NCE+JCVp7pDmsGh4UpS3AE97HCAPZE
-# FqvtbMKijgPb12bX20qnZaIt+ou4oYIDJjCCAyIGCSqGSIb3DQEJBjGCAxMwggMP
+# CzEOMAwGCisGAQQBgjcCARUwLwYJKoZIhvcNAQkEMSIEIICuNwoB/KmCx1G+mN21
+# kwKuQAkrfUHAHzIKIyF3TS8zMA0GCSqGSIb3DQEBAQUABIICAIke70ZHT+hjYyVr
+# FMf8XRzFokAonepkIPqNqQmFUq0OuP7d+MQS9r57/RcvpNhIFRH5Op4ptx+0bHY2
+# g1pWiOz9wJHgnRowOBO8fkILOQr+3FbZy867+Ug5ZTVJ041aOp7s/S1PLaqqMa2W
+# HfpwEHhT7a77VPjEUu6Obe4lnGzcG309o8W2eQYaAjeBYn5ywfto5nky5His+5hT
+# Gh6XxdT0+xoejBGbyJxi3reMFEs2OkH7DhVsk4wpjt9uLIsCiSIJ9HN9yJmcgyaV
+# KwVZc5FJ4YddQgr+cE4+o0zHXottFXGGKDxltyGYegznpIg46VgtjeIGi0cQjCMb
+# 1FTwxF/1g9blqxK+atTmIyXQ38u7Z5e1MDQfjbmrtXpypL/raNcB7f/Gfjeh+rZq
+# sdyscypj7epSeNMO8o9jcAuFm8Pf14JbdgveSk2cLHHmiYuHt7L0WCFSJ5KRYKeo
+# 9rXagL4zUl2w2UeCTJLO8ouGUKWGrSdzS5GrfolFYKmE8F/RGLhcKb7os7xCTah3
+# QSfHfXpf2u4MV5F4thaYZnqkvxmMubUynaXvcxmm/c9juivbw0LKhnaLWnfilOhe
+# B8jk3ABeAJxcE3ZmPS3G8X4hs7nx511ACzyiXG2Y9OGE3a1tFVsZUQKV1nHvA4Rg
+# gtE+Nu9pVRNTEOZhsP57iOSsfF49oYIDJjCCAyIGCSqGSIb3DQEJBjGCAxMwggMP
 # AgEBMH0waTELMAkGA1UEBhMCVVMxFzAVBgNVBAoTDkRpZ2lDZXJ0LCBJbmMuMUEw
 # PwYDVQQDEzhEaWdpQ2VydCBUcnVzdGVkIEc0IFRpbWVTdGFtcGluZyBSU0E0MDk2
 # IFNIQTI1NiAyMDI1IENBMQIQCE/cM09+RU7bww+P+ZIYNTANBglghkgBZQMEAgEF
 # AKBpMBgGCSqGSIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTI2
-# MDkxMzE5MzYyNFowLwYJKoZIhvcNAQkEMSIEIKZHR/N+w9GBDqZtXXwiIjbz1AzW
-# pP+QtaSg2XgEAt6fMA0GCSqGSIb3DQEBAQUABIICAGZeWgyRoemmbVI0132nKXlt
-# 3+VO8Mnoy7WJptKAz8gKdWwlCaB0sReYgwK2MJ4bWCYPKhjv42bUxWjDNkCG81M2
-# 0ufppy6TeWyQaCmx53Exc2EdeRpC1AnhZV7+MMIB1Cc0leAm2H2GZXYVzaRUUzKH
-# pQVtynvOdVBcS9hQ7UsDCFSmz/fchKB3rwxQqkcpwd0OAaucLOKbVt3533jNyl5U
-# eid0UQ6wGksOslOjZ9k05ZiCGJHb9M+ilW+Pp/IEr5vlzOp+ZZ69cwFkA1z9tEYD
-# DUXodpT/zB7vkOMctm7PEeBzkw0rzYyipqjTiTdnT1q0zFzZ/+5DVYgJl6SfD3bI
-# 1Qv8VacWqIT963x9TGQ3FUkFm2Jwhnd0mOTmKwBMsFYyuIVBzbaLSDHXMbjcugSr
-# 434vsMUqRWzTghfCC5m87363UlilnT4I7DiJKbRz38OxIqYY/PF7RvuDYCyuHPP8
-# 9wWZNISUWKCFmsRhCYkwjlyZXeSMQICv3nj0tB2X+fCX7ftaH0DBUcDvAbaTb6US
-# D5yyUoqKoOOPZ5/v2Q3kerIUNlutn2jrcjtmsrwobXdjX6kErEKxOetNC8OBk5ya
-# Re8119fc2a6CfxDI4Rpevb5GppXLt4IxL82iVMIEqpTECemHLLU/iw+IDNr2P1Ye
-# Shxl3zA3nyMqzoYHNGwg
+# MDkyOTAxNTQxNlowLwYJKoZIhvcNAQkEMSIEIP2fFvkAPWtoCDb9uJBJbYUsmKbE
+# CWYtOk3X7ilUDrK2MA0GCSqGSIb3DQEBAQUABIICABkBT8LFwJTn7E81gEHl35tj
+# VdQ5+FAdhDnz0qeEoGyGySQhKobu+VnQY1SgxK00HGSSMH5N7W0NX2GArpBBT0ri
+# jQXec+XSX/O9Zh9RXQFwY8VYyrEJoaHs08l2Ng74qBR2sNb7cwM13ZVXKxEiAkQv
+# P891WFRLHvyh79hDxU9/SbKW7EBL1w4mRp26YG0gfFYDs8TUXhn//9+lGFtbhSaa
+# bpIGIopTp83tcrjddJDrWzAWkBMnAVxllOdUM0q/UChit2lAHFaZBdmYb2+KnX+H
+# HWRMKWcL2L7e+XbJxCsnV8KACWHhfq6owUhfsgzjdUz05ZILduPHqmIpwIWEGRwV
+# CianOcl5GINa6Qk0+Dbk+yCs0bC54xjQrppHr2GtiHX8Ms75Ae7Z4O4+x3oAgCnE
+# 9AIc0mXV36vmGsZlgqj631ZsYuMwOMBl4LSjqVnhhuSaxVyI5XUXhwdqD4aGuBV5
+# z54dPjoPXWRwuRuG6+GwmzkDFWvnM9LREHJBJmd0DKJ0Djr2QAWLHbRsd5UjELWL
+# ksHBt8XnFu6STyzN5hFQvOVWdnitbOT1PQs0yFdqQlqhHxiBpzBGXYOcl/KYf6ai
+# Ofjmjs6wAVveyJM6Ska1tJpWt3gl8xFi8wIyNBK1JhffO+VmXa21r5ZTFtZNvKZV
+# ILNtBTVvxf8adpVCvQp2
 # SIG # End signature block

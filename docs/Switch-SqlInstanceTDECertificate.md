@@ -23,6 +23,53 @@ Change certificate used to protect the database encryption key.
 Switch-SqlInstanceTDECertificate
   -ServerInstance <string>
   [-DatabaseName <string[]>]
+  [-WhatIf]
+  [-Confirm]
+  [<CommonParameters>]
+```
+
+### ServerInstance_NewCertificate
+
+```
+Switch-SqlInstanceTDECertificate
+  -ServerInstance <string>
+  [-DatabaseName <string[]>]
+  [-NewCertificate]
+  [-WhatIf]
+  [-Confirm]
+  [<CommonParameters>]
+```
+
+### ServerInstance_CertificateName
+
+```
+Switch-SqlInstanceTDECertificate
+  -ServerInstance <string>
+  [-DatabaseName <string[]>]
+  [-CertificateName <string>]
+  [-WhatIf]
+  [-Confirm]
+  [<CommonParameters>]
+```
+
+### SmoServerObject_NewCertificate
+
+```
+Switch-SqlInstanceTDECertificate
+  -SmoServerObject <Server>
+  [-DatabaseName <string[]>]
+  [-NewCertificate]
+  [-WhatIf]
+  [-Confirm]
+  [<CommonParameters>]
+```
+
+### SmoServerObject_CertificateName
+
+```
+Switch-SqlInstanceTDECertificate
+  -SmoServerObject <Server>
+  [-DatabaseName <string[]>]
   [-CertificateName <string>]
   [-WhatIf]
   [-Confirm]
@@ -35,7 +82,6 @@ Switch-SqlInstanceTDECertificate
 Switch-SqlInstanceTDECertificate
   -SmoServerObject <Server>
   [-DatabaseName <string[]>]
-  [-CertificateName <string>]
   [-WhatIf]
   [-Confirm]
   [<CommonParameters>]
@@ -81,7 +127,13 @@ DefaultValue: None
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
-- Name: (All)
+- Name: SmoServerObject_CertificateName
+  Position: Named
+  IsRequired: false
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
+- Name: ServerInstance_CertificateName
   Position: Named
   IsRequired: false
   ValueFromPipeline: false
@@ -135,6 +187,33 @@ AcceptedValues: []
 HelpMessage: ''
 ```
 
+### -NewCertificate
+
+Specifies to create a new certificate for protecting the database encryption key.
+
+```yaml
+Type: System.Management.Automation.SwitchParameter
+DefaultValue: None
+SupportsWildcards: false
+Aliases: []
+ParameterSets:
+- Name: SmoServerObject_NewCertificate
+  Position: Named
+  IsRequired: false
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
+- Name: ServerInstance_NewCertificate
+  Position: Named
+  IsRequired: false
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
+DontShow: false
+AcceptedValues: []
+HelpMessage: ''
+```
+
 ### -ServerInstance
 
 The name of the SQL Server instance to connect to.
@@ -145,6 +224,18 @@ DefaultValue: None
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
+- Name: ServerInstance_NewCertificate
+  Position: Named
+  IsRequired: true
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
+- Name: ServerInstance_CertificateName
+  Position: Named
+  IsRequired: true
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
 - Name: ServerInstance
   Position: Named
   IsRequired: true
@@ -166,6 +257,18 @@ DefaultValue: None
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
+- Name: SmoServerObject_NewCertificate
+  Position: Named
+  IsRequired: true
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
+- Name: SmoServerObject_CertificateName
+  Position: Named
+  IsRequired: true
+  ValueFromPipeline: false
+  ValueFromPipelineByPropertyName: false
+  ValueFromRemainingArguments: false
 - Name: SmoServerObject
   Position: Named
   IsRequired: true
