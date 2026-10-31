@@ -188,7 +188,7 @@ Availability Group name to remove log shipping database for secondary instance.
 
 ```yaml
 Type: System.String
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -258,7 +258,7 @@ Name of database to primary database for log shipping.
 
 ```yaml
 Type: System.String
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -306,7 +306,7 @@ Primary SQL server instance to remove log shipping.
 
 ```yaml
 Type: System.String
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -345,7 +345,7 @@ Primary SQL server SMO  Server Object to remove log shipping.
 
 ```yaml
 Type: Microsoft.SqlServer.Management.Smo.Server
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -384,7 +384,7 @@ Secondary SQL server instance to remove log shipping.
 
 ```yaml
 Type: System.String
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -423,7 +423,7 @@ Secondary SQL server SMO  Server Object to remove log shipping.
 
 ```yaml
 Type: Microsoft.SqlServer.Management.Smo.Server
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:

@@ -56,7 +56,7 @@ Specifies the backup path.
 
 ```yaml
 Type: System.IO.DirectoryInfo
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:

@@ -73,10 +73,10 @@ class ModuleArgumentCompleter : System.Management.Automation.IArgumentCompleter 
 
 		switch ($ParameterName) {
 			'StatisticsName' {
-				$ParameterValueList = $Script:PSMConfig.SelectNodes("//Config/AdminDatabase/Statistics/*").Get_Name()
+				$ParameterValueList = $Script:PSMConfig.SelectNodes('//Config/AdminDatabase/Statistics/*').Get_Name()
 			}
 			'TestName' {
-				$ParameterValueList = $Script:PSMConfig.SelectNodes("//Config/AdminDatabase/Tests/*").Get_Name()
+				$ParameterValueList = $Script:PSMConfig.SelectNodes('//Config/AdminDatabase/Tests/*').Get_Name()
 			}
 			'TimeZoneId' {
 				$SystemTimeZones = [System.TimeZoneInfo]::GetSystemTimeZones()
@@ -509,6 +509,7 @@ Add-Type -TypeDefinition $TypeDefinition
 $TypeDefinition = @'
 using System;
 using System.IO;
+using System.Text.RegularExpressions;
 
 namespace SqlServerMaintenance
 {
@@ -528,14 +529,32 @@ namespace SqlServerMaintenance
 		public string Extension;
 		public DateTimeOffset BackupDate;
 		public string BackupType;
+		public string BackupFamily;
+		public int? SequenceNumber;
 
-		private void SetBackupDate ()
+		private void ParseFileName ()
 		{
 			try
 			{
-				string DateString = this.BaseName.Substring(this.BaseName.Length - 14, 14);
+				Match RegexMatch = Regex.Match(this.BaseName, @"(.+)_(\d{14})(?:\.(\d{2}))?$");
 
-				this.BackupDate = DateTimeOffset.ParseExact(DateString, "yyyyMMddHHmmss", null, System.Globalization.DateTimeStyles.AssumeUniversal);
+				if (RegexMatch.Success)
+				{
+					this.BackupFamily = RegexMatch.Groups[1].Value + "_" + RegexMatch.Groups[2].Value;
+
+					string DateString = RegexMatch.Groups[2].Value;
+
+					this.BackupDate = DateTimeOffset.ParseExact(DateString, "yyyyMMddHHmmss", null, System.Globalization.DateTimeStyles.AssumeUniversal);
+
+					if (RegexMatch.Groups[3].Success)
+					{
+						this.SequenceNumber = int.Parse(RegexMatch.Groups[3].Value);
+					}
+				}
+				else
+				{
+					throw new SqlServerMaintenance.InvalidBackupFileName(String.Format("Invalid backup file name: {0}", this.FullName));
+				}
 			}
 			catch
 			{
@@ -573,7 +592,7 @@ namespace SqlServerMaintenance
 			this.BaseName = FileInfo.Name.Remove(FileInfo.Name.Length - FileInfo.Extension.Length);
 			this.Extension = FileInfo.Extension;
 
-			this.SetBackupDate();
+			this.ParseFileName();
 			this.SetBackupType();
 		}
 	}
@@ -764,7 +783,7 @@ namespace SqlServerMaintenance
 		public string DatabaseName;
 		public string BackupDatabaseName;
 		public System.Guid DatabaseGUID;
-		public System.IO.FileInfo BackupFileName;
+		public System.IO.FileInfo[] BackupFileName;
 		public DateTimeOffset BackupStartDate;
 		public DateTimeOffset BackupFinishDate;
 		public string BackupType;
@@ -1035,6 +1054,7 @@ $ReferencedAssemblies = @(
 	[AppDomain]::CurrentDomain.GetAssemblies().where({$_.ManifestModule.Name -eq 'Microsoft.SqlServer.SqlEnum.dll'}).Location
 	[AppDomain]::CurrentDomain.GetAssemblies().where({$_.ManifestModule.Name -eq 'Microsoft.SqlServer.Management.Sdk.Sfc.dll'}).Location
 	[AppDomain]::CurrentDomain.GetAssemblies().where({$_.ManifestModule.Name -eq 'Microsoft.SqlServer.ConnectionInfo.dll'}).Location
+	'System.Text.RegularExpressions'
 )
 
 $TypeParameters = @{
@@ -1991,7 +2011,7 @@ function Initialize-ModuleConfiguration {
 								Set-FolderAcl -Path $ConfigurationPath -FileSystemAccessRule $Ace
 							}
 							catch {
-								Write-Warning "Failed to set folder ACL for the configuration folder. Import the module with elevated permissions to set the ACL.  The folder permissions are necessary to allow for SQL Server Agent to write to the configuration file when running in NonInteractive mode."
+								Write-Warning 'Failed to set folder ACL for the configuration folder. Import the module with elevated permissions to set the ACL.  The folder permissions are necessary to allow for SQL Server Agent to write to the configuration file when running in NonInteractive mode.'
 							}
 						}
 					}
@@ -2617,7 +2637,7 @@ function Remove-BackupTestDatabase {
 				try {
 					Write-Verbose "Checking Database $($Database.Name)"
 
-					if ($Database.CreateDate -lt $StartTime -or $Database.CreateDate -lt $(Get-Date).AddHours(-12)) {
+					if ($Database.CreateDate -lt $StartTime -or $Database.CreateDate -lt $([DateTime]::Now).AddHours(-12)) {
 						if ($PSCmdlet.ShouldProcess($Database.Name, 'Drop Database')) {
 							$Database.Drop()
 						}
@@ -3090,8 +3110,8 @@ function Update-PSMConfiguration {
 
 				$ParentNode = $Script:PSMConfig.SelectSingleNode('//Config/AdminDatabase')
 
-				$NewNode = $Script:PSMConfig.CreateElement("DatabaseVersion")
-				$NewNode.SetAttribute("TableName", "DatabaseVersion")
+				$NewNode = $Script:PSMConfig.CreateElement('DatabaseVersion')
+				$NewNode.SetAttribute('TableName', 'DatabaseVersion')
 
 				[void]$ParentNode.InsertBefore($NewNode, $ParentNode.Statistics)
 				#$ParentNode.AppendChild($NewNode)
@@ -3118,9 +3138,9 @@ function Update-PSMConfiguration {
 
 				$ParentNode = $Script:PSMConfig.SelectSingleNode('//Config/AdminDatabase/Statistics')
 
-				$NewNode = $Script:PSMConfig.CreateElement("CheckDB")
-				$NewNode.SetAttribute("TableName", "Statistics_CheckDB")
-				$NewNode.SetAttribute("RetentionDays", "90")
+				$NewNode = $Script:PSMConfig.CreateElement('CheckDB')
+				$NewNode.SetAttribute('TableName', 'Statistics_CheckDB')
+				$NewNode.SetAttribute('RetentionDays', '90')
 
 				[void]$ParentNode.InsertBefore($NewNode, $ParentNode.ColumnStore)
 			}
@@ -3540,7 +3560,7 @@ function Add-LogShippedDatabase {
 						}
 
 						try {
-							$DatabaseRecovery = Get-DatabaseRecovery @DatabaseRecoveryParameters -RecoveryDateTime $(Get-Date)
+							$DatabaseRecovery = Get-DatabaseRecovery @DatabaseRecoveryParameters -RecoveryDateTime $([DateTime]::Now)
 						}
 						catch {
 							$DatabaseRecovery = $null
@@ -3551,17 +3571,17 @@ function Add-LogShippedDatabase {
 						if ($null -eq $DatabaseRecovery) {
 							Invoke-SqlInstanceBackup -ServerInstance $PrimaryServerInstance -DatabaseName $Database -BackupType Full
 
-							$DatabaseRecovery = Get-DatabaseRecovery @DatabaseRecoveryParameters -RecoveryDateTime $(Get-Date) -TimeZoneId $TimeZoneInfo.Id
+							$DatabaseRecovery = Get-DatabaseRecovery @DatabaseRecoveryParameters -RecoveryDateTime $([DateTime]::Now) -TimeZoneId $TimeZoneInfo.Id
 						} elseif ($DatabaseRecovery.where({$_.BackupType -eq 'Database'}).RecoveryModel -ne 'FULL') {
 							Invoke-SqlInstanceBackup -ServerInstance $PrimaryServerInstance -DatabaseName $Database -BackupType Full
 
-							$DatabaseRecovery = Get-DatabaseRecovery @DatabaseRecoveryParameters -RecoveryDateTime $(Get-Date) -TimeZoneId $TimeZoneInfo.Id
+							$DatabaseRecovery = Get-DatabaseRecovery @DatabaseRecoveryParameters -RecoveryDateTime $([DateTime]::Now) -TimeZoneId $TimeZoneInfo.Id
 						} else {
 							if ($DatabaseRecovery.where({$_.BackupType -eq 'Database Differential'}).Count -gt 0) {
 								if ($DatabaseRecovery.where({$_.BackupType -eq 'Database Differential'}).RecoveryModel -ne 'FULL') {
 									Invoke-SqlInstanceBackup -ServerInstance $PrimaryServerInstance -DatabaseName $Database -BackupType Full
 
-									$DatabaseRecovery = Get-DatabaseRecovery @DatabaseRecoveryParameters -RecoveryDateTime $(Get-Date) -TimeZoneId $TimeZoneInfo.Id
+									$DatabaseRecovery = Get-DatabaseRecovery @DatabaseRecoveryParameters -RecoveryDateTime $([DateTime]::Now) -TimeZoneId $TimeZoneInfo.Id
 								}
 							}
 						}
@@ -4106,7 +4126,7 @@ function Find-OrphanedDatabaseUser {
 					$OrphanedDatabaseUser.AuthenticationType = $DatabaseUser.AuthenticationType
 					$OrphanedDatabaseUser.LoginType = $DatabaseUser.LoginType
 
-					$Login = $SmoServerObject.Logins.where({[System.BitConverter]::ToString($_.Sid).Replace("-", "") -eq $OrphanedDatabaseUser.SidString})
+					$Login = $SmoServerObject.Logins.where({[System.BitConverter]::ToString($_.Sid).Replace('-', '') -eq $OrphanedDatabaseUser.SidString})
 
 					if ($Login.Count -eq 0) {
 						$OrphanedDatabaseUser
@@ -4570,7 +4590,7 @@ function Get-DatabaseRecovery {
 
 			if ($PSCmdlet.ParameterSetName -in $BackupFileInfoParameterSets) {
 				$DatabaseBackupPath = Split-Path -LiteralPath $BackupFileInfo[0].FullName
-				[System.DateTimeOffset]$RecoveryDateTime = Get-Date
+				[System.DateTimeOffset]$RecoveryDateTime = [DateTime]::Now
 			} else {
 				$PathParameters = @{
 					'Path' = (Resolve-Path -Path $BackupPath).ProviderPath
@@ -4598,6 +4618,11 @@ function Get-DatabaseRecovery {
 
 			throw $_
 		}
+
+		$SortPropertyArray = @(
+			@{Expression='BackupDate'; Descending=$true},
+			@{Expression='SequenceNumber'; Ascending=$true}
+		)
 
 		[int]$CurrentStep = 0
 
@@ -4630,7 +4655,7 @@ function Get-DatabaseRecovery {
 			Write-Progress @ProgressParameters
 
 			if ($PSCmdlet.ParameterSetName -In $BackupFileInfoParameterSets) {
-				$FullBackups = $BackupFileInfo.where({$_.Extension -eq '.bak'}) | Sort-Object -Property BackupDate -Descending
+				$FullBackups = $BackupFileInfo.where({$_.Extension -eq '.bak'}) | Sort-Object -Property $SortPropertyArray
 			} else {
 				$SqlBackupFileParameters = @{
 					'Path' = $DatabaseBackupPath
@@ -4641,21 +4666,23 @@ function Get-DatabaseRecovery {
 					$SqlBackupFileParameters.Add('Exclude', $Exclude)
 				}
 
-				$FullBackups = $(Get-SqlBackupFile @SqlBackupFileParameters).where({$_.BackupDate -lt $RecoveryDateTime}) | Sort-Object -Property BackupDate -Descending
+				$FullBackups = $(Get-SqlBackupFile @SqlBackupFileParameters).where({$_.BackupDate -lt $RecoveryDateTime}) | Sort-Object -Property $SortPropertyArray
 			}
 
-			foreach ($FullBackup in $FullBackups) {
+			$FullBackupGroups = $FullBackups | Group-Object -Property BackupFamily | Sort-Object -Property Name -Descending
+
+			foreach ($FullBackup in $FullBackupGroups) {
 				try {
-					$FullBackupHeader = Get-SmoBackupHeader -DatabaseBackupPath $FullBackup.FullName -SmoServerObject $SmoServerObject
+					$FullBackupHeader = Get-SmoBackupHeader -DatabaseBackupPath @($FullBackup.Group.FullName)[0] -SmoServerObject $SmoServerObject
 				}
 				catch {
-					Write-Verbose "Unable to read backup header.  Skipping file $($FullBackup.Name)."
+					Write-Verbose "Unable to read backup header.  Skipping file $(@($FullBackup.Group.FullName)[0])."
 
 					continue
 				}
 
 				if ($FullBackupHeader.BackupName -eq '*** INCOMPLETE ***' -and $null -eq $FullBackupHeader.BackupTypeDescription) {
-					Write-Verbose "Incomplete backup found in $($FullBackup.Name) at position $($FullBackupHeader.Position)"
+					Write-Verbose "Incomplete backup found in $(@($FullBackup.Group.FullName)[0]) at position $($FullBackupHeader.Position)"
 
 					continue
 				}
@@ -4665,7 +4692,7 @@ function Get-DatabaseRecovery {
 						[Exception]::New('Multiple backups in backup file is not supported'),
 						'1',
 						[System.Management.Automation.ErrorCategory]::InvalidOperation,
-						$FullBackup.FullName
+						@($FullBackup.Group.FullName)[0]
 					)
 				}
 
@@ -4701,9 +4728,9 @@ function Get-DatabaseRecovery {
 			if ($PSBoundParameters.ContainsKey('NewDatabaseName')) {
 				$EscapedDatabaseName = Invoke-ReplaceInvalidCharacter -InputString $NewDatabaseName
 
-				$BackupFileList = Get-SmoBackupFileList -DatabaseBackupPath $LastFullBackup.FullName -SmoServerObject $SmoServerObject
+				$BackupFileList = Get-SmoBackupFileList -DatabaseBackupPath $LastFullBackup.Group[0].FullName -SmoServerObject $SmoServerObject
 
-				$FileGroupObjectGroups = $BackupFileList | Group-Object -Property FileGroupName
+				$FileGroupObjectGroups = $BackupFileList.where({$_.IsPresent}) | Group-Object -Property FileGroupName
 
 				foreach ($FileGroupObjectGroup in $FileGroupObjectGroups) {
 					$i = 0
@@ -4754,7 +4781,7 @@ function Get-DatabaseRecovery {
 								$JoinPathParameters.Add('ChildPath', [string]::Format('{0}_{1}_{2}', $EscapedDatabaseName, $(Invoke-ReplaceInvalidCharacter -InputString $LogicalFile.FileGroupName), $(Invoke-ReplaceInvalidCharacter -InputString $LogicalFile.LogicalName)))
 
 								if ($JoinPathParameters.Path.Length + $JoinPathParameters.ChildPath.Length + 1 -gt 160) {
-									$JoinPathParameters.ChildPath = [string]::Format('{0}_{1}', $EscapedDatabaseName, [Guid]::NewGuid().ToString("N"))
+									$JoinPathParameters.ChildPath = [string]::Format('{0}_{1}', $EscapedDatabaseName, [Guid]::NewGuid().ToString('N'))
 
 									if ($JoinPathParameters.Path.Length + $EscapedDatabaseName.Length + 37 -gt 160) {
 										$JoinPathParameters.ChildPath = $JoinPathParameters.ChildPath.SubString(0, 159 - $JoinPathParameters.Path.Length)
@@ -4794,7 +4821,7 @@ function Get-DatabaseRecovery {
 				'DatabaseName' = $NewDatabaseName
 				'BackupDatabaseName' = $FullBackupHeader.DatabaseName
 				'DatabaseGUID' = $FullBackupHeader.BindingID
-				'BackupFileName' = $LastFullBackup
+				'BackupFileName' = $LastFullBackup.Group
 				'BackupStartDate' = [DateTimeOffset]::New($FullBackupHeader.BackupStartDate, $TimeSpan)
 				'BackupFinishDate' = [DateTimeOffset]::New($FullBackupHeader.BackupFinishDate, $TimeSpan)
 				'BackupPosition' = $FullBackupHeader.Position
@@ -4809,7 +4836,7 @@ function Get-DatabaseRecovery {
 
 			$LastBackupHeader = $FullBackupHeader
 
-			Write-Verbose "Filename: $($LastFullBackup.Name)"
+			Write-Verbose "Filename: $(@($LastFullBackup.Group.Name)[0])"
 			#EndRegion
 
 			#Region Build Diff Backup Restore
@@ -4822,7 +4849,7 @@ function Get-DatabaseRecovery {
 			Write-Progress @ProgressParameters
 
 			if ($PSCmdlet.ParameterSetName -In $BackupFileInfoParameterSets) {
-				[SqlServerMaintenance.BackupFileInfo[]]$DiffBackups = $BackupFileInfo.where({$_.Extension -eq '.dif'})
+				$DiffBackups = $BackupFileInfo.where({$_.Extension -eq '.dif'}) | Sort-Object -Property $SortPropertyArray
 			} else {
 				$SqlBackupFileParameters.BackupType = 'diff'
 
@@ -4834,21 +4861,23 @@ function Get-DatabaseRecovery {
 					$TimeSpan = [System.TimeSpan]::New(0, $LastBackupHeader.TimeZone, 0)
 				}
 
-				[SqlServerMaintenance.BackupFileInfo[]]$DiffBackups = $DiffBackups.where({$_.BackupDate -gt $([DateTimeOffset]::New($LastBackupHeader.BackupFinishDate, $TimeSpan)).UtcDateTime -and $_.BackupDate -lt $RecoveryDateTime.UtcDateTime}) | Sort-Object -Property Name -Descending
+				$DiffBackups = $DiffBackups.where({$_.BackupDate -gt $([DateTimeOffset]::New($LastBackupHeader.BackupFinishDate, $TimeSpan)).UtcDateTime -and $_.BackupDate -lt $RecoveryDateTime.UtcDateTime}) | Sort-Object -Property $SortPropertyArray
 			}
 
-			foreach ($DiffBackup in $DiffBackups) {
+			$DiffBackupGroups = $DiffBackups | Group-Object -Property BackupFamily | Sort-Object -Property Name -Descending
+
+			foreach ($DiffBackup in $DiffBackupGroups) {
 				try {
-					$DiffBackupHeader = Get-SmoBackupHeader -DatabaseBackupPath $DiffBackup.FullName -SmoServerObject $SmoServerObject
+					$DiffBackupHeader = Get-SmoBackupHeader -DatabaseBackupPath @($DiffBackup.Group.FullName)[0] -SmoServerObject $SmoServerObject
 				}
 				catch {
-					Write-Verbose "Unable to read backup header.  Skipping file $($DiffBackup.Name)."
+					Write-Verbose "Unable to read backup header.  Skipping file $(@($DiffBackup.Group.Name)[0])."
 
 					continue
 				}
 
 				if ($DiffBackupHeader.BackupName -eq '*** INCOMPLETE ***' -and $null -eq $DiffBackupHeader.BackupTypeDescription) {
-					Write-Verbose "Incomplete backup found in $($DiffBackup.Name) at position $($DiffBackupHeader.Position)"
+					Write-Verbose "Incomplete backup found in $(@($DiffBackup.Group.Name)[0]) at position $($DiffBackupHeader.Position)"
 
 					continue
 				}
@@ -4858,12 +4887,12 @@ function Get-DatabaseRecovery {
 						[Exception]::New('Multiple backups in backup file is not supported'),
 						'1',
 						[System.Management.Automation.ErrorCategory]::InvalidOperation,
-						$DiffBackup.FullName
+						@($DiffBackup.Group.FullName)[0]
 					)
 				}
 
 				if (-not $SkipLogChainCheck -and $DiffBackupHeader.DatabaseBackupLSN -ne $LastBackupHeader.CheckpointLSN) {
-					Write-Warning "Diff Backup Name: $($DiffBackup.Name)"
+					Write-Warning "Diff Backup Name: $(@($DiffBackup.Group.Name)[0])"
 					Write-Warning 'Differential backup chain broken'
 					Write-Warning "Full Backup Checkpoint LSN: $($LastBackupHeader.CheckpointLSN)"
 					Write-Warning "Diff Database Backup LSN: $($DiffBackupHeader.DatabaseBackupLSN)"
@@ -4886,7 +4915,7 @@ function Get-DatabaseRecovery {
 						'DatabaseName' = $NewDatabaseName
 						'BackupDatabaseName' = $LastBackupHeader.DatabaseName
 						'DatabaseGUID' = $LastBackupHeader.BindingID
-						'BackupFileName' = $DiffBackup
+						'BackupFileName' = $DiffBackup.Group
 						'BackupStartDate' = [DateTimeOffset]::New($LastBackupHeader.BackupStartDate, $TimeSpan)
 						'BackupFinishDate' = [DateTimeOffset]::New($LastBackupHeader.BackupFinishDate, $TimeSpan)
 						'BackupPosition' = $LastBackupHeader.Position
@@ -4899,7 +4928,7 @@ function Get-DatabaseRecovery {
 						'RestoreOptions' = $RestoreOptions
 					}))
 
-					Write-Verbose "Filename: $($DiffBackup.Name)"
+					Write-Verbose "Filename: $(@($DiffBackup.Group.Name)[0])"
 
 					break
 				}
@@ -5134,7 +5163,7 @@ function Get-DatabaseRecovery {
 				$Output.DatabaseName = $NewDatabaseName
 				$Output.BackupDatabaseName = $RestoreItem.BackupDatabaseName
 				$Output.DatabaseGUID = $RestoreItem.DatabaseGUID
-				$Output.BackupFileName = [System.IO.FileInfo]$RestoreItem.BackupFileName.FullName
+				$Output.BackupFileName = [System.IO.FileInfo[]]$RestoreItem.BackupFileName.FullName
 				$Output.BackupStartDate = $RestoreItem.BackupStartDate
 				$Output.BackupFinishDate = $RestoreItem.BackupFinishDate
 				$Output.BackupPosition = $RestoreItem.BackupPosition
@@ -5145,26 +5174,77 @@ function Get-DatabaseRecovery {
 				$Output.CheckpointLSN = $RestoreItem.CheckpointLSN
 				$Output.DatabaseBackupLSN = $RestoreItem.DatabaseBackupLSN
 
+				$FullNameList = [System.Collections.Generic.List[string]]::New()
+
+				foreach ($FullName in $RestoreItem.BackupFileName.FullName) {
+					$FullNameList.Add([string]::Format("DISK = N'{0}'", $FullName))
+				}
+
 				switch ($RestoreItem.BackupType) {
-					'Database' {
-						$RestoreMethod = 'DATABASE'
+					{$_ -in @('Database', 'Database Differential')} {
+						$FormatStringArray = @(
+							$NewDatabaseName,
+							[string]::Join("`n,`t", $FullNameList),
+							[string]::Join("`n,`t", $RestoreItem.RestoreOptions)
+						)
+
+						$FormatString = "RESTORE DATABASE [{0}]`nFROM {1}`nWITH {2};"
 					}
-					'Database Differential' {
-						$RestoreMethod = 'DATABASE'
+					{$_ -in @('File or Filegroup', 'File or Filegroup Differential')} {
+						$BackupFileList = Get-SmoBackupFileList -SmoServerObject $SmoServerObject -DatabaseBackupPath @($RestoreItem.BackupFileName.FullName)[0]
+
+						$FileGroupList = [System.Collections.Generic.List[string]]::New()
+
+						foreach ($BackupFile in $BackupFileList.where({$_.IsPresent})) {
+							if ($BackupFile.Type -eq 'L') {
+								continue
+							}
+
+							$FileGroup = [string]::Format("FILEGROUP = '{0}'", $BackupFile.FileGroupName)
+
+							if (-not $FileGroupList.Contains($FileGroup)) {
+								$FileGroupList.Add($FileGroup)
+							}
+						}
+
+						$FormatStringArray = @(
+							$NewDatabaseName,
+							[string]::Join("`n,`t", $FileGroupList),
+							[string]::Join("`n,`t", $FullNameList),
+							[string]::Join("`n,`t", $RestoreItem.RestoreOptions)
+						)
+
+						$FormatString = "RESTORE DATABASE [{0}]`n`t{1}`nFROM {2}`nWITH {3};"
+					}
+					{$_ -in @('Partial', 'Differential Partial')} {
+						$FormatStringArray = @(
+							$NewDatabaseName,
+							[string]::Join("`n,`t", $FullNameList),
+							[string]::Join("`n,`t", $RestoreItem.RestoreOptions)
+						)
+
+						$FormatString = "RESTORE DATABASE [{0}]`nREAD_WRITE_FILEGROUPS`nFROM {2}`nWITH {3};"
 					}
 					'Transaction Log' {
-						$RestoreMethod = 'LOG'
+						$FormatStringArray = @(
+							$NewDatabaseName,
+							[string]::Join("`n,`t", $FullNameList),
+							[string]::Join("`n,`t", $RestoreItem.RestoreOptions)
+						)
+
+						$FormatString = "RESTORE LOG [{0}]`nFROM {1}`nWITH {2};"
+					}
+					Default {
+						throw [System.Management.Automation.ErrorRecord]::New(
+							[Exception]::New('Unknown backup type.'),
+							'1',
+							[System.Management.Automation.ErrorCategory]::InvalidArgument,
+							$RestoreItem.BackupType
+						)
 					}
 				}
 
-				$FormatStringArray = @(
-					$RestoreMethod,
-					$NewDatabaseName,
-					$RestoreItem.BackupFileName.FullName,
-					[string]::Join("`n,`t", $RestoreItem.RestoreOptions)
-				)
-
-				$Output.RestoreDML = [string]::Format("RESTORE {0} [{1}]`nFROM DISK = N'{2}'`nWITH {3};", $FormatStringArray)
+				$Output.RestoreDML = [string]::Format($FormatString, $FormatStringArray)
 
 				$Output
 			}
@@ -6027,7 +6107,7 @@ function Get-SqlInstanceDataFileUsage {
 												#Region Title
 												$TitleAxis = $PlotModel.Axes.AddTopAxis()
 												$TitleAxis.Label.Text = "Logical File Growth`n"
-												$TitleAxis.Label.ForeColor = [ScottPlot.Color]::FromHex("#1E90FF")
+												$TitleAxis.Label.ForeColor = [ScottPlot.Color]::FromHex('#1E90FF')
 												$TitleAxis.Label.FontName = 'Arial'
 												$TitleAxis.Label.FontSize = 24
 												$TitleAxis.Label.Bold = $true
@@ -6040,7 +6120,7 @@ function Get-SqlInstanceDataFileUsage {
 												$SubTitleAxis.Label.FontName = 'Arial'
 												$SubTitleAxis.Label.FontSize = 16
 												$SubTitleAxis.Label.Bold = $false
-												$SubTitleAxis.Label.ForeColor = [ScottPlot.Color]::FromHex("#1E90FF")
+												$SubTitleAxis.Label.ForeColor = [ScottPlot.Color]::FromHex('#1E90FF')
 												$SubTitleAxis.Label.Alignment = [ScottPlot.Alignment]::LowerCenter
 												$SubTitleAxis.FrameLineStyle.Width = 0
 												$SubTitleAxis.PaddingOutsideAxisLabels = 8
@@ -6051,7 +6131,7 @@ function Get-SqlInstanceDataFileUsage {
 												$Legend.Legend.BackgroundColor = [ScottPlot.Colors]::Transparent
 												$Legend.Legend.FontSize = 16
 												$Legend.Legend.FontName = 'Arial'
-												$Legend.Legend.FontColor = [ScottPlot.Color]::FromHex("#1E90FF")
+												$Legend.Legend.FontColor = [ScottPlot.Color]::FromHex('#1E90FF')
 												$Legend.Legend.Orientation = [ScottPlot.Orientation]::Horizontal
 												$Legend.Legend.InterItemPadding = 32
 #												$Legend.Legend.Padding = [ScottPlot.PixelPadding]::New(0, 0, 0, 16)
@@ -6073,7 +6153,7 @@ function Get-SqlInstanceDataFileUsage {
 													$CurrentDate = $AxisMinimum_X + $DayOffset
 
 													if ($DayOffset % $Interval -eq 0) {
-														$ManualTicks.AddMajor($CurrentDate, [datetime]::FromOADate($CurrentDate).ToString("yyyy-MM-dd"))
+														$ManualTicks.AddMajor($CurrentDate, [datetime]::FromOADate($CurrentDate).ToString('yyyy-MM-dd'))
 													} else {
 														$ManualTicks.AddMinor($CurrentDate)
 													}
@@ -6084,7 +6164,7 @@ function Get-SqlInstanceDataFileUsage {
 												$PlotModel.Axes.Bottom.TickLabelStyle.Alignment = [ScottPlot.Alignment]::MiddleRight
 												$PlotModel.Axes.Bottom.MinimumSize = 96
 												$PlotModel.Axes.Bottom.LabelAlignment = [ScottPlot.Alignment]::LowerLeft
-												$PlotModel.Axes.Bottom.Label.ForeColor = [ScottPlot.Color]::FromHex("#1E90FF")
+												$PlotModel.Axes.Bottom.Label.ForeColor = [ScottPlot.Color]::FromHex('#1E90FF')
 												$PlotModel.Axes.Bottom.TickLabelStyle.OffsetY = 10
 												$PlotModel.Axes.Bottom.TickLabelStyle.FontSize = 16
 												#EndRegion
@@ -6096,7 +6176,7 @@ function Get-SqlInstanceDataFileUsage {
 												$PlotModel.Grid.YAxisStyle.FillColor2 = [ScottPlot.Colors]::Gray.WithOpacity(0.07)
 
 												$PlotModel.Axes.Left.Label.Text = "Used Space (MB)"
-												$PlotModel.Axes.Left.Label.ForeColor = [ScottPlot.Color]::FromHex("#1E90FF")
+												$PlotModel.Axes.Left.Label.ForeColor = [ScottPlot.Color]::FromHex('#1E90FF')
 												$PlotModel.Axes.Left.Label.FontName = 'Arial'
 												$PlotModel.Axes.Left.Label.FontSize = 16
 												$PlotModel.Axes.Left.Label.Bold = $true
@@ -6106,23 +6186,23 @@ function Get-SqlInstanceDataFileUsage {
 
 												$PlotModel.Axes.SetLimitsX($AxisMinimum_X, $AxisMaximum_X)
 												$PlotModel.Axes.SetLimitsY($AxisMinimum_Y, $AxisMaximum_Y)
-												$PlotModel.Axes.Color([ScottPlot.Color]::FromHex("#1E90FF"))
+												$PlotModel.Axes.Color([ScottPlot.Color]::FromHex('#1E90FF'))
 
 												#Region Scatter Plot
 												$ScatterPoints = $PlotModel.Add.ScatterPoints($DataView.CollectionDate.DateTime.ToOADate(), $DataView.UsedSpaceMB)
 												$ScatterPoints.LegendText = 'Used Space'
 												$ScatterPoints.MarkerSize = 12
-												$ScatterPoints.MarkerFillColor = [ScottPlot.Color]::FromHex("#FF5722")
-												$ScatterPoints.MarkerLineColor = [ScottPlot.Color]::FromHex("#FF5722")
+												$ScatterPoints.MarkerFillColor = [ScottPlot.Color]::FromHex('#FF5722')
+												$ScatterPoints.MarkerLineColor = [ScottPlot.Color]::FromHex('#FF5722')
 												$ScatterPoints.FillY = $true
 												$ScatterPoints.FillYColor = [ScottPlot.Colors]::Violet
 												#EndRegion
 
 												#Region Current Size Stair Step
 												$StairStepPoints = $PlotModel.Add.ScatterPoints($DataView.CollectionDate.DateTime.ToOADate(), $DataView.FileSizeMB)
-												$StairStepPoints.LegendText = "Logical File Size"
+												$StairStepPoints.LegendText = 'Logical File Size'
 												$StairStepPoints.ConnectStyle = [ScottPlot.ConnectStyle]::StepHorizontal
-												$StairStepPoints.Color = [ScottPlot.Color]::FromHex("#00FF85")
+												$StairStepPoints.Color = [ScottPlot.Color]::FromHex('#00FF85')
 												$StairStepPoints.LineStyle.Width = 2
 												$StairStepPoints.LineStyle.Pattern = [ScottPlot.LinePattern]::Solid
 												#EndRegion
@@ -6130,17 +6210,17 @@ function Get-SqlInstanceDataFileUsage {
 												if (-not [System.Double]::IsNaN($LinearRegression.Slope)) {
 													#Region Trend Line
 													$Line = $PlotModel.Add.Line($MeasuredStat.FirstDateTime.DateTime.ToOADate(), $LinearRegression.CalculatePrediction($MeasuredStat.FirstDateTime.DateTime.ToOADate()), $MeasuredStat.LastDateTime.DateTime.ToOADate(), $LinearRegression.CalculatePrediction($MeasuredStat.LastDateTime.DateTime.ToOADate()))
-													$Line.LegendText = "Growth Trend"
+													$Line.LegendText = 'Growth Trend'
 													$Line.LineWidth = 3
-													$Line.LineColor = [ScottPlot.Color]::FromHex("#1E90FF")
+													$Line.LineColor = [ScottPlot.Color]::FromHex('#1E90FF')
 													#EndRegion
 
 													#Region Projection
 													$Line2 = $PlotModel.Add.Line($MeasuredStat.LastDateTime.DateTime.ToOADate(), $LinearRegression.CalculatePrediction($MeasuredStat.LastDateTime.DateTime.ToOADate()), $MeasuredStat.LastDateTime.DateTime.AddDays($DaysLeft).ToOADate(), $LinearRegression.CalculatePrediction($MeasuredStat.LastDateTime.DateTime.AddDays($DaysLeft).ToOADate()))
-													$Line2.LegendText = "Trend Projection"
+													$Line2.LegendText = 'Trend Projection'
 													$Line2.LineWidth = 3
 													$Line2.LinePattern = [ScottPlot.LinePattern]::Dotted
-													$Line2.LineColor = [ScottPlot.Color]::FromHex("#1E90FF")
+													$Line2.LineColor = [ScottPlot.Color]::FromHex('#1E90FF')
 													#EndRegion
 												}
 
@@ -6180,7 +6260,7 @@ function Get-SqlInstanceDataFileUsage {
 											$XsltArgumentList.Clear()
 											$XsltArgumentList.AddParam('SqlInstance', $null, $SmoServerObject.Name)
 											$XsltArgumentList.AddParam('DatabaseName', $null, $SqlDataFileUsage.DatabaseName)
-											$XsltArgumentList.AddParam('EventDate', $null, $(Get-Date).DateTime)
+											$XsltArgumentList.AddParam('EventDate', $null, $([DateTime]::Now).DateTime)
 
 											if ($SampleCount -ge $MinimumSamples) {
 												$XsltArgumentList.AddParam('HasGraph', $null, $true)
@@ -8439,9 +8519,9 @@ function Invoke-SqlBackupVerification {
 			WHERE NOT EXISTS (
 				SELECT 1
 				FROM [{0}].[{1}]
-				WHERE BackupFolder = N'{5}'
-					AND BackupFileName = N'{6}'
-					AND BackupPosition = {8}
+				WHERE BackupFolder = v.BackupFolder
+					AND BackupFileName = v.BackupFileName
+					AND BackupPosition = v.BackupPosition
 			);"
 
 		$Update_BackupFile = "UPDATE [{0}].[{1}]
@@ -8533,6 +8613,8 @@ function Invoke-SqlBackupVerification {
 
 									$TestRecoveryDatabaseName = 'TestRecovery_' + [Guid]::NewGuid().ToString()
 
+									[SqlServerMaintenance.BackupFileInfo[]]$SqlBackupFiles = Get-SqlBackupFile -Path $DatabaseFolder
+
 									$FormatStringArray = @(
 										$TestSchemaName,
 										$TestTableName,
@@ -8541,13 +8623,31 @@ function Invoke-SqlBackupVerification {
 
 									$SqlClientDataSetParameters = @{
 										'SqlConnection' = $SqlConnection
-										'SqlCommandText' = [string]::Format($Query_LastTested, $FormatStringArray)
+										'SqlCommandText' = [string]::Format($Query_FailedTests, $FormatStringArray)
 										'OutputAs' = 'DataRow'
 									}
 
-									$LastLogBackupTest = Get-SqlClientDataSet @SqlClientDataSetParameters
+									$FailedTests = Get-SqlClientDataSet @SqlClientDataSetParameters
 
-									[SqlServerMaintenance.BackupFileInfo[]]$SqlBackupFiles = Get-SqlBackupFile -Path $DatabaseFolder
+									if (@($FailedTests).Count -gt 0) {
+										[SqlServerMaintenance.BackupFileInfo[]]$SqlBackupFiles = $SqlBackupFiles.where({$_.Name -NotIn $FailedTests.BackupFileName})
+
+										if (@($FailedTests).where({$_.BackupType -eq 'F'}).Count -gt 0) {
+											$LastFullFailureDateTime = @($FailedTests).where({$_.BackupType -eq 'F'}) | Measure-Object -Property BackupDateTime -Maximum
+
+											$NextFullBackup = $SqlBackupFiles.where({$_.BackupType -eq 'Full' -and $_.BackupDate -gt $LastFullFailureDateTime.Maximum}) | Sort-Object -Property BackupDate | Select-Object -First 1
+
+											if ($null -eq $NextFullBackup) {
+												$OrphanedDiffBackups = $SqlBackupFiles.where({$_.BackupType -eq 'Diff' -and $_.BackupDate -gt $LastFullFailureDateTime.Maximum})
+											} else {
+												$OrphanedDiffBackups = $SqlBackupFiles.where({$_.BackupType -eq 'Diff' -and $_.BackupDate -gt $LastFullFailureDateTime.Maximum -and $_.BackupDate -lt $NextFullBackup.BackupDate})
+											}
+
+											if ($OrphanedDiffBackups.Count -gt 0) {
+												[SqlServerMaintenance.BackupFileInfo[]]$SqlBackupFiles = $SqlBackupFiles.where({$_.Name -NotIn $OrphanedDiffBackups.Name})
+											}
+										}
+									}
 
 									#Region Get Backup File List
 									$BackupFileInfo = [System.Collections.Generic.List[SqlServerMaintenance.BackupFileInfo]]::New()
@@ -8565,24 +8665,40 @@ function Invoke-SqlBackupVerification {
 
 									$LastDatabaseBackupFile = $SqlBackupFiles.where({$_.Extension -in @('.bak', '.dif') -and $_.BackupDate -eq $LastDatabaseBackup.Maximum})
 
-									$LastDatabaseBackupFileInfo = [System.IO.FileInfo]$LastDatabaseBackupFile.FullName
+									$LastDatabaseBackupFileInfo = [System.IO.FileInfo]@($LastDatabaseBackupFile.FullName)[0]
+
+									$FormatStringArray = @(
+										$TestSchemaName,
+										$TestTableName,
+										$DatabaseFolder
+									)
+
+									$SqlClientDataSetParameters = @{
+										'SqlConnection' = $SqlConnection
+										'SqlCommandText' = [string]::Format($Query_LastTested, $FormatStringArray)
+										'OutputAs' = 'DataRow'
+									}
+
+									$LastLogBackupTest = Get-SqlClientDataSet @SqlClientDataSetParameters
 
 									if (@($LastLogBackupTest).Count -eq 0) {
 										#Region SimpleRecovery or New Untested Database
 										$FullBackups = $SqlBackupFiles.where({$_.Extension -eq '.bak'}) | Sort-Object -Property BackupDate
 
-										foreach ($FullBackup in $FullBackups) {
+										$FullBackupGroups = $FullBackups | Group-Object -Property BackupFamily | Sort-Object -Property Name
+
+										foreach ($FullBackup in $FullBackupGroups) {
 											try {
-												$FullBackupHeader = Get-SmoBackupHeader -DatabaseBackupPath $FullBackup.FullName -SmoServerObject $SmoServerObject
+												$FullBackupHeader = Get-SmoBackupHeader -DatabaseBackupPath @($FullBackup.Group.FullName)[0] -SmoServerObject $SmoServerObject
 											}
 											catch {
-												Write-Verbose "Unable to read backup header.  Skipping file $($FullBackup.Name)."
+												Write-Verbose "Unable to read backup header.  Skipping file $(@($FullBackup.Group.Name)[0])."
 
 												continue
 											}
 
 											if ($FullBackupHeader[0].BackupName -eq '*** INCOMPLETE ***' -and $null -eq $FullBackupHeader[0].BackupTypeDescription) {
-												Write-Verbose "Incomplete backup found in $($FullBackup.Name) at position $($FullBackupHeader.Position)"
+												Write-Verbose "Incomplete backup found in $(@($FullBackup.Group.Name)[0]) at position $($FullBackupHeader.Position)"
 
 												continue
 											}
@@ -8621,18 +8737,20 @@ function Invoke-SqlBackupVerification {
 										} else {
 											$FullBackups = $SqlBackupFiles.where({$_.Extension -eq '.bak'}) | Sort-Object -Property BackupDate -Descending
 
-											foreach ($FullBackup in $FullBackups) {
+											$FullBackupGroups = $FullBackups | Group-Object -Property BackupFamily | Sort-Object -Property Name -Descending
+
+											foreach ($FullBackup in $FullBackupGroups) {
 												try {
-													$BackupHeader = Get-SmoBackupHeader -DatabaseBackupPath $FullBackup.FullName -SmoServerObject $SmoServerObject
+													$BackupHeader = Get-SmoBackupHeader -DatabaseBackupPath @($FullBackup.Group.FullName)[0] -SmoServerObject $SmoServerObject
 												}
 												catch {
-													Write-Verbose "Unable to read backup header.  Skipping file $($FullBackup.Name)."
+													Write-Verbose "Unable to read backup header.  Skipping file $(@($FullBackup.Group.Name)[0])."
 
 													continue
 												}
 
 												if ($BackupHeader[0].BackupName -eq '*** INCOMPLETE ***' -and $null -eq $BackupHeader[0].BackupTypeDescription) {
-													Write-Verbose "Incomplete backup found in $($FullBackup.Name) at position $($BackupHeader.Position)"
+													Write-Verbose "Incomplete backup found in $(@($FullBackup.Group.Name)[0]) at position $($BackupHeader.Position)"
 
 													continue
 												}
@@ -8647,57 +8765,23 @@ function Invoke-SqlBackupVerification {
 											}
 
 											if ($BackupHeader.RecoveryModel -eq 'SIMPLE') {
-												$BackupFileInfo.Add($($LastFullBackupFile))
+												$BackupFileInfo.AddRange($LastFullBackupFile.Group)
 
-												$LastDiffBackup = $SqlBackupFiles.where({$_.Extension -eq '.dif' -and $_.BackupDate -gt $LastFullBackupFile.BackupDate}) | Measure-Object -Property BackupDate -Maximum
+												$LastDiffBackup = $SqlBackupFiles.where({$_.Extension -eq '.dif' -and $_.BackupDate -gt @($LastFullBackupFile.Group.BackupDate)[0]}) | Measure-Object -Property BackupDate -Maximum
 
 												if ($null -ne $LastDiffBackup) {
 													$LastDiffBackupFile = $SqlBackupFiles.where({$_.Extension -eq '.dif' -and $_.BackupDate -eq $LastDiffBackup.Maximum})
 
 													if ($LastDiffBackupFile.Count -gt 0) {
-														$BackupFileInfo.Add($($LastDiffBackupFile))
+														$BackupFileInfo.AddRange($LastDiffBackupFile)
 													}
 												}
 											} else {
-												$BackupFileInfo.Add($($FirstFullBackupFile))
+												$BackupFileInfo.AddRange($FirstFullBackupFile)
 											}
 										}
 										#EndRegion
 									} else {
-										$FormatStringArray = @(
-											$TestSchemaName,
-											$TestTableName,
-											$DatabaseFolder
-										)
-
-										$SqlClientDataSetParameters = @{
-											'SqlConnection' = $SqlConnection
-											'SqlCommandText' = [string]::Format($Query_FailedTests, $FormatStringArray)
-											'OutputAs' = 'DataRow'
-										}
-
-										$FailedTests = Get-SqlClientDataSet @SqlClientDataSetParameters
-
-										if (@($FailedTests).Count -gt 0) {
-											[SqlServerMaintenance.BackupFileInfo[]]$SqlBackupFiles = $SqlBackupFiles.where({$_.Name -NotIn $FailedTests.BackupFileName})
-
-											if (@($FailedTests).where({$_.BackupType -eq 'F'}).Count -gt 0) {
-												$LastFullFailureDateTime = @($FailedTests).where({$_.BackupType -eq 'F'}) | Measure-Object -Property BackupDateTime -Maximum
-
-												$NextFullBackup = $SqlBackupFiles.where({$_.BackupType -eq 'Full' -and $_.BackupDate -gt $LastFullFailureDateTime.Maximum}) | Sort-Object -Property BackupDate | Select-Object -First 1
-
-												if ($null -eq $NextFullBackup) {
-													$OrphanedDiffBackups = $SqlBackupFiles.where({$_.BackupType -eq 'Diff' -and $_.BackupDate -gt $LastFullFailureDateTime.Maximum})
-												} else {
-													$OrphanedDiffBackups = $SqlBackupFiles.where({$_.BackupType -eq 'Diff' -and $_.BackupDate -gt $LastFullFailureDateTime.Maximum -and $_.BackupDate -lt $NextFullBackup.BackupDate})
-												}
-
-												if ($OrphanedDiffBackups.Count -gt 0) {
-													[SqlServerMaintenance.BackupFileInfo[]]$SqlBackupFiles = $SqlBackupFiles.where({$_.Name -NotIn $OrphanedDiffBackups.Name})
-												}
-											}
-										}
-
 										switch ($LastLogBackupTest.TestStatus) {
 											'F' {
 												#Region Failed Backup
@@ -8712,23 +8796,25 @@ function Invoke-SqlBackupVerification {
 													)
 												}
 
-												foreach ($NextBackup in $NextBackups) {
-													if ($NextBackup.Extension -eq '.dif') {
+												$NextBackupGroups = $NextBackups | Group-Object -Property BackupFamily | Sort-Object -Property Name
+
+												foreach ($NextBackup in $NextBackupGroups) {
+													if (@($NextBackup.Group.Extension)[0] -eq '.dif') {
 														$NextBackupFile = $NextBackup
 
 														break
 													} else {
 														try {
-															$FullBackupHeader = Get-SmoBackupHeader -DatabaseBackupPath $NextBackup.FullName -SmoServerObject $SmoServerObject
+															$FullBackupHeader = Get-SmoBackupHeader -DatabaseBackupPath @($NextBackup.Group.FullName)[0] -SmoServerObject $SmoServerObject
 														}
 														catch {
-															Write-Verbose "Unable to read backup header.  Skipping file $($NextBackup.Name)."
+															Write-Verbose "Unable to read backup header.  Skipping file $(@($NextBackup.Group.Name)[0])."
 
 															continue
 														}
 
 														if ($FullBackupHeader[0].BackupName -eq '*** INCOMPLETE ***' -and $null -eq $FullBackupHeader[0].BackupTypeDescription) {
-															Write-Verbose "Incomplete backup found in $($NextBackup.Name) at position $($FullBackupHeader[0].Position)"
+															Write-Verbose "Incomplete backup found in $(@($NextBackup.Group.Name)[0]) at position $($FullBackupHeader[0].Position)"
 
 															continue
 														}
@@ -8743,35 +8829,37 @@ function Invoke-SqlBackupVerification {
 													}
 												}
 
-												if ($NextBackupFile.Extension -eq '.dif') {
-													$PreviousFullBackups = $SqlBackupFiles.where({$_.Extension -eq '.bak' -and $_.BackupDate -lt $NextBackupFile.BackupDate}) | Sort-Object -Property BackupDate -Descending
+												if (@($NextBackupFile.Group.Extension)[0] -eq '.dif') {
+													$PreviousFullBackups = $SqlBackupFiles.where({$_.Extension -eq '.bak' -and $_.BackupDate -lt @($NextBackupFile.Group.BackupDate)[0]}) | Sort-Object -Property BackupDate -Descending
 
-													foreach ($PreviousFullBackup in $PreviousFullBackups) {
+													$PreviousFullBackupGroups = $PreviousFullBackups | Group-Object -Property BackupFamily | Sort-Object -Property Name -Descending
+
+													foreach ($PreviousFullBackup in $PreviousFullBackupGroups) {
 														try {
-															$FullBackupHeader = Get-SmoBackupHeader -DatabaseBackupPath $PreviousFullBackup.FullName -SmoServerObject $SmoServerObject
+															$FullBackupHeader = Get-SmoBackupHeader -DatabaseBackupPath @($PreviousFullBackup.Group.FullName)[0] -SmoServerObject $SmoServerObject
 														}
 														catch {
-															Write-Verbose "Unable to read backup header.  Skipping file $($PreviousFullBackup.Name)."
+															Write-Verbose "Unable to read backup header.  Skipping file $(@($PreviousFullBackup.Group.Name)[0])."
 
 															continue
 														}
 
 														if ($FullBackupHeader[0].BackupName -eq '*** INCOMPLETE ***' -and $null -eq $FullBackupHeader[0].BackupTypeDescription) {
-															Write-Verbose "Incomplete backup found in $($PreviousFullBackup.Name) at position $($FullBackupHeader[0].Position)"
+															Write-Verbose "Incomplete backup found in $(@($PreviousFullBackup.Group.Name)[0]) at position $($FullBackupHeader[0].Position)"
 
 															continue
 														}
 
 														if ($FullBackupHeader[0].IsCopyOnly -eq $false) {
-															$BackupFileInfo.Add($PreviousFullBackup)
+															$BackupFileInfo.AddRange($PreviousFullBackup.Group)
 
 															break
 														}
 													}
 												}
 
-												$BackupFileInfo.Add($($NextBackupFile))
-												$BackupFileInfo.AddRange([SqlServerMaintenance.BackupFileInfo[]]($SqlBackupFiles.where({$_.Extension -eq '.trn' -and $_.BackupDate -gt $NextBackupFile.BackupDate -and $_.BackupDate -le $LastDatabaseBackupFileInfo.LastWriteTimeUtc})))
+												$BackupFileInfo.AddRange($($NextBackupFile.Group))
+												$BackupFileInfo.AddRange([SqlServerMaintenance.BackupFileInfo[]]($SqlBackupFiles.where({$_.Extension -eq '.trn' -and $_.BackupDate -gt @($NextBackupFile.Group.BackupDate)[0] -and $_.BackupDate -le $LastDatabaseBackupFileInfo.LastWriteTimeUtc})))
 												#EndRegion
 											}
 											'S' {
@@ -8781,23 +8869,25 @@ function Invoke-SqlBackupVerification {
 													#Region No Untested Log Backups
 													$NextBackups = $SqlBackupFiles.where({$_.Extension -In ('.bak', '.dif') -and $_.BackupDate -gt $LastLogBackupTest.BackupDateTime}) | Sort-Object -Property BackupDate
 
-													foreach ($NextBackup in $NextBackups) {
+													$NextBackupGroups = $NextBackups | Group-Object -Property BackupFamily | Sort-Object -Property Name
+
+													foreach ($NextBackup in $NextBackupGroups) {
 														try {
-															$BackupHeader = Get-SmoBackupHeader -DatabaseBackupPath $NextBackup.FullName -SmoServerObject $SmoServerObject
+															$BackupHeader = Get-SmoBackupHeader -DatabaseBackupPath @($NextBackup.Group.FullName)[0] -SmoServerObject $SmoServerObject
 														}
 														catch {
-															Write-Verbose "Unable to read backup header.  Skipping file $($NextBackup.Name)."
+															Write-Verbose "Unable to read backup header.  Skipping file $(@($NextBackup.Group.Name)[0])."
 
 															continue
 														}
 
 														if ($BackupHeader[0].BackupName -eq '*** INCOMPLETE ***' -and $null -eq $BackupHeader[0].BackupTypeDescription) {
-															Write-Verbose "Incomplete backup found in $($NextBackup.Name) at position $($BackupHeader[0].Position)"
+															Write-Verbose "Incomplete backup found in $(@($NextBackup.Group.Name)[0]) at position $($BackupHeader[0].Position)"
 
 															continue
 														}
 
-														if ($NextBackup.Extension -eq '.dif') {
+														if (@($NextBackup.Group.Extension)[0] -eq '.dif') {
 															$NextDatabaseBackupFile = $NextBackup
 
 															break
@@ -8813,12 +8903,14 @@ function Invoke-SqlBackupVerification {
 													}
 
 													if ($null -ne $NextBackups -and $BackupHeader.RecoveryModel -eq 'SIMPLE') {
-														if ($NextDatabaseBackupFile.Extension -eq '.dif') {
-															$PreviousBackups = $SqlBackupFiles.where({$_.Extension -eq '.bak' -and $_.BackupDate -lt $NextDatabaseBackupFile.BackupDate}) | Sort-Object -Property BackupDate -Descending
+														if (@($NextDatabaseBackupFile.Group.Extension)[0] -eq '.dif') {
+															$PreviousBackups = $SqlBackupFiles.where({$_.Extension -eq '.bak' -and $_.BackupDate -lt @($NextDatabaseBackupFile.Group.BackupDate)[0]}) | Sort-Object -Property BackupDate -Descending
 
-															foreach ($PreviousBackup in $PreviousBackups) {
+															$PreviousBackupGroups = $PreviousBackups | Group-Object -Property BackupFamily | Sort-Object -Property Name -Descending
+
+															foreach ($PreviousBackup in $PreviousBackupGroups) {
 																try {
-																	$BackupHeader = Get-SmoBackupHeader -DatabaseBackupPath $PreviousBackup.FullName -SmoServerObject $SmoServerObject
+																	$BackupHeader = Get-SmoBackupHeader -DatabaseBackupPath @($PreviousBackup.Group.FullName)[0] -SmoServerObject $SmoServerObject
 																}
 																catch {
 																	Write-Verbose "Unable to read backup header.  Skipping file $($PreviousBackup.Name)."
@@ -8827,13 +8919,13 @@ function Invoke-SqlBackupVerification {
 																}
 
 																if ($BackupHeader[0].BackupName -eq '*** INCOMPLETE ***' -and $null -eq $BackupHeader[0].BackupTypeDescription) {
-																	Write-Verbose "Incomplete backup found in $($NextBackup.Name) at position $($BackupHeader[0].Position)"
+																	Write-Verbose "Incomplete backup found in $(@($NextBackup.Group.Name)[0]) at position $($BackupHeader[0].Position)"
 
 																	continue
 																}
 
 																if ($BackupHeader[0].IsCopyOnly -eq $false) {
-																	$BackupFileInfo.Add($PreviousBackup)
+																	$BackupFileInfo.AddRange($PreviousBackup.Group)
 
 																	break
 																}
@@ -8854,18 +8946,20 @@ function Invoke-SqlBackupVerification {
 
 														$PreviousBackups = $SqlBackupFiles.where({$_.Extension -eq '.bak'}) | Sort-Object -Property BackupDate
 
-														foreach ($PreviousBackup in $PreviousBackups) {
+														$PreviousBackupGroups = $PreviousBackups | Group-Object -Property BackupFamily | Sort-Object -Property Name
+
+														foreach ($PreviousBackup in $PreviousBackupGroups) {
 															try {
-																$FullBackupHeader = Get-SmoBackupHeader -DatabaseBackupPath $PreviousBackup.FullName -SmoServerObject $SmoServerObject
+																$FullBackupHeader = Get-SmoBackupHeader -DatabaseBackupPath @($PreviousBackup.Group.FullName)[0] -SmoServerObject $SmoServerObject
 															}
 															catch {
-																Write-Verbose "Unable to read backup header.  Skipping file $($PreviousBackup.Name)."
+																Write-Verbose "Unable to read backup header.  Skipping file $(@($PreviousBackup.Group.Name)[0])."
 
 																continue
 															}
 
 															if ($FullBackupHeader[0].BackupName -eq '*** INCOMPLETE ***' -and $null -eq $FullBackupHeader[0].BackupTypeDescription) {
-																Write-Verbose "Incomplete backup found in $($PreviousBackup.Name) at position $($FullBackupHeader[0].Position)"
+																Write-Verbose "Incomplete backup found in $(@($PreviousBackup.Group.Name)[0]) at position $($FullBackupHeader[0].Position)"
 
 																continue
 															}
@@ -8881,18 +8975,20 @@ function Invoke-SqlBackupVerification {
 													} else {
 														$PreviousBackups = $PreviousBackups | Sort-Object -Property BackupDate -Descending
 
-														foreach ($PreviousBackup in $PreviousBackups) {
+														$PreviousBackupGroups = $PreviousBackups | Group-Object -Property BackupFamily | Sort-Object -Property Name -Descending
+
+														foreach ($PreviousBackup in $PreviousBackupGroups) {
 															try {
-																$FullBackupHeader = Get-SmoBackupHeader -DatabaseBackupPath $PreviousBackup.FullName -SmoServerObject $SmoServerObject
+																$FullBackupHeader = Get-SmoBackupHeader -DatabaseBackupPath @($PreviousBackup.Group.FullName)[0] -SmoServerObject $SmoServerObject
 															}
 															catch {
-																Write-Verbose "Unable to read backup header.  Skipping file $($PreviousBackup.Name)."
+																Write-Verbose "Unable to read backup header.  Skipping file $(@($PreviousBackup.Group.Name)[0])."
 
 																continue
 															}
 
 															if ($FullBackupHeader[0].BackupName -eq '*** INCOMPLETE ***' -and $null -eq $FullBackupHeader[0].BackupTypeDescription) {
-																Write-Verbose "Incomplete backup found in $($PreviousBackup.Name) at position $($FullBackupHeader[0].Position)"
+																Write-Verbose "Incomplete backup found in $(@($PreviousBackup.Group.Name)[0]) at position $($FullBackupHeader[0].Position)"
 
 																continue
 															}
@@ -8907,21 +9003,23 @@ function Invoke-SqlBackupVerification {
 														}
 													}
 
-													if ($PreviousBackupFile.Extension -eq '.dif') {
-														$PreviousFullBackups = $SqlBackupFiles.where({$_.Extension -eq '.bak' -and $_.BackupDate -lt $PreviousBackupFile.BackupDate}) | Sort-Object -Property BackupDate -Descending
+													if (@($PreviousBackupFile.Group.Extension)[0] -eq '.dif') {
+														$PreviousFullBackups = $SqlBackupFiles.where({$_.Extension -eq '.bak' -and $_.BackupDate -lt @($PreviousBackupFile.Group.BackupDate)[0]}) | Sort-Object -Property BackupDate -Descending
 
-														foreach ($PreviousFullBackup in $PreviousFullBackups) {
+														$PreviousFullBackupGroups = $PreviousFullBackups | Group-Object -Property BackupFamily | Sort-Object -Property Name -Descending
+
+														foreach ($PreviousFullBackup in $PreviousFullBackupGroups) {
 															try {
-																$FullBackupHeader = Get-SmoBackupHeader -DatabaseBackupPath $PreviousFullBackup.FullName -SmoServerObject $SmoServerObject
+																$FullBackupHeader = Get-SmoBackupHeader -DatabaseBackupPath @($PreviousFullBackup.Group.FullName)[0] -SmoServerObject $SmoServerObject
 															}
 															catch {
-																Write-Verbose "Unable to read backup header.  Skipping file $($PreviousFullBackup.Name)."
+																Write-Verbose "Unable to read backup header.  Skipping file $(@($PreviousFullBackup.Group.Name)[0])."
 
 																continue
 															}
 
 															if ($FullBackupHeader[0].BackupName -eq '*** INCOMPLETE ***' -and $null -eq $FullBackupHeader[0].BackupTypeDescription) {
-																Write-Verbose "Incomplete backup found in $($PreviousFullBackup.Name) at position $($FullBackupHeader[0].Position)"
+																Write-Verbose "Incomplete backup found in $(@($PreviousFullBackup.Group.Name)[0]) at position $($FullBackupHeader[0].Position)"
 
 																continue
 															}
@@ -8935,13 +9033,13 @@ function Invoke-SqlBackupVerification {
 															}
 														}
 
-														$BackupFileInfo.Add($PreviousFullBackupFile)
-														$BackupFileInfo.Add($PreviousBackupFile)
+														$BackupFileInfo.AddRange([SqlServerMaintenance.BackupFileInfo[]]$PreviousFullBackupFile.Group)
+														$BackupFileInfo.AddRange([SqlServerMaintenance.BackupFileInfo[]]$PreviousBackupFile.Group)
 													} else {
-														$BackupFileInfo.Add($PreviousBackupFile)
+														$BackupFileInfo.AddRange([SqlServerMaintenance.BackupFileInfo[]]$PreviousBackupFile.Group)
 													}
 
-													$BackupFileInfo.AddRange([SqlServerMaintenance.BackupFileInfo[]]($SqlBackupFiles.where({$_.Extension -eq '.trn' -and $_.BackupDate -ge $PreviousBackupFile.BackupDate -and $_.BackupDate -le $LastDatabaseBackupFileInfo.LastWriteTimeUtc})))
+													$BackupFileInfo.AddRange([SqlServerMaintenance.BackupFileInfo[]]($SqlBackupFiles.where({$_.Extension -eq '.trn' -and $_.BackupDate -ge @($PreviousBackupFile.Group.BackupDate)[0] -and $_.BackupDate -le $LastDatabaseBackupFileInfo.LastWriteTimeUtc})))
 													#EndRegion
 												}
 											}
@@ -9167,22 +9265,24 @@ function Invoke-SqlBackupVerification {
 										}
 
 										if ($RestoreStatus -ne 'E') {
-											$FormatStringArray = @(
-												$TestSchemaName,
-												$TestTableName,
-												$DatabaseFolder,
-												$RecoveryItem.BackupFileName.Name,
-												$RecoveryItem.BackupPosition,
-												$RestoreStatus,
-												[DateTimeOffset]::Now.ToSTring()
-											)
+											foreach ($BackupFileName in $RecoveryItem.BackupFileName) {
+												$FormatStringArray = @(
+													$TestSchemaName,
+													$TestTableName,
+													$DatabaseFolder,
+													$BackupFileName.Name,
+													$RecoveryItem.BackupPosition,
+													$RestoreStatus,
+													[DateTimeOffset]::Now.ToSTring()
+												)
 
-											$SqlClientNonQueryParameters = @{
-												'SqlConnection' = $SqlConnection
-												'SqlCommandText' = [string]::Format($Update_BackupFile, $FormatStringArray)
+												$SqlClientNonQueryParameters = @{
+													'SqlConnection' = $SqlConnection
+													'SqlCommandText' = [string]::Format($Update_BackupFile, $FormatStringArray)
+												}
+
+												[void](Invoke-SqlClientNonQuery @SqlClientNonQueryParameters)
 											}
-
-											[void](Invoke-SqlClientNonQuery @SqlClientNonQueryParameters)
 										}
 
 										if ($RestoreStatus -ne 'S') {
@@ -9616,7 +9716,9 @@ function Invoke-SqlInstanceBackup {
 		}
 
 		$Query_PreferredReplica = 'SELECT name FROM sys.databases WHERE sys.fn_hadr_backup_is_preferred_replica([name]) = 1;'
-		$Query_Modified = 'SELECT ModifiedPercent = 100.0 * SUM(modified_extent_page_count) / SUM(allocated_extent_page_count) FROM sys.dm_db_file_space_usage;'
+		$Query_Modified = 'SELECT ModifiedSizeMB = SUM(modified_extent_page_count) * 8 / 1024.
+			,	ModifiedPercent = 100.0 * SUM(modified_extent_page_count) / SUM(allocated_extent_page_count)
+			FROM sys.dm_db_file_space_usage;'
 		$Query_LogShippingPrimary = 'SELECT Name = primary_database FROM msdb.dbo.log_shipping_monitor_primary;'
 		$Query_DatabaseRecoveryStatus = "SELECT s.database_id
 			, DB_NAME(s.database_id) AS DatabaseName
@@ -9724,18 +9826,17 @@ function Invoke-SqlInstanceBackup {
 						[void][System.IO.Directory]::CreateDirectory($DatabaseBackupPath)
 					}
 
-					$BackupTimestamp = $(Get-Date).ToUniversalTime().ToString('yyyyMMddHHmmss')
+					$BackupTimestamp = $([DateTime]::Now).ToUniversalTime().ToString('yyyyMMddHHmmss')
 
 					$BackupParameters = @{
 						'DatabaseObject' = $Database
 						'MediaDescription' = "$($Database.Name) Backup"
 						'BackupSetName' = [string]::Format('{0} {1}', $Database.Name, $BackupTimestamp)
 						'Checksum' = $true
-						'CompressionOption' = 'Default'
+						'BackupCompression' = 'Default'
 						'RetainDays' = $RetainDays
 						'MaxTransferSize' = 128KB
 						'Debug' = $false
-						'Verbose' = $true
 					}
 
 					if ($Database.Name.Length -gt 113) {
@@ -9757,10 +9858,14 @@ function Invoke-SqlInstanceBackup {
 								Write-Warning 'Full backup required before Diff backup can be performed.  A full backup will be performed.'
 
 								[BackupType]$EffectiveBackupType = 'Full'
-							} else {
-								$ModifiedPercent = $($Database.ExecuteWithResults($Query_Modified)).Tables[0].ModifiedPercent
+							} elseif ($Database.ReadOnly) {
+								Write-Warning 'Database is read-only. Differential will not be performed.'
 
-								if ($DatabaseRecoveryStatus.backup_set_id -is [System.DBNull] -or $ModifiedPercent -gt $DiffBackupThreshold -or $Database.LastBackupDate -eq '0001-01-01 00:00:00' -or $Database.Name -eq 'master') {
+								continue
+							} else {
+								$ModifiedDataTable = $($Database.ExecuteWithResults($Query_Modified)).Tables[0]
+
+								if ($DatabaseRecoveryStatus.backup_set_id -is [System.DBNull] -or $ModifiedDataTable.ModifiedPercent -gt $DiffBackupThreshold -or $Database.LastBackupDate -eq '0001-01-01 00:00:00' -or $Database.Name -eq 'master') {
 									[BackupType]$EffectiveBackupType = 'Full'
 								} else {
 									if ($SmoServerObject.IsHadrEnabled -and $Database.Name -in $SmoServerObject.AvailabilityGroups.AvailabilityDatabases.Name) {
@@ -9773,6 +9878,18 @@ function Invoke-SqlInstanceBackup {
 										}
 									} else {
 										[BackupType]$EffectiveBackupType = 'Diff'
+									}
+								}
+
+								if ($EffectiveBackupType -eq 'Diff') {
+									if ($ModifiedDataTable.ModifiedSizeMB -gt 1048576) {
+										$BackupFileCount = 8
+									} elseif ($ModifiedDataTable.ModifiedSizeMB -gt 524288) {
+										$BackupFileCount = 4
+									} elseif ($ModifiedDataTable.ModifiedSizeMB -gt 262144) {
+										$BackupFileCount = 2
+									} else {
+										$BackupFileCount = 1
 									}
 								}
 							}
@@ -9839,12 +9956,42 @@ function Invoke-SqlInstanceBackup {
 							} else {
 								[BackupType]$EffectiveBackupType = 'Log'
 							}
+
+							if ($EffectiveBackupType -eq 'Log') {
+								$BackupFileCount = 1
+							}
+						}
+					}
+
+					if ($EffectiveBackupType -in @('Diff', 'Full')) {
+						if ($Database.RecoveryModel -in @('Full', 'BulkLogged')) {
+							$BackupParameters.Add('FileGroup', $Database.FileGroups.Name)
+						}
+					}
+
+					if ($EffectiveBackupType -eq 'Full') {
+						$TotalDataSizeKB = 0
+
+						foreach ($FileGroup in $Database.FileGroups) {
+							foreach ($File in $FileGroup.Files) {
+								$TotalDataSizeKB += $File.Size
+							}
+						}
+
+						if ($TotalDataSizeKB / 1024 -gt 1048576) {
+							$BackupFileCount = 8
+						} elseif ($TotalDataSizeKB / 1024 -gt 524288) {
+							$BackupFileCount = 4
+						} elseif ($TotalDataSizeKB / 1024 -gt 262144) {
+							$BackupFileCount = 2
+						} else {
+							$BackupFileCount = 1
 						}
 					}
 
 					$BackupFileBaseName = Invoke-ReplaceInvalidCharacter -InputString $([string]::Format('{0}_{1}', $Database.Name, $BackupTimestamp))
 
-					if ($(Join-Path2 -Path $DatabaseBackupPath -ChildPath "$BackupFileBaseName.xxx").Length -gt 259) {
+					if ($(Join-Path2 -Path $DatabaseBackupPath -ChildPath "$BackupFileBaseName.xx.xxx").Length -gt 259) {
 						$AdjustedLength = 259 - ($DatabaseBackupPath.Length + 20)
 
 						if ($AdjustedLength -lt 0) {
@@ -9861,25 +10008,49 @@ function Invoke-SqlInstanceBackup {
 
 					switch ($EffectiveBackupType) {
 						'Full' {
-							$BackupParameters.Add('BackupAction', 'Database')
+							$BackupFileExtension = '.bak'
+
+							if ($Database.RecoveryModel -eq 'Simple') {
+								$BackupParameters.Add('BackupType', 'Database')
+							} else {
+								$BackupParameters.Add('BackupType', 'FileOrFileGroup')
+							}
+
 							$BackupParameters.Add('MediaName', "$($BackupFileBaseName).bak")
 							$BackupParameters.Add('BackupSetDescription', "Full backup of $($Database.Name)")
-							$BackupParameters.Add('BackupFile', $(Join-Path2 -Path $DatabaseBackupPath -ChildPath "$BackupFileBaseName.bak"))
 						}
 						'Diff' {
-							$BackupParameters.Add('BackupAction', 'Database')
-							$BackupParameters.Add('Incremental', $true)
+							$BackupFileExtension = '.dif'
+
+							if ($Database.RecoveryModel -eq 'Simple') {
+								$BackupParameters.Add('BackupType', 'Differential')
+							} else {
+								$BackupParameters.Add('BackupType', 'FileOrFileGroupDifferential')
+							}
+
 							$BackupParameters.Add('MediaName', "$($BackupFileBaseName).dif")
 							$BackupParameters.Add('BackupSetDescription', "Differential backup of $($Database.Name)")
-							$BackupParameters.Add('BackupFile', $(Join-Path2 -Path $DatabaseBackupPath -ChildPath "$BackupFileBaseName.dif"))
 						}
 						'Log' {
-							$BackupParameters.Add('BackupAction', 'Log')
+							$BackupFileExtension = '.trn'
+
+							$BackupParameters.Add('BackupType', 'Log')
 							$BackupParameters.Add('MediaName', "$($BackupFileBaseName).trn")
 							$BackupParameters.Add('BackupSetDescription', "Log backup of $($Database.Name)")
-							$BackupParameters.Add('BackupFile', $(Join-Path2 -Path $DatabaseBackupPath -ChildPath "$BackupFileBaseName.trn"))
-							$BackupParameters.Add('NoRecovery', $TailLog)
+							$BackupParameters.Add('TailLog', $TailLog)
 						}
+					}
+
+					if ($BackupFileCount -eq 1) {
+						$BackupParameters.Add('BackupFile', $(Join-Path2 -Path $DatabaseBackupPath -ChildPath $([string]::Format('{0}{1}', $BackupFileBaseName, $BackupFileExtension))))
+					} else {
+						$BackupFileList = [System.Collections.Generic.List[string]]::New()
+
+						for ($i = 0; $i -lt $BackupFileCount; $i++) {
+							$BackupFileList.Add($(Join-Path2 -Path $DatabaseBackupPath -ChildPath $([string]::Format('{0}.{1}{2}', $BackupFileBaseName, $($i + 1).ToString('00') , $BackupFileExtension))))
+						}
+
+						$BackupParameters.Add('BackupFile', $BackupFileList.ToArray())
 					}
 
 					switch ($SmoServerObject.VersionMajor) {
@@ -9916,24 +10087,19 @@ function Invoke-SqlInstanceBackup {
 						}
 					}
 
-					if ($PSCmdlet.ShouldProcess($Database.Name, "$($BackupParameters.BackupAction) Backup of database")) {
+					if ($PSCmdlet.ShouldProcess($Database.Name, "$($BackupParameters.BackupType) Backup of database")) {
 						if ($TailLog) {
 							$SmoServerObject.KillAllProcesses($Database.Name)
 						}
 
-						$VerboseRecord = $(Backup-SqlDatabase @BackupParameters) 4>&1
-
-						$RegExPattern = '(?<Start>\sprocessed\s)(?<Pages>\d{1,})\spages\sin\s(?<Seconds>(\d{1,}(\.\d{1,})?))\sseconds\s\((?<MBPerSecond>(\d{1,}(\.\d{1,})?)).*'
-
-						$RegEx = [regex]::New($RegExPattern, [System.Text.RegularExpressions.RegexOptions]::Multiline)
-						$RegExMatches = $RegEx.Matches($VerboseRecord.Message)
+						$Result = Backup-SmoDatabase @BackupParameters
 
 						$Backup = [SqlServerMaintenance.Backup]::New()
 
 						$Backup.DatabaseName = $Database.Name
-						$Backup.Pages = $RegExMatches.Groups.Where({$_.Name -eq 'Pages'}).Value
-						$Backup.Seconds = $RegExMatches.Groups.Where({$_.Name -eq 'Seconds'}).Value
-						$Backup.MBPerSecond = $RegExMatches.Groups.Where({$_.Name -eq 'MBPerSecond'}).Value
+						$Backup.Pages = $Result.Pages
+						$Backup.Seconds = $Result.Seconds
+						$Backup.MBPerSecond = $Result.MBPerSecond
 
 						if ($MaintenanceDatabaseStatus.AdminDatabase) {
 							$FormatStringArray = @(
@@ -11930,7 +12096,7 @@ function Invoke-SqlInstanceIndexMaintenance {
 														$Database.ExecuteNonQuery($SqlNonQuery)
 													} else {
 														if ($SmoServerObject.Version -lt [version]'15.0.0') {
-															# Added due to bug in SMO that causes error "Cannot read property XmlCompression. This property is not available on SQL Server 2017."
+															# Added due to bug in SMO that causes error 'Cannot read property XmlCompression. This property is not available on SQL Server 2017.'
 															$SqlNonQuery = [string]::Format('ALTER INDEX [{0}] ON [{1}].[{2}] REBUILD PARTITION = {3};', $Row.IndexName, $Row.SchemaName, $Row.ObjectName, $Row.PartitionNumber)
 
 															$Database.ExecuteNonQuery($SqlNonQuery)
@@ -12742,7 +12908,7 @@ function Move-SqlBackupFile {
 
 	process {
 		try {
-			[System.DateTimeOffset]$RetentionDate = $(Get-Date).ToUniversalTime().AddMinutes(-$FileAge)
+			[System.DateTimeOffset]$RetentionDate = $([DateTime]::Now).ToUniversalTime().AddMinutes(-$FileAge)
 
 			[SqlServerMaintenance.BackupFileInfo[]]$SqlBackupFiles = Get-SqlBackupFile -Path $SourcePath
 
@@ -14515,7 +14681,7 @@ function Remove-SqlBackupFile {
 		try {
 			if ($RetainDays -gt 0) {
 				[System.IO.DirectoryInfo[]]$Folders = [System.IO.Directory]::GetDirectories($BackupPath, '*', [System.IO.SearchOption]::TopDirectoryOnly)
-				[System.DateTimeOffset]$RetentionDate = $(Get-Date).ToUniversalTime().AddDays(-$RetainDays)
+				[System.DateTimeOffset]$RetentionDate = $([DateTime]::Now).ToUniversalTime().AddDays(-$RetainDays)
 
 				foreach ($Folder in $Folders) {
 					Write-Verbose "Folder: $($Folder.Name)"
@@ -14841,7 +15007,7 @@ function Remove-SqlInstanceFileHistory {
 			}
 		}
 
-		[datetime]$DateTime = (Get-Date).AddDays(-$RetentionInDays)
+		[datetime]$DateTime = ([DateTime]::Now).AddDays(-$RetentionInDays)
 	}
 
 	process {
@@ -15030,7 +15196,7 @@ function Remove-SqlInstanceHistory {
 			}
 		}
 
-		[datetime]$DateTime = (Get-Date).AddDays(-$RetentionInDays)
+		[datetime]$DateTime = ([DateTime]::Now).AddDays(-$RetentionInDays)
 	}
 
 	process {
@@ -15610,7 +15776,7 @@ function Resize-DatabaseTransactionLog {
 								break
 							}
 
-							$EndDelay = (Get-Date).AddSeconds($RetryDelay)
+							$EndDelay = ([DateTime]::Now).AddSeconds($RetryDelay)
 
 							:RetryDelay Do {
 								try {
@@ -15618,8 +15784,8 @@ function Resize-DatabaseTransactionLog {
 										'Id' = 0
 										'Activity' = [string]::Format('Retry {0} of {1}', ($i + 1), $TotalRetries)
 										'Status' = $ProgressStatus
-										'PercentComplete' = 100 - ((New-TimeSpan -Start (Get-Date) -End $EndDelay).TotalSeconds / $RetryDelay * 100)
-										'SecondsRemaining' = (New-TimeSpan -Start (Get-Date) -End $EndDelay).TotalSeconds
+										'PercentComplete' = 100 - ((New-TimeSpan -Start ([DateTime]::Now) -End $EndDelay).TotalSeconds / $RetryDelay * 100)
+										'SecondsRemaining' = (New-TimeSpan -Start ([DateTime]::Now) -End $EndDelay).TotalSeconds
 									}
 
 									Write-Progress @ProgressParameters
@@ -15640,7 +15806,7 @@ function Resize-DatabaseTransactionLog {
 								finally {
 									Write-Progress -Id 0 -Completed
 								}
-							} Until ((Get-Date) -ge $EndDelay)
+							} Until (([DateTime]::Now) -ge $EndDelay)
 						}
 
 						if ($LogFileAdjustedSize -ne [Math]::Ceiling($LogFileObject.Size / 1024)) {
@@ -16455,81 +16621,81 @@ function Send-DatabaseMail {
 			$SqlParameterList = [System.Collections.Generic.List[Microsoft.Data.SqlClient.SqlParameter]]::New()
 
 			#Region Procedure Parameter Binding
-			$SqlParameter = [Microsoft.Data.SqlClient.SqlParameter]::New("@mailitem_id", [System.Data.SqlDbType]::int)
+			$SqlParameter = [Microsoft.Data.SqlClient.SqlParameter]::New('@mailitem_id', [System.Data.SqlDbType]::int)
 			$SqlParameter.Direction = [System.Data.ParameterDirection]::Output
 
 			$SqlParameterList.Add($SqlParameter)
 
 			if ($PSBoundParameters.ContainsKey('DatabaseMailProfileName')) {
-				$SqlParameter = [Microsoft.Data.SqlClient.SqlParameter]::New("@profile_name", [System.Data.SqlDbType]::VarChar, 128)
+				$SqlParameter = [Microsoft.Data.SqlClient.SqlParameter]::New('@profile_name', [System.Data.SqlDbType]::VarChar, 128)
 				$SqlParameter.Value = $DatabaseMailProfileName
 
 				$SqlParameterList.Add($SqlParameter)
 			}
 
 			if ($PSBoundParameters.ContainsKey('MailFrom')) {
-				$SqlParameter = [Microsoft.Data.SqlClient.SqlParameter]::New("@from_address", [System.Data.SqlDbType]::VarChar, -1)
+				$SqlParameter = [Microsoft.Data.SqlClient.SqlParameter]::New('@from_address', [System.Data.SqlDbType]::VarChar, -1)
 				$SqlParameter.Value = $MailFrom.ToString()
 
 				$SqlParameterList.Add($SqlParameter)
 			}
 
-			$SqlParameter = [Microsoft.Data.SqlClient.SqlParameter]::New("@recipients", [System.Data.SqlDbType]::VarChar, -1)
+			$SqlParameter = [Microsoft.Data.SqlClient.SqlParameter]::New('@recipients', [System.Data.SqlDbType]::VarChar, -1)
 			$SqlParameter.Value = $($MailTo -join ';')
 
 			$SqlParameterList.Add($SqlParameter)
 
 			if ($PSBoundParameters.ContainsKey('ReplyTo')) {
-				$SqlParameter = [Microsoft.Data.SqlClient.SqlParameter]::New("@reply_to", [System.Data.SqlDbType]::VarChar, -1)
+				$SqlParameter = [Microsoft.Data.SqlClient.SqlParameter]::New('@reply_to', [System.Data.SqlDbType]::VarChar, -1)
 				$SqlParameter.Value = $ReplyTo.ToString()
 
 				$SqlParameterList.Add($SqlParameter)
 			}
 
 			if ($PSBoundParameters.ContainsKey('CarbonCopy')) {
-				$SqlParameter = [Microsoft.Data.SqlClient.SqlParameter]::New("@copy_recipients", [System.Data.SqlDbType]::VarChar, -1)
+				$SqlParameter = [Microsoft.Data.SqlClient.SqlParameter]::New('@copy_recipients', [System.Data.SqlDbType]::VarChar, -1)
 				$SqlParameter.Value = $($CarbonCopy -join ';')
 
 				$SqlParameterList.Add($SqlParameter)
 			}
 
 			if ($PSBoundParameters.ContainsKey('BlindCarbonCopy')) {
-				$SqlParameter = [Microsoft.Data.SqlClient.SqlParameter]::New("@blind_copy_recipients", [System.Data.SqlDbType]::VarChar, -1)
+				$SqlParameter = [Microsoft.Data.SqlClient.SqlParameter]::New('@blind_copy_recipients', [System.Data.SqlDbType]::VarChar, -1)
 				$SqlParameter.Value = $($BlindCarbonCopy -join ';')
 
 				$SqlParameterList.Add($SqlParameter)
 			}
 
 			if ($PSBoundParameters.ContainsKey('Subject')) {
-				$SqlParameter = [Microsoft.Data.SqlClient.SqlParameter]::New("@subject", [System.Data.SqlDbType]::NVarChar, 255)
+				$SqlParameter = [Microsoft.Data.SqlClient.SqlParameter]::New('@subject', [System.Data.SqlDbType]::NVarChar, 255)
 				$SqlParameter.Value = $Subject
 
 				$SqlParameterList.Add($SqlParameter)
 			}
 
 			if ($PSBoundParameters.ContainsKey('Body')) {
-				$SqlParameter = [Microsoft.Data.SqlClient.SqlParameter]::New("@body", [System.Data.SqlDbType]::NVarChar, -1)
+				$SqlParameter = [Microsoft.Data.SqlClient.SqlParameter]::New('@body', [System.Data.SqlDbType]::NVarChar, -1)
 				$SqlParameter.Value = $Body
 
 				$SqlParameterList.Add($SqlParameter)
 			}
 
 			if ($BodyAsHtml) {
-				$SqlParameter = [Microsoft.Data.SqlClient.SqlParameter]::New("@body_format", [System.Data.SqlDbType]::VarChar, 20)
+				$SqlParameter = [Microsoft.Data.SqlClient.SqlParameter]::New('@body_format', [System.Data.SqlDbType]::VarChar, 20)
 				$SqlParameter.Value = 'HTML'
 
 				$SqlParameterList.Add($SqlParameter)
 			}
 
 			if ($PSBoundParameters.ContainsKey('Priority')) {
-				$SqlParameter = [Microsoft.Data.SqlClient.SqlParameter]::New("@importance", [System.Data.SqlDbType]::VarChar, 6)
+				$SqlParameter = [Microsoft.Data.SqlClient.SqlParameter]::New('@importance', [System.Data.SqlDbType]::VarChar, 6)
 				$SqlParameter.Value = $Priority
 
 				$SqlParameterList.Add($SqlParameter)
 			}
 
 			if ($PSBoundParameters.ContainsKey('Sensitivity')) {
-				$SqlParameter = [Microsoft.Data.SqlClient.SqlParameter]::New("@sensitivity", [System.Data.SqlDbType]::VarChar, 12)
+				$SqlParameter = [Microsoft.Data.SqlClient.SqlParameter]::New('@sensitivity', [System.Data.SqlDbType]::VarChar, 12)
 				$SqlParameter.Value = $Sensitivity
 
 				$SqlParameterList.Add($SqlParameter)
@@ -17342,10 +17508,10 @@ function Switch-SqlInstanceTDECertificate {
 					)
 				}
 			} else {
-				$Certificates = $(Get-SmoDatabaseCertificate -DatabaseObject $DatabaseObject).where({$_.Subject -eq 'TDE Certificate' -and $_.ExpirationDate -gt $(Get-Date)})
+				$Certificates = $(Get-SmoDatabaseCertificate -DatabaseObject $DatabaseObject).where({$_.Subject -eq 'TDE Certificate' -and $_.ExpirationDate -gt $([DateTime]::Now)})
 
 				if ($Certificates.Count -eq 0 -or $NewCertificate) {
-					$Timestamp = $(Get-Date).ToUniversalTime().ToString('yyyyMMddHHmmss')
+					$Timestamp = $([DateTime]::Now).ToUniversalTime().ToString('yyyyMMddHHmmss')
 
 					if ([string]::IsNullOrEmpty($SmoServerObject.ClusterName)) {
 						$CertificateName = [string]::Format('TDE_{0}_{1}', $SmoServerObject.NetName, $Timestamp)
@@ -17405,7 +17571,7 @@ function Switch-SqlInstanceTDECertificate {
 			if ($AGReplicaList.Count -gt 0) {
 				Write-Verbose 'Exporting Certificate'
 
-				$BaseFileName  = [string]::Format('{0}_{1}', $CertificateName, $(Get-Date).ToUniversalTime().ToString('yyyyMMddHHmmss'))
+				$BaseFileName  = [string]::Format('{0}_{1}', $CertificateName, $([DateTime]::Now).ToUniversalTime().ToString('yyyyMMddHHmmss'))
 
 				$CertificatePath = $(Join-Path2 -Path $SmoServerObject.BackupDirectory -ChildPath $([string]::Format('{0}.{1}', $BaseFileName, 'cer')))
 				$PrivateKeyPath = $(Join-Path2 -Path $SmoServerObject.BackupDirectory -ChildPath $([string]::Format('{0}.{1}', $BaseFileName, 'key')))
@@ -17495,8 +17661,8 @@ Export-ModuleMember	-Alias New-SqlDatabaseSnapshot
 # SIG # Begin signature block
 # MIInywYJKoZIhvcNAQcCoIInvDCCJ7gCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDjxyUE25n7/oB3
-# ATssv0sGlziwLeLgqSdWcb9OBZsuaaCCINswggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCpMsgELksq198A
+# CzLl/d+xelVLd+wqSL34YXqbOH7EoqCCINswggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -17676,34 +17842,34 @@ Export-ModuleMember	-Alias New-SqlDatabaseSnapshot
 # Uy5BLjEkMCIGA1UEAxMbQ2VydHVtIENvZGUgU2lnbmluZyAyMDIxIENBAhBDuzRB
 # nypScc4/rofK9qMeMA0GCWCGSAFlAwQCAQUAoIGEMBgGCisGAQQBgjcCAQwxCjAI
 # oAKAAKECgAAwGQYJKoZIhvcNAQkDMQwGCisGAQQBgjcCAQQwHAYKKwYBBAGCNwIB
-# CzEOMAwGCisGAQQBgjcCARUwLwYJKoZIhvcNAQkEMSIEIICuNwoB/KmCx1G+mN21
-# kwKuQAkrfUHAHzIKIyF3TS8zMA0GCSqGSIb3DQEBAQUABIICAIke70ZHT+hjYyVr
-# FMf8XRzFokAonepkIPqNqQmFUq0OuP7d+MQS9r57/RcvpNhIFRH5Op4ptx+0bHY2
-# g1pWiOz9wJHgnRowOBO8fkILOQr+3FbZy867+Ug5ZTVJ041aOp7s/S1PLaqqMa2W
-# HfpwEHhT7a77VPjEUu6Obe4lnGzcG309o8W2eQYaAjeBYn5ywfto5nky5His+5hT
-# Gh6XxdT0+xoejBGbyJxi3reMFEs2OkH7DhVsk4wpjt9uLIsCiSIJ9HN9yJmcgyaV
-# KwVZc5FJ4YddQgr+cE4+o0zHXottFXGGKDxltyGYegznpIg46VgtjeIGi0cQjCMb
-# 1FTwxF/1g9blqxK+atTmIyXQ38u7Z5e1MDQfjbmrtXpypL/raNcB7f/Gfjeh+rZq
-# sdyscypj7epSeNMO8o9jcAuFm8Pf14JbdgveSk2cLHHmiYuHt7L0WCFSJ5KRYKeo
-# 9rXagL4zUl2w2UeCTJLO8ouGUKWGrSdzS5GrfolFYKmE8F/RGLhcKb7os7xCTah3
-# QSfHfXpf2u4MV5F4thaYZnqkvxmMubUynaXvcxmm/c9juivbw0LKhnaLWnfilOhe
-# B8jk3ABeAJxcE3ZmPS3G8X4hs7nx511ACzyiXG2Y9OGE3a1tFVsZUQKV1nHvA4Rg
-# gtE+Nu9pVRNTEOZhsP57iOSsfF49oYIDJjCCAyIGCSqGSIb3DQEJBjGCAxMwggMP
+# CzEOMAwGCisGAQQBgjcCARUwLwYJKoZIhvcNAQkEMSIEIJY1iDBNWufHs0lTotJg
+# WMXn4fd9f+h6oJ1Rr4qlDmMcMA0GCSqGSIb3DQEBAQUABIICAEX7CfCPUiymE/sc
+# wrjIHncgX5/zjRHwjhiRLPFobRhs5OWztfkZ3ywYz44V4IqoFjjYXFQHdmAlRv1q
+# Lyo9BLR/T8McI2gbO91FCARaReXHJU3iuqbVJ4yuQkE5a6L2+Kxn0c297IuxluNc
+# gjUHB2ljWojAjmVVlw/lfCR2At/b0ZkGRGyD8x3OfhtUl3/cv4aLIfVOfy0F+4Bb
+# e3T/mQUoyKMinojX4VVYvXK0Jrv+/yAHL80oAEeryZ+4BQx6lMfDhihFPbDgyb02
+# Dgebu/sI5f6kII+gqR4k7yhpNLAe4CSWhNmTu95cQchIw3CEg7DgmQWVhGDULQlY
+# n8q0DrjN35CQqamyUOdZikmPr6T0TxGsDn38xvm/qWYy3Bnej9hDfOW8eZXZMCEd
+# mqvYrsGGiC3MLl+vsXHpE1wGe+1z/nVAY2kWgm08kgTMDaFTTSLWFl+sv3otAIxl
+# hElrSa5swW+2bLGKGeb+GqlYXxZw+iRTMjQVrGNtrW1FW5ONTQ1LdKaUGgtqs2gc
+# SRAXxC1PSp1zR/KkZzNnSXJrwCMnm8yAGqwZnrkUk3wIXEFO73a72OOdgmX54vBT
+# XKWw3Zy9aOdDLNS++2imj1fY2nmR9KI3ZDXibSvYQPfODC0ubhhv0KBIKn2EMY3X
+# Hsj8bCRGeLpGJjUFCOoK6NvJ/T/AoYIDJjCCAyIGCSqGSIb3DQEJBjGCAxMwggMP
 # AgEBMH0waTELMAkGA1UEBhMCVVMxFzAVBgNVBAoTDkRpZ2lDZXJ0LCBJbmMuMUEw
 # PwYDVQQDEzhEaWdpQ2VydCBUcnVzdGVkIEc0IFRpbWVTdGFtcGluZyBSU0E0MDk2
 # IFNIQTI1NiAyMDI1IENBMQIQCE/cM09+RU7bww+P+ZIYNTANBglghkgBZQMEAgEF
 # AKBpMBgGCSqGSIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTI2
-# MDkyOTAxNTQxNlowLwYJKoZIhvcNAQkEMSIEIP2fFvkAPWtoCDb9uJBJbYUsmKbE
-# CWYtOk3X7ilUDrK2MA0GCSqGSIb3DQEBAQUABIICABkBT8LFwJTn7E81gEHl35tj
-# VdQ5+FAdhDnz0qeEoGyGySQhKobu+VnQY1SgxK00HGSSMH5N7W0NX2GArpBBT0ri
-# jQXec+XSX/O9Zh9RXQFwY8VYyrEJoaHs08l2Ng74qBR2sNb7cwM13ZVXKxEiAkQv
-# P891WFRLHvyh79hDxU9/SbKW7EBL1w4mRp26YG0gfFYDs8TUXhn//9+lGFtbhSaa
-# bpIGIopTp83tcrjddJDrWzAWkBMnAVxllOdUM0q/UChit2lAHFaZBdmYb2+KnX+H
-# HWRMKWcL2L7e+XbJxCsnV8KACWHhfq6owUhfsgzjdUz05ZILduPHqmIpwIWEGRwV
-# CianOcl5GINa6Qk0+Dbk+yCs0bC54xjQrppHr2GtiHX8Ms75Ae7Z4O4+x3oAgCnE
-# 9AIc0mXV36vmGsZlgqj631ZsYuMwOMBl4LSjqVnhhuSaxVyI5XUXhwdqD4aGuBV5
-# z54dPjoPXWRwuRuG6+GwmzkDFWvnM9LREHJBJmd0DKJ0Djr2QAWLHbRsd5UjELWL
-# ksHBt8XnFu6STyzN5hFQvOVWdnitbOT1PQs0yFdqQlqhHxiBpzBGXYOcl/KYf6ai
-# Ofjmjs6wAVveyJM6Ska1tJpWt3gl8xFi8wIyNBK1JhffO+VmXa21r5ZTFtZNvKZV
-# ILNtBTVvxf8adpVCvQp2
+# MTAzMTE2MjkxMVowLwYJKoZIhvcNAQkEMSIEIJRRzsA7wgt6tAkhGUBxSjT86/kC
+# 4znQ0WmKVu1eg1rcMA0GCSqGSIb3DQEBAQUABIICAHGBz2WMsH7/lkN5QYPCc/CY
+# +O+bX32oHqJYRpYmrax06VZG7/A1gXolSf4MJLZvnb7O44CiH8aQ1Mr83RTP/Kfh
+# fhVm+W6CaIK59Yo2neu9Purh9FMcX01U5bzXAjnGfPNcZAw2j8mYnuLssp8lmkIj
+# KOPu2tMymwn28Mi/ZLbDcOHp3utXP9Ju29nobaJLaQqhd9jIb9OiPm5euWsGFIAg
+# 5wwHAD9ds6XvJiq4GegHrJSKHQUjbLbtUgAi53TGJslZQ6F+Mp0yCqTtpw9HCaWP
+# xG+LXPl4tcKAasN5qhlIJGHgNl4nL+IRZm0N7kyMrpekvOaCS2mPGplhAp5b0vIn
+# MrmMO7LQCdXyA+1aJtt2Lmm2a5T/25mviMEXHb3vsh4N3HAGldsNvYZ/O2n+HIZJ
+# UtnmwQc7QcwWhqaB2d4T0ogxcW/EsfffkIt31tCahBWmzOMJ5mSReNp1pZuxCIXn
+# cJgZmC27J/S1IizKbOtUikJUSp/+9z7QtWpjKrx0wRJfGFlofvZUi3sSIrXWW8f1
+# QiiPbDz7GLxL3vtf3uG+CPAFT731h4q3S5GiYSzFOmyMJpy9J9wiw+ve/o1lso4H
+# d6R/fhK/2fyd8x9U6Q/hIjX2Cy9mpKxiyCLHnSjuHxvmdhTitLE/WzLtnRE2iFTZ
+# gTBoasQ72OFB5UDzw+kd
 # SIG # End signature block

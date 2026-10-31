@@ -72,7 +72,7 @@ The filterable columns are: SQLAgentAlertEventID, EventDateTime, ComputerName, S
 
 ```yaml
 Type: System.String
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -93,7 +93,7 @@ The name of the SQL Server instance to connect to.
 
 ```yaml
 Type: System.String
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -114,7 +114,7 @@ An open SQL Client Connection object.
 
 ```yaml
 Type: Microsoft.Data.SqlClient.SqlConnection
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:

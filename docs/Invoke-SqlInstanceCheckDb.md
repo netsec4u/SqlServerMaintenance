@@ -115,7 +115,7 @@ Specifies the name of the database to back up.
 
 ```yaml
 Type: System.String[]
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -158,7 +158,7 @@ Returns informational messages from the CheckDb operation.
 
 ```yaml
 Type: System.Management.Automation.SwitchParameter
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -179,7 +179,7 @@ Overrides the max degree of parallelism configuration option for the CheckDb.
 
 ```yaml
 Type: System.Int32
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -242,7 +242,7 @@ The name of the SQL Server instance to connect to.
 
 ```yaml
 Type: System.String
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -263,7 +263,7 @@ An existing SMO Server object representing the SQL Server instance.
 
 ```yaml
 Type: Microsoft.SqlServer.Management.Smo.Server
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:

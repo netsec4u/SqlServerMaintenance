@@ -219,7 +219,7 @@ Dynamic parameter available when Platform is Unix and SettingName is SMTPSetting
 
 ```yaml
 Type: System.String
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -263,7 +263,7 @@ Dynamic parameter available when SettingName is AdminDatabase.
 
 ```yaml
 Type: System.String
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -285,7 +285,7 @@ Dynamic parameter available when Platform is Unix and SettingName is SMTPSetting
 
 ```yaml
 Type: System.String
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -307,7 +307,7 @@ Dynamic parameter available when SettingName is SMTPSettings.
 
 ```yaml
 Type: System.String
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -329,7 +329,7 @@ Dynamic parameter available when SettingName is EmailNotification.
 
 ```yaml
 Type: System.String[]
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -351,7 +351,7 @@ Dynamic parameter available when SettingName is Statistics, Tests, or SQLAgentAl
 
 ```yaml
 Type: System.Int32
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -385,7 +385,7 @@ Dynamic parameter available when SettingName is AdminDatabase.
 
 ```yaml
 Type: System.String
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -407,7 +407,7 @@ Dynamic parameter available when SettingName is EmailNotification.
 
 ```yaml
 Type: System.String
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -428,7 +428,7 @@ Specifies setting to set configuration.
 
 ```yaml
 Type: SqlServerMaintenanceSetting
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -449,7 +449,7 @@ Dynamic parameter available when SettingName is SMTPSettings.
 
 ```yaml
 Type: System.String
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -476,7 +476,7 @@ Dynamic parameter available when SettingName is SMTPSettings.
 
 ```yaml
 Type: System.Management.Automation.PSCredential
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -498,7 +498,7 @@ Dynamic parameter available when SettingName is SMTPSettings.
 
 ```yaml
 Type: System.Int32
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -526,7 +526,7 @@ Dynamic parameter available when SettingName is SMTPSettings.
 
 ```yaml
 Type: System.String
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -554,7 +554,7 @@ Dynamic parameter available when SettingName is Statistics.
 
 ```yaml
 Type: System.String
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -576,7 +576,7 @@ Dynamic parameter available when SettingName is Tests.
 
 ```yaml
 Type: System.String
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -597,7 +597,7 @@ Dynamic parameter available when Platform is Win32NT and SettingName is SMTPSett
 
 ```yaml
 Type: System.String
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:

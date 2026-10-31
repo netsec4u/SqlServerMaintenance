@@ -78,7 +78,7 @@ Specifies the destination path.
 
 ```yaml
 Type: System.IO.DirectoryInfo
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -120,7 +120,7 @@ Specifies the source path.
 
 ```yaml
 Type: System.IO.DirectoryInfo
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:

@@ -119,7 +119,7 @@ Specifies the name of the database to back up.
 
 ```yaml
 Type: System.String[]
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -140,7 +140,7 @@ Specifies the log shipping operation to invoke.
 
 ```yaml
 Type: LSOperation
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -162,7 +162,7 @@ This server instance becomes the target of the backup operation.
 
 ```yaml
 Type: System.String
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -183,7 +183,7 @@ Specifies PS Session.
 
 ```yaml
 Type: System.Management.Automation.Runspaces.PSSession
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -204,7 +204,7 @@ An open SQL Client Connection object.
 
 ```yaml
 Type: Microsoft.Data.SqlClient.SqlConnection
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:

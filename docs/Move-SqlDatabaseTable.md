@@ -212,7 +212,7 @@ Specifies the name of the database
 
 ```yaml
 Type: System.String
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -233,7 +233,7 @@ Name of file group to move database objects to.
 
 ```yaml
 Type: System.String
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -254,7 +254,7 @@ Specifies the name of the index to move.
 
 ```yaml
 Type: System.String
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -281,7 +281,7 @@ Specifies Schema to move to another filegroup.
 
 ```yaml
 Type: System.String
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -332,7 +332,7 @@ The name of the SQL Server instance to connect to.
 
 ```yaml
 Type: System.String
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -365,7 +365,7 @@ An existing SMO Server object representing the SQL Server instance.
 
 ```yaml
 Type: Microsoft.SqlServer.Management.Smo.Server
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -398,7 +398,7 @@ Specifies table to move to another filegroup.
 
 ```yaml
 Type: System.String
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:

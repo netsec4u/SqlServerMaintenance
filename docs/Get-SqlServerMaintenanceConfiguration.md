@@ -52,7 +52,7 @@ Specifies setting to retrieve settings.
 
 ```yaml
 Type: SqlServerMaintenanceSetting
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:

@@ -194,7 +194,7 @@ BackupFileInfo Object.
 
 ```yaml
 Type: SqlServerMaintenance.BackupFileInfo[]
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -221,7 +221,7 @@ Backup Root folder.
 
 ```yaml
 Type: System.IO.DirectoryInfo
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -260,7 +260,7 @@ Name of database.
 
 ```yaml
 Type: System.String
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -299,7 +299,7 @@ Full or differential Backup files to exclude.
 
 ```yaml
 Type: System.IO.FileInfo[]
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -360,7 +360,7 @@ Datetime must be near marked transaction.
 
 ```yaml
 Type: System.DateTimeOffset
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -387,7 +387,7 @@ Alternate name to restore database to.
 
 ```yaml
 Type: System.String
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -429,7 +429,7 @@ Date and time to recover database to.
 
 ```yaml
 Type: System.DateTimeOffset
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -477,7 +477,7 @@ The name of the SQL Server instance to connect to.
 
 ```yaml
 Type: System.String
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -537,7 +537,7 @@ An existing SMO Server object representing the SQL Server instance.
 
 ```yaml
 Type: Microsoft.SqlServer.Management.Smo.Server
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -592,7 +592,7 @@ Can stopped on marked transaction or log sequence number (LSN).
 
 ```yaml
 Type: System.String
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -619,7 +619,7 @@ SQL Server instance time zone id where backups were created.  For accurate recov
 
 ```yaml
 Type: System.String
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:

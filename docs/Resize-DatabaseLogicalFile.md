@@ -118,7 +118,7 @@ Specifies the name of the database to evaluate log file growth rate.
 
 ```yaml
 Type: System.String
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -139,7 +139,7 @@ Name of file group to resize logical files.
 
 ```yaml
 Type: System.String
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -166,7 +166,7 @@ Name of logical file to resize.
 
 ```yaml
 Type: System.String
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -193,7 +193,7 @@ Size in megabytes to resize logical file to.
 
 ```yaml
 Type: System.Int32
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -214,7 +214,7 @@ The name of the SQL Server instance to connect to.
 
 ```yaml
 Type: System.String
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -241,7 +241,7 @@ Shrink method to use.
 
 ```yaml
 Type: Microsoft.SqlServer.Management.Smo.ShrinkMethod
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -262,7 +262,7 @@ An existing SMO Server object representing the SQL Server instance.
 
 ```yaml
 Type: Microsoft.SqlServer.Management.Smo.Server
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:

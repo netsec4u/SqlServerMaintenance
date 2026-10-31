@@ -84,7 +84,7 @@ Availability Secondary Group name to add log shipping database.
 
 ```yaml
 Type: System.String
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -148,7 +148,7 @@ Name of database to add to log shipping.
 
 ```yaml
 Type: System.String[]
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -169,7 +169,7 @@ Primary SQL server instance to setup log shipping.
 
 ```yaml
 Type: System.String
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -190,7 +190,7 @@ Specifies SQL Server Management Object.
 
 ```yaml
 Type: Microsoft.SqlServer.Management.Smo.Server
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -211,7 +211,7 @@ Secondary SQL server instance to setup log shipping.
 
 ```yaml
 Type: System.String
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -232,7 +232,7 @@ Specifies SQL Server Management Object.
 
 ```yaml
 Type: Microsoft.SqlServer.Management.Smo.Server
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -253,7 +253,7 @@ Path to staging folder.
 
 ```yaml
 Type: System.IO.DirectoryInfo
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:

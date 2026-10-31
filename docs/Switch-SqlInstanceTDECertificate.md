@@ -123,7 +123,7 @@ Specifies the certificate to change certificate.
 
 ```yaml
 Type: System.String
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -172,7 +172,7 @@ Specifies the name of the database.
 
 ```yaml
 Type: System.String[]
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -193,7 +193,7 @@ Specifies to create a new certificate for protecting the database encryption key
 
 ```yaml
 Type: System.Management.Automation.SwitchParameter
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -220,7 +220,7 @@ The name of the SQL Server instance to connect to.
 
 ```yaml
 Type: System.String
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -253,7 +253,7 @@ An existing SMO Server object representing the SQL Server instance.
 
 ```yaml
 Type: Microsoft.SqlServer.Management.Smo.Server
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:

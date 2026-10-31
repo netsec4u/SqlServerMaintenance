@@ -95,7 +95,7 @@ Enter names (optional) and the email address, such as Name<someone@example.com>.
 
 ```yaml
 Type: System.Net.Mail.MailAddress[]
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -116,7 +116,7 @@ Specifies the body of the email message.
 
 ```yaml
 Type: System.String
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -159,7 +159,7 @@ Enter names (optional) and the email address, such as Name<someone@example.com>.
 
 ```yaml
 Type: System.Net.Mail.MailAddress[]
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -202,7 +202,7 @@ Specifies the name of the database mail profile.
 
 ```yaml
 Type: System.String
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -224,7 +224,7 @@ Enter a name (optional) and email address, such as Name<someone@example.com>.
 
 ```yaml
 Type: System.Net.Mail.MailAddress
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -246,7 +246,7 @@ Enter names (optional) and the email address, such as Name<someone@example.com>.
 
 ```yaml
 Type: System.Net.Mail.MailAddress[]
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -267,7 +267,7 @@ Specifies the priority of the email message.
 
 ```yaml
 Type: System.Net.Mail.MailPriority
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -289,7 +289,7 @@ Enter a name (optional) and email address, such as Name<someone@example.com>.
 
 ```yaml
 Type: System.Net.Mail.MailAddress
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -310,7 +310,7 @@ Specifies the sensitivity of the email message.
 
 ```yaml
 Type: DbMailSensitivity
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -331,7 +331,7 @@ The name of the SQL Server instance to connect to.
 
 ```yaml
 Type: System.String
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -352,7 +352,7 @@ An open SQL Client Connection object.
 
 ```yaml
 Type: Microsoft.Data.SqlClient.SqlConnection
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
@@ -373,7 +373,7 @@ Specifies the subject of the email message.
 
 ```yaml
 Type: System.String
-DefaultValue: None
+DefaultValue: ''
 SupportsWildcards: false
 Aliases: []
 ParameterSets:
