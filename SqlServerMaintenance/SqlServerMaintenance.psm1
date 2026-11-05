@@ -5016,7 +5016,7 @@ function Get-DatabaseRecovery {
 						)
 
 						switch ($LastBackupHeader.BackupTypeDescription) {
-							'DATABASE' {
+							{$_ -in @('Database', 'File or Filegroup')} {
 								if (-not $SkipLogChainCheck) {
 									if ($TrnBackupHeader.FirstLSN -gt $LastBackupHeader.CheckpointLSN) {
 										throw [System.Management.Automation.ErrorRecord]::new(
@@ -5036,7 +5036,7 @@ function Get-DatabaseRecovery {
 									continue ParentLoop
 								}
 							}
-							'TRANSACTION LOG' {
+							'Transaction Log' {
 								if (-not $SkipLogChainCheck) {
 									if ($LastBackupHeader.LastLSN -ne $TrnBackupHeader.FirstLSN) {
 										throw [System.Management.Automation.ErrorRecord]::new(
@@ -5064,7 +5064,7 @@ function Get-DatabaseRecovery {
 									}
 								}
 							}
-							'DATABASE DIFFERENTIAL' {
+							{$_ -in @('Database Differential', 'File Differential')} {
 								if (-not $SkipLogChainCheck) {
 									if ($TrnBackupHeader.FirstLSN -gt $LastBackupHeader.CheckpointLSN) {
 										throw [System.Management.Automation.ErrorRecord]::new(
@@ -5190,7 +5190,7 @@ function Get-DatabaseRecovery {
 
 						$FormatString = "RESTORE DATABASE [{0}]`nFROM {1}`nWITH {2};"
 					}
-					{$_ -in @('File or Filegroup', 'File or Filegroup Differential')} {
+					{$_ -in @('File or Filegroup', 'File Differential')} {
 						$BackupFileList = Get-SmoBackupFileList -SmoServerObject $SmoServerObject -DatabaseBackupPath @($RestoreItem.BackupFileName.FullName)[0]
 
 						$FileGroupList = [System.Collections.Generic.List[string]]::New()
@@ -8765,7 +8765,7 @@ function Invoke-SqlBackupVerification {
 											}
 
 											if ($BackupHeader.RecoveryModel -eq 'SIMPLE') {
-												$BackupFileInfo.AddRange($LastFullBackupFile.Group)
+												$BackupFileInfo.AddRange([SqlServerMaintenance.BackupFileInfo[]]$LastFullBackupFile.Group)
 
 												$LastDiffBackup = $SqlBackupFiles.where({$_.Extension -eq '.dif' -and $_.BackupDate -gt @($LastFullBackupFile.Group.BackupDate)[0]}) | Measure-Object -Property BackupDate -Maximum
 
@@ -8773,11 +8773,11 @@ function Invoke-SqlBackupVerification {
 													$LastDiffBackupFile = $SqlBackupFiles.where({$_.Extension -eq '.dif' -and $_.BackupDate -eq $LastDiffBackup.Maximum})
 
 													if ($LastDiffBackupFile.Count -gt 0) {
-														$BackupFileInfo.AddRange($LastDiffBackupFile)
+														$BackupFileInfo.AddRange([SqlServerMaintenance.BackupFileInfo[]]$LastDiffBackupFile)
 													}
 												}
 											} else {
-												$BackupFileInfo.AddRange($FirstFullBackupFile)
+												$BackupFileInfo.AddRange([SqlServerMaintenance.BackupFileInfo[]]$FirstFullBackupFile)
 											}
 										}
 										#EndRegion
@@ -8851,14 +8851,14 @@ function Invoke-SqlBackupVerification {
 														}
 
 														if ($FullBackupHeader[0].IsCopyOnly -eq $false) {
-															$BackupFileInfo.AddRange($PreviousFullBackup.Group)
+															$BackupFileInfo.AddRange([SqlServerMaintenance.BackupFileInfo[]]$PreviousFullBackup.Group)
 
 															break
 														}
 													}
 												}
 
-												$BackupFileInfo.AddRange($($NextBackupFile.Group))
+												$BackupFileInfo.AddRange([SqlServerMaintenance.BackupFileInfo[]]$NextBackupFile.Group)
 												$BackupFileInfo.AddRange([SqlServerMaintenance.BackupFileInfo[]]($SqlBackupFiles.where({$_.Extension -eq '.trn' -and $_.BackupDate -gt @($NextBackupFile.Group.BackupDate)[0] -and $_.BackupDate -le $LastDatabaseBackupFileInfo.LastWriteTimeUtc})))
 												#EndRegion
 											}
@@ -8925,7 +8925,7 @@ function Invoke-SqlBackupVerification {
 																}
 
 																if ($BackupHeader[0].IsCopyOnly -eq $false) {
-																	$BackupFileInfo.AddRange($PreviousBackup.Group)
+																	$BackupFileInfo.AddRange([SqlServerMaintenance.BackupFileInfo[]]$PreviousBackup.Group)
 
 																	break
 																}
@@ -17661,8 +17661,8 @@ Export-ModuleMember	-Alias New-SqlDatabaseSnapshot
 # SIG # Begin signature block
 # MIInywYJKoZIhvcNAQcCoIInvDCCJ7gCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCpMsgELksq198A
-# CzLl/d+xelVLd+wqSL34YXqbOH7EoqCCINswggWNMIIEdaADAgECAhAOmxiO+dAt
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAK08GQVKTU/fEt
+# ZkyYmnUfLo7zVGCM3doYquMMMJCDfqCCINswggWNMIIEdaADAgECAhAOmxiO+dAt
 # 5+/bUOIIQBhaMA0GCSqGSIb3DQEBDAUAMGUxCzAJBgNVBAYTAlVTMRUwEwYDVQQK
 # EwxEaWdpQ2VydCBJbmMxGTAXBgNVBAsTEHd3dy5kaWdpY2VydC5jb20xJDAiBgNV
 # BAMTG0RpZ2lDZXJ0IEFzc3VyZWQgSUQgUm9vdCBDQTAeFw0yMjA4MDEwMDAwMDBa
@@ -17842,34 +17842,34 @@ Export-ModuleMember	-Alias New-SqlDatabaseSnapshot
 # Uy5BLjEkMCIGA1UEAxMbQ2VydHVtIENvZGUgU2lnbmluZyAyMDIxIENBAhBDuzRB
 # nypScc4/rofK9qMeMA0GCWCGSAFlAwQCAQUAoIGEMBgGCisGAQQBgjcCAQwxCjAI
 # oAKAAKECgAAwGQYJKoZIhvcNAQkDMQwGCisGAQQBgjcCAQQwHAYKKwYBBAGCNwIB
-# CzEOMAwGCisGAQQBgjcCARUwLwYJKoZIhvcNAQkEMSIEIJY1iDBNWufHs0lTotJg
-# WMXn4fd9f+h6oJ1Rr4qlDmMcMA0GCSqGSIb3DQEBAQUABIICAEX7CfCPUiymE/sc
-# wrjIHncgX5/zjRHwjhiRLPFobRhs5OWztfkZ3ywYz44V4IqoFjjYXFQHdmAlRv1q
-# Lyo9BLR/T8McI2gbO91FCARaReXHJU3iuqbVJ4yuQkE5a6L2+Kxn0c297IuxluNc
-# gjUHB2ljWojAjmVVlw/lfCR2At/b0ZkGRGyD8x3OfhtUl3/cv4aLIfVOfy0F+4Bb
-# e3T/mQUoyKMinojX4VVYvXK0Jrv+/yAHL80oAEeryZ+4BQx6lMfDhihFPbDgyb02
-# Dgebu/sI5f6kII+gqR4k7yhpNLAe4CSWhNmTu95cQchIw3CEg7DgmQWVhGDULQlY
-# n8q0DrjN35CQqamyUOdZikmPr6T0TxGsDn38xvm/qWYy3Bnej9hDfOW8eZXZMCEd
-# mqvYrsGGiC3MLl+vsXHpE1wGe+1z/nVAY2kWgm08kgTMDaFTTSLWFl+sv3otAIxl
-# hElrSa5swW+2bLGKGeb+GqlYXxZw+iRTMjQVrGNtrW1FW5ONTQ1LdKaUGgtqs2gc
-# SRAXxC1PSp1zR/KkZzNnSXJrwCMnm8yAGqwZnrkUk3wIXEFO73a72OOdgmX54vBT
-# XKWw3Zy9aOdDLNS++2imj1fY2nmR9KI3ZDXibSvYQPfODC0ubhhv0KBIKn2EMY3X
-# Hsj8bCRGeLpGJjUFCOoK6NvJ/T/AoYIDJjCCAyIGCSqGSIb3DQEJBjGCAxMwggMP
+# CzEOMAwGCisGAQQBgjcCARUwLwYJKoZIhvcNAQkEMSIEIGoAlXogfDIHH7rNRIYw
+# 5ECrXDm157yx9z50zBOYmn7aMA0GCSqGSIb3DQEBAQUABIICAIIb8uU+2bqMUztm
+# m3x2AcxNXZ4rcbJ3gE4oyYv1LlNS57/uDI6JLp+M7pTS/2j1IWdT2n7B3DP9WZoG
+# Nj3obOxa460ouM8n+M42glRaz6LK5cAogqA72DhdsFeSI4UTEfqTEHINXc7d6dka
+# IrhHjLB1IhEOU7unzcJtTKsV+YCGvj8AByTrTWz+D2oP03suo6CtJV+oioyeSVOu
+# BO7QqcZ8Cg1Yvmfx9tbOX6noFPo0n90KD7/J/D1+rF2fN8XUlYeHpfTzrks73S2L
+# cTS4pTJVBX2tfhA11KAqU8GA/WFMHdHI/ExpGC2trIA2QJ/upvjPBdB5aNtdlvpb
+# KZYxo03F2GlGL+LceD+9WF3dMKf376wl1hsMGXE2S5mLUzvdqHyDaYtN22xK6rXh
+# B4erF9d7yyuDsp3z00xNhoQhuwoJQ4eZZZlW/Q1zePaSzGufQJjlnbktKNfyUcUJ
+# /MaVBxF8RfxpvL54adJrOh7AdpAaPQuEFzX+Ad6XGJi1WEPN1IFcluvWu91GYJ29
+# BdZTuzfMbXeXzMGURJn45n/REwzVItegSaextZUAJ9P+OyFLeU+U+fDnMBVIIsVT
+# xD98f1LWEEvLaWk8DJzSDLQxynU071gUx4FMZ9SeQXO5G3SNg8sXDHNUilkZKneY
+# LDl791qS0P2WDrLz2Xr4gflWv5oeoYIDJjCCAyIGCSqGSIb3DQEJBjGCAxMwggMP
 # AgEBMH0waTELMAkGA1UEBhMCVVMxFzAVBgNVBAoTDkRpZ2lDZXJ0LCBJbmMuMUEw
 # PwYDVQQDEzhEaWdpQ2VydCBUcnVzdGVkIEc0IFRpbWVTdGFtcGluZyBSU0E0MDk2
 # IFNIQTI1NiAyMDI1IENBMQIQCE/cM09+RU7bww+P+ZIYNTANBglghkgBZQMEAgEF
 # AKBpMBgGCSqGSIb3DQEJAzELBgkqhkiG9w0BBwEwHAYJKoZIhvcNAQkFMQ8XDTI2
-# MTAzMTE2MjkxMVowLwYJKoZIhvcNAQkEMSIEIJRRzsA7wgt6tAkhGUBxSjT86/kC
-# 4znQ0WmKVu1eg1rcMA0GCSqGSIb3DQEBAQUABIICAHGBz2WMsH7/lkN5QYPCc/CY
-# +O+bX32oHqJYRpYmrax06VZG7/A1gXolSf4MJLZvnb7O44CiH8aQ1Mr83RTP/Kfh
-# fhVm+W6CaIK59Yo2neu9Purh9FMcX01U5bzXAjnGfPNcZAw2j8mYnuLssp8lmkIj
-# KOPu2tMymwn28Mi/ZLbDcOHp3utXP9Ju29nobaJLaQqhd9jIb9OiPm5euWsGFIAg
-# 5wwHAD9ds6XvJiq4GegHrJSKHQUjbLbtUgAi53TGJslZQ6F+Mp0yCqTtpw9HCaWP
-# xG+LXPl4tcKAasN5qhlIJGHgNl4nL+IRZm0N7kyMrpekvOaCS2mPGplhAp5b0vIn
-# MrmMO7LQCdXyA+1aJtt2Lmm2a5T/25mviMEXHb3vsh4N3HAGldsNvYZ/O2n+HIZJ
-# UtnmwQc7QcwWhqaB2d4T0ogxcW/EsfffkIt31tCahBWmzOMJ5mSReNp1pZuxCIXn
-# cJgZmC27J/S1IizKbOtUikJUSp/+9z7QtWpjKrx0wRJfGFlofvZUi3sSIrXWW8f1
-# QiiPbDz7GLxL3vtf3uG+CPAFT731h4q3S5GiYSzFOmyMJpy9J9wiw+ve/o1lso4H
-# d6R/fhK/2fyd8x9U6Q/hIjX2Cy9mpKxiyCLHnSjuHxvmdhTitLE/WzLtnRE2iFTZ
-# gTBoasQ72OFB5UDzw+kd
+# MTEwNTA0MTUxN1owLwYJKoZIhvcNAQkEMSIEIFydi0O/WK9ilHaZ3BrCns77WVqs
+# JPSNEcXpqmZ/ezMdMA0GCSqGSIb3DQEBAQUABIICADNSzncwxz0az3qF1REVqRv4
+# /oU0DMev3hpvk6/6eQfS4Hu1B3AGex6bDNI4VW+7nyTfFtZcq82zyAmWTmh2c+CC
+# m7P4YlXAIN1ECGpoIjD54BirPEXK8J4NlBSoJ8WGv27xmbyiJu+j+eDzSLrQoqaS
+# hz3fuTrIw5CP8wgCsKYCulXPrR7J8BJ2+3gWe6Fde1by3LupInEJpIFxZcV3DbKH
+# ulb41TmA1vwSqXxmrCvAqei23ebez3gv6X+xOAwkB/Zb/4igOeN6vbFkStXUIzOX
+# Irmox1oUPXztud1d16d9WtTg5rSgy8JEd9B1E/NHfdD2fNyHdVUmxHdVWWyPfHUS
+# FICvF9UHgcuB/v6kZzZGGzisHO6lxi0cCtiCPMLu0qnZJctYQDqP2XEqecSCOMga
+# UqkQW86opo4LwETdW7FEUS2DXH++5B7cS+E/QOJ/vKEe4VmJhi7kk8OdcO06F59W
+# ZztA6yCSSLQM+MpjDS5Vdoa/MCCaXqPnvE1WckqkDEygWa35kCzz/JCAs9cKTIAo
+# mKD541SFg3Ktchfihu/Ffe/5J2SQ4YDacBZzFIaVF0aIevnMS2sX+zWmT0uQAtLm
+# M/U0GNmqkOzT4CHt6gAJ9AYnXaONskPvxDFgDPm+m6qe78vhwHzl7+fOq43Tbxjg
+# FWaZNS/icFHndwMv9H46
 # SIG # End signature block
