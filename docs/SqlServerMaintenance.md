@@ -1,11 +1,11 @@
 ---
 document type: module
-Help Version: 2.0.0.0
+Help Version: 2.1.0.0
 HelpInfoUri: https://netsec4u.github.io/Help/SqlServerMaintenance/
 Locale: en-US
 Module Guid: c571c8da-cef7-4b95-ba3d-bda6e5f2fee9
 Module Name: SqlServerMaintenance
-ms.date: 05/08/2026
+ms.date: 10/25/2026
 PlatyPS schema version: 2024-05-01
 title: SqlServerMaintenance Module
 ---
